@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V5.0 · AVANCE · Evaluación sencilla del análisis de suelo para cacao · Alto Huallaga')
+st.caption('V5.0 · RESPALDO DE AVANCE · Análisis de suelo y manejo nutricional del cacao')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -311,6 +311,35 @@ with secciones[1]:
                 st.warning('Saturación de aluminio elevada: solicite evaluación técnica de acidez.')
             if mg is not None and 0 < mg < 0.5:
                 st.info('Magnesio intercambiable bajo según criterio provisional. Verificar antes de seleccionar una enmienda.')
+            st.subheader('4. Evaluación preliminar de cal agrícola o dolomita')
+            st.caption('Selección orientativa basada en el esquema Ca/Mg proporcionado por el usuario. Sus rangos no están aún validados como criterio universal para cacao; la necesidad de encalar se evalúa aparte con el enfoque del INIA.')
+            ca_val, mg_val = datos.get('ca'), datos.get('mg')
+            relacion = ca_val / mg_val if ca_val is not None and mg_val is not None and mg_val > 0 else None
+            if relacion is None:
+                st.info('Para evaluar la relación Ca/Mg ingrese Ca y Mg intercambiables en las mismas unidades; Mg debe ser mayor que cero.')
+            else:
+                st.metric('Relación Ca/Mg', f'{relacion:.2f}:1')
+                if 3 <= relacion < 4:
+                    enmienda = 'Cal agrícola (orientativa)'
+                elif 4 <= relacion <= 7:
+                    enmienda = 'Dolomita (orientativa)'
+                elif 7 < relacion <= 12:
+                    enmienda = 'Dolomita; revisar aporte adicional de Mg (orientativo)'
+                else:
+                    enmienda = 'Fuera de los rangos de la lámina; requiere revisión técnica'
+                st.info(f'**Selección preliminar según la lámina:** {enmienda}. La relación Ca/Mg sola no determina la necesidad ni la dosis de encalado.')
+            st.caption('Referencia de encalado: manual técnico INIA 2025 para café y cacao, capítulo 9. Objetivo de saturación de Al del ejemplo: 20 %. El método y sus factores para aplicación localizada deben contrastarse con el manual antes de prescribir dosis.')
+            c_cal, c_dolo = st.columns(2)
+            prnt_cal = c_cal.number_input('PRNT cal agrícola (%)', min_value=1.0, max_value=250.0, value=135.0, step=1.0, key='prnt_cal')
+            prnt_dolo = c_dolo.number_input('PRNT dolomita (%) — referencial', min_value=1.0, max_value=250.0, value=94.0, step=1.0, key='prnt_dolo')
+            plantas_encalado = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
+            area_planta = 3.141592653589793 * 0.5**2
+            area_tratada = area_planta * plantas_encalado
+            st.caption(f'Aplicación superficial, radio fijo 0.50 m: {area_planta:.4f} m²/planta · {area_tratada:.2f} m²/ha · {area_tratada / 100:.2f} % de hectárea. Profundidad de referencia del análisis: 0–20 cm.')
+            if datos.get('al') is not None and datos.get('cice') is not None and datos['cice'] > 0:
+                exceso_al = max(0.0, datos['al'] - 0.20 * datos['cice'])
+                st.caption(f'Exceso de Al sobre la meta teórica del 20 %: {exceso_al:.3f} cmol(+)/kg. No se traduce automáticamente en dosis comercial.')
+            st.warning('Dosis de enmienda en kg/ha, g/planta y sacos: PENDIENTE de verificar la ecuación completa del INIA y su aplicabilidad a la aplicación superficial localizada. No aplicar una dosis basada solo en este cálculo preliminar.')
             st.subheader('4. Nutrientes extraídos por la cosecha de cacao')
             st.caption('Extracción estimada por grano seco. El efecto de las cáscaras se registra, pero aún no se cuantifica sin un coeficiente de biomasa validado.')
             extraccion = pd.DataFrame([{'Macronutriente': nutriente,
@@ -356,25 +385,35 @@ with secciones[1]:
             st.markdown('**¿Cuánto aporta el suelo durante el año?** Todavía no se puede determinar con confiabilidad a partir de estos resultados únicamente. Se requiere una relación calibrada entre los métodos de suelo, la dinámica del suelo y la absorción del cacao.')
             st.info('El déficit de fertilización no se calcula aún: también faltan la demanda completa del cultivo, las cáscaras retiradas y la eficiencia de los fertilizantes. No se deben restar directamente los kg/ha analíticos de la extracción del grano.')
 
-            st.subheader('6. Compost GOVA SAC – DEVIDA: aporte potencial')
-            st.caption('Composición de referencia calculada con puntos medios de la etiqueta del producto; no es una dosis recomendada.')
+            st.subheader('6. Compost: aporte nutricional y recomendación de aplicación')
+            st.caption('Composición referencial editable. Verifique los porcentajes y la base seca o húmeda del análisis de su compost; no constituye una dosis recomendada.')
             # Porcentajes de nutrientes totales estimados, expresados en forma de fertilizante.
             # No se conoce la base húmeda/seca ni la fracción liberada el primer año.
-            compost_pct = {'N': 0.90, 'P₂O₅': 0.55 * 2.291, 'K₂O': 0.65 * 1.205}
+            col_n, col_p, col_k, col_saco = st.columns(4)
+            compost_pct = {
+                'N': col_n.number_input('N del compost (%)', min_value=0.0, max_value=100.0, value=0.90, step=0.05, key='compost_n'),
+                'P₂O₅': col_p.number_input('P₂O₅ del compost (%)', min_value=0.0, max_value=100.0, value=1.26, step=0.05, key='compost_p'),
+                'K₂O': col_k.number_input('K₂O del compost (%)', min_value=0.0, max_value=100.0, value=0.78, step=0.05, key='compost_k'),
+            }
+            peso_saco = col_saco.number_input('Peso del saco (kg)', min_value=1.0, value=50.0, step=1.0, key='compost_saco')
+            cantidad_compost = st.number_input('Cantidad de compost para simulación (kg/ha)', min_value=0.0, value=1000.0, step=100.0, key='compost_cantidad')
+            plantas_compost = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
+            st.caption(f'Equivalencias: {cantidad_compost / plantas_compost:.2f} kg/planta · {cantidad_compost / peso_saco:.2f} sacos/ha. Es una simulación de cantidad ingresada, NO una dosis calculada por el sistema.')
             tabla_compost = []
             for nutriente, porcentaje in compost_pct.items():
                 tabla_compost.append({
                     'Nutriente': nutriente,
                     'Contenido de referencia (%)': round(porcentaje, 3),
-                    'Cantidad potencial por saco de 50 kg (kg)': round(50 * porcentaje / 100, 3),
+                    'Cantidad potencial por saco (kg)': round(peso_saco * porcentaje / 100, 3),
+                    'Aporte total en simulación (kg/ha)': round(cantidad_compost * porcentaje / 100, 3),
                     'Aporte disponible el primer año': 'No determinado',
                 })
             st.dataframe(pd.DataFrame(tabla_compost), hide_index=True, use_container_width=True)
-            st.warning('Los contenidos son valores medios referenciales, NO nutrientes disponibles en el primer año. La etiqueta no precisa si los porcentajes se expresan en base seca o húmeda; por ello no se calculan dosis ni equivalencias de sustitución con fertilizantes minerales.')
+            st.warning('Los aportes son contenidos totales teóricos, NO nutrientes disponibles en el primer año. Confirme la composición y si está expresada en base seca o húmeda; no se calcula una dosis agronómica.')
             st.markdown('**¿Qué falta para recomendar una dosis?** Validar la oferta anual de nutrientes del suelo según el método de suelo, los requerimientos completos del cultivo, la recuperación de fertilizantes, la liberación del compost y el aporte o retiro de las cáscaras.')
 
             st.subheader('7. ¿Cuánto compost y fertilizante debo aplicar?')
-            st.info('Todavía no se puede calcular una dosis confiable únicamente con estos resultados. Falta validar la oferta anual del suelo, la recuperación de fertilizantes y la liberación del compost GOVA SAC. SIFERT no inventará una receta.')
+            st.info('Todavía no se puede calcular una dosis confiable únicamente con estos resultados. Falta validar la oferta anual del suelo, la recuperación de fertilizantes y la liberación del compost. SIFERT no inventará una receta.')
             st.caption('El análisis de suelo expresa concentraciones y reservas analíticas, no necesariamente suministro anual para el cacao. Si no se midió azufre, no se diagnostica su suficiencia.')
         except ValueError as e:
             st.session_state.pop('evaluacion_pendiente', None)
