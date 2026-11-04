@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V5.6 · AVANCE — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V5.8 · AVANCE — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V5.6 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
+st.caption('V5.8 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -68,39 +68,44 @@ def resolver_sistema(matriz, vector):
 
 
 def optimizar_fuentes(productos, catalogo, objetivo):
-    """Busca mezcla NPK exacta no negativa con hasta tres fuentes (mínima masa).
-    Si no hay combinación exacta, devuelve un plan vacío y una advertencia.
+    """Mezcla no negativa que cubre NPK, admitiendo excedentes explícitos.
+
+    Enumeración de vértices con hasta tres productos: cobertura >= objetivo.
+    Minimiza primero excedente relativo ponderado y luego masa de producto.
+    No es una optimización agronómica ni de costo.
     """
     from itertools import combinations
     nutrientes = ('N', 'P₂O₅', 'K₂O')
     activos = [k for k in nutrientes if objetivo[k] > 1e-8]
     if not activos:
         return {x: 0.0 for x in productos}, None
+    faltan = [k for k in activos if all(catalogo[x][k] <= 0 for x in productos)]
+    if faltan:
+        return {x: 0.0 for x in productos}, 'No hay fuente para: ' + ', '.join(faltan) + '. Marque un fertilizante que aporte esos nutrientes.'
     candidatos = [x for x in productos if any(catalogo[x][k] > 0 for k in activos)]
-    mejor = None
-    mejor_puntaje = float('inf')
-    # Soluciones extremas de Ax=b, x>=0: como máximo 3 productos.
+    mejor, mejor_puntaje = None, (float('inf'), float('inf'))
+    # En un problema lineal con tres nutrientes basta examinar vértices de
+    # hasta tres fuentes. Cada vértice fija tantas restricciones como fuentes.
     for cantidad in range(1, min(3, len(candidatos)) + 1):
         for grupo in combinations(candidatos, cantidad):
-            from itertools import combinations as elegir_filas
-            for filas in elegir_filas(nutrientes, cantidad):
+            for filas in combinations(activos, cantidad):
                 matriz = [[catalogo[x][k] for x in grupo] for k in filas]
                 valores = resolver_sistema(matriz, [objetivo[k] for k in filas])
                 if valores is None or any(v < -1e-7 for v in valores):
                     continue
-                valores = [max(0., v) for v in valores]
-                if any(abs(sum(valores[i]*catalogo[x][k] for i,x in enumerate(grupo))-objetivo[k]) > max(0.01, objetivo[k]*0.0001) for k in nutrientes):
+                valores = [max(0.0, v) for v in valores]
+                aportes = {k:sum(valores[i]*catalogo[x][k] for i,x in enumerate(grupo)) for k in nutrientes}
+                if any(aportes[k] < objetivo[k] - max(0.0001, objetivo[k]*1e-6) for k in activos):
                     continue
-                puntaje = sum(valores)
-                if puntaje < mejor_puntaje:
+                excedente = sum(max(0.0, aportes[k]-objetivo[k])/max(objetivo[k], 1.0) for k in activos)
+                # Penaliza excedentes, después masa; no oculta exceso.
+                puntaje = (excedente, sum(valores))
+                if mejor is None or puntaje < mejor_puntaje:
                     mejor_puntaje = puntaje
                     mejor = dict(zip(grupo, valores))
     if mejor is None:
-        faltan = [k for k in activos if all(catalogo[x][k] <= 0 for x in candidatos)]
-        if faltan:
-            return {x: 0.0 for x in productos}, 'Faltan fuentes de: ' + ', '.join(faltan) + '. Seleccione otros fertilizantes.'
-        return {x: 0.0 for x in productos}, 'Los productos elegidos no permiten equilibrar exactamente N, P₂O₅ y K₂O sin excedentes. Añada o cambie una fuente.'
-    return {x: mejor.get(x, 0.) for x in productos}, None
+        return {x: 0.0 for x in productos}, 'No se encontró una mezcla viable con las fuentes seleccionadas.'
+    return {x: mejor.get(x, 0.0) for x in productos}, None
 
 
 def distribuir_abonamientos(plan, catalogo, objetivo, total_plantas):
@@ -500,10 +505,10 @@ with secciones[1]:
                 dosis_compost = c1.number_input('Compost que aplicará (kg/planta/año)', min_value=0.0, max_value=100.0, value=2.0, step=0.5, key='compost_dosis_real')
                 anios_mo = c2.selectbox('Horizonte de simulación (años)', [1, 2, 3, 4, 5], index=0, key='compost_anios_proyeccion')
                 saco_compost = c3.number_input('Presentación (kg/saco)', min_value=1.0, value=50.0, key='saco_compost_proyeccion')
-                c4, c5, c6 = st.columns(3)
+                c4, c5 = st.columns(2)
                 radio_in = c4.number_input('Radio interior del anillo (m)', min_value=0.0, value=0.80, step=0.05, key='compost_radio_in')
                 radio_out = c5.number_input('Radio exterior del anillo (m)', min_value=0.05, value=1.20, step=0.05, key='compost_radio_out')
-                profundidad = c6.number_input('Profundidad evaluada (cm)', min_value=1.0, max_value=100.0, value=20.0, key='compost_prof')
+                profundidad = 20.0  # Profundidad fija de evaluación (0–20 cm)
                 with st.expander('⚙️ Parámetros técnicos y supuestos editables', expanded=False):
                     p1, p2, p3 = st.columns(3)
                     carbono_poda = p1.number_input('Carbono anual de poda (t C/ha/año)', min_value=0.0, value=3.45, step=0.05, key='compost_carbono_poda')
@@ -554,6 +559,13 @@ with secciones[1]:
                         st.caption(f'Compost acumulado en {anios_mo} año(s): {kg_compost_parcela_anual*anios_mo:,.0f} kg/parcela. Se supone la misma dosis y el mismo aporte de poda cada año.')
                         st.warning('IMPORTANTE: esta cifra es un escenario de aportes acumulados, NO una predicción validada del análisis de suelo. No descuenta mineralización de la M.O. preexistente ni pérdidas posteriores del carbono añadido; tampoco demuestra que todo el carbono de poda se incorpore a 0–20 cm. La M.O. real podría aumentar menos, mantenerse o disminuir. Verificar con análisis anuales de suelo.')
                         st.caption('Poda: referencia exploratoria de Schneidewind et al. (2019), Bolivia. Conversión C→M.O.: factor convencional 1.724. Estabilizaciones de 20 %: supuestos editables sin validación local. Compost: composición declarada en etiqueta DEVIDA.')
+                        st.markdown('**🌿 Beneficios potenciales del incremento de materia orgánica**')
+                        st.markdown('''- **CIC:** puede mejorar la capacidad del suelo para retener nutrientes.
+- **Nitrógeno:** aumenta potencialmente la reserva orgánica; su disponibilidad depende de la mineralización.
+- **Fósforo, potasio, calcio y magnesio:** puede favorecer su reciclaje o retención, según el suelo.
+- **Aluminio:** los compuestos orgánicos pueden disminuir su toxicidad, sin garantizar una reducción de la saturación de Al.
+- **Estructura y agua:** puede favorecer la agregación, la infiltración y la retención de humedad.''')
+                        st.caption('Estos beneficios son posibles, no aumentos cuantificados ni garantizados. SIFERT no modifica automáticamente CIC, N, P, K, pH ni saturación de Al; se requieren nuevos análisis para comprobar cambios.')
             st.info('El compost no se suma automáticamente al balance mineral NPK; ello no significa que carezca de nutrientes.')
 
             st.subheader('7. Balance NPK · simulación técnica preliminar')
@@ -619,7 +631,7 @@ with secciones[1]:
                     st.markdown('**Marque ✓ los fertilizantes que desea utilizar.** El resultado se actualiza automáticamente al marcar o desmarcar, sin pulsar Calcular.')
                     sugeridos = ['MOLIMAX 20-20-20 (Molinos & Cía.)', 'Urea', 'MAP 11-52-0', 'DAP 18-46-0', 'KCl 0-0-60 (cloruro)', 'Sulfato de potasio 0-0-50', 'NPK 15-15-15']
                     nombres_ordenados = [x for x in sugeridos if x in minerales] + [x for x in minerales if x not in sugeridos]
-                    st.caption('Productos frecuentes primero; abra «Otros fertilizantes» para ver el resto.')
+                    st.caption('Todos los fertilizantes minerales NPK están disponibles. Despliegue la lista completa para marcar los adicionales.')
                     fuentes = []
                     frecuentes = [x for x in nombres_ordenados if x in sugeridos]
                     cols = st.columns(2)
@@ -630,7 +642,7 @@ with secciones[1]:
                             fuentes.append(producto)
                     adicionales = [x for x in nombres_ordenados if x not in frecuentes]
                     if adicionales:
-                        with st.expander('➕ Otros fertilizantes disponibles'):
+                        with st.expander('➕ Ver todos los demás fertilizantes minerales NPK', expanded=True):
                             otras_cols = st.columns(2)
                             for i, producto in enumerate(adicionales):
                                 composicion = minerales[producto]
@@ -638,20 +650,20 @@ with secciones[1]:
                                 if otras_cols[i % 2].checkbox(producto, value=False, key=f'check_fuente_v54_{producto}', help=detalle):
                                     fuentes.append(producto)
                     st.caption(f'✓ {len(fuentes)} producto(s) marcado(s). El balance NPK se recalcula automáticamente.')
-                    st.caption('Puede marcar productos simples o compuestos. SIFERT considera todos sus aportes NPK; no necesariamente utilizará todos los marcados.')
+                    st.caption('Puede marcar productos simples o compuestos. SIFERT considera todos sus aportes NPK; no necesariamente utilizará todos los marcados. Los orgánicos, enmiendas y productos sin NPK garantizado se consultan en la biblioteca, pero no entran en este optimizador mineral.')
                 if not fuentes:
                     st.warning('Seleccione al menos un fertilizante para calcular las cantidades.')
                 else:
                     plan, alerta = optimizar_fuentes(fuentes, minerales, objetivo)
                     if alerta:
                         st.error('No se pudo generar una mezcla NPK equilibrada: ' + alerta)
-                        st.info('No se muestran dosis ni sacos hasta elegir una combinación viable. Puede agregar urea, MAP o KCl según el nutriente faltante.')
+                        st.info('Marque una fuente que aporte los nutrientes faltantes; el cálculo acepta excedentes y los mostrará en la auditoría.')
                     else:
                         usados = [x for x in fuentes if plan[x] > 1e-7]
                         no_usados = [x for x in fuentes if plan[x] <= 1e-7]
                         if no_usados:
                             st.caption('Productos seleccionados que no se necesitan para la combinación de menor masa: ' + ', '.join(no_usados))
-                        st.caption('El cálculo busca una combinación que cubra NPK sin excedentes y con la menor masa total de fertilizantes. No optimiza precio, compatibilidad ni respuesta agronómica.')
+                        st.caption('El cálculo cubre los objetivos NPK con los productos marcados, minimizando primero los excedentes relativos y luego la masa. No optimiza costo, compatibilidad ni respuesta agronómica.')
                         st.markdown('**Productos seleccionados y cantidad calculada automáticamente**')
                         inventario = {}
                         presentacion = {}
@@ -695,7 +707,11 @@ with secciones[1]:
                         if n_primero > objetivo['N']/3 + 0.01:
                             st.warning('El primer abonamiento supera un tercio del N anual por los fertilizantes compuestos. Revisar la distribución antes de aplicar.')
                         if all(abs(aporte_plan[k]-objetivo[k]) < 0.01 for k in objetivo):
-                            st.success('Auditoría matemática NPK correcta: la combinación cubre los objetivos sin duplicar nutrientes.')
+                            st.success('Auditoría matemática NPK: objetivos cubiertos sin excedentes relevantes.')
+                        else:
+                            excesos = [f'{k}: +{aporte_plan[k]-objetivo[k]:.2f} kg' for k in objetivo if aporte_plan[k] > objetivo[k]+0.01]
+                            if excesos:
+                                st.warning('La combinación cubre los objetivos, pero presenta excedentes: ' + '; '.join(excesos) + '. Revisar antes de aplicar.')
                         st.download_button('📥 Descargar ficha de fertilización (CSV)',
                             pd.DataFrame(filas_aplicacion).to_csv(index=False).encode('utf-8-sig'),
                             file_name='sifert_tres_abonamientos.csv', mime='text/csv',
