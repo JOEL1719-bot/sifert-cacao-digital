@@ -7,7 +7,7 @@ import streamlit as st
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 2 · simulador nutricional en validación')
+st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 2.1 · edición de análisis y simulador nutricional en validación')
 
 # Configure DATABASE_URL in Streamlit secrets for persistent PostgreSQL storage.
 try:
@@ -175,6 +175,53 @@ with tabs[1]:
                         [pid,fecha.isoformat()]+[vals[k] for k in FIELDS]+[textura,obs])
                 st.success('Análisis guardado')
             except Exception as e:st.error(str(e))
+    st.divider()
+    st.subheader('✏️ Editar o eliminar análisis existente')
+    st.caption('Seleccione un registro del participante para corregirlo sin crear duplicados, o eliminarlo con confirmación.')
+    if pid is not None:
+        existentes = execute('SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC', (pid,), fetch=True)
+        if existentes.empty:
+            st.info('Este participante todavía no tiene análisis registrados.')
+        else:
+            opciones = {f"{r['fecha']} · Análisis ID {int(r['id'])}": int(r['id']) for _, r in existentes.iterrows()}
+            etiqueta = st.selectbox('Análisis que desea modificar', list(opciones), key='edit_analysis_id')
+            aid = opciones[etiqueta]
+            actual = existentes[existentes['id'] == aid].iloc[0]
+            with st.form(f'edit_soil_{aid}'):
+                fecha_ed = st.date_input('Fecha del muestreo (editar)', value=pd.to_datetime(actual['fecha']).date(), key=f'edit_date_{aid}')
+                valores_ed = {}
+                for j in range(0, len(FIELDS), 3):
+                    columnas_ed = st.columns(3)
+                    for columna, campo in zip(columnas_ed, FIELDS[j:j+3]):
+                        previo = actual[campo]
+                        valores_ed[campo] = columna.number_input(
+                            LABELS[campo], value=float(previo) if pd.notna(previo) else 0.0,
+                            format='%.3f', key=f'edit_{aid}_{campo}',
+                            help='Si el resultado original estaba vacío, se muestra 0 para editarlo. Verifique los valores antes de guardar.')
+                textura_ed = st.text_input('Textura (editar)', value=str(actual['textura']) if pd.notna(actual['textura']) else '', key=f'edit_texture_{aid}')
+                obs_ed = st.text_area('Observaciones (editar)', value=str(actual['observaciones']) if pd.notna(actual['observaciones']) else '', key=f'edit_obs_{aid}')
+                guardar_ed = st.form_submit_button('💾 Guardar cambios')
+            if guardar_ed:
+                try:
+                    if any(valores_ed[k] for k in ['arena','limo','arcilla']) and abs(sum(valores_ed[k] for k in ['arena','limo','arcilla']) - 100) > 2:
+                        st.warning('Verifique textura: arena + limo + arcilla no suman 100 %.')
+                    asignaciones = ','.join(f'{campo}=?' for campo in ['fecha'] + FIELDS + ['textura','observaciones'])
+                    parametros = [fecha_ed.isoformat()] + [valores_ed[k] for k in FIELDS] + [textura_ed, obs_ed, aid, pid]
+                    execute(f'UPDATE analisis SET {asignaciones} WHERE id=? AND participante_id=?', parametros)
+                    st.success('Análisis actualizado sin duplicar el registro.')
+                    st.rerun()
+                except Exception as e:
+                    st.error(f'No se pudo actualizar: {e}')
+            with st.expander('🗑️ Eliminar este análisis'):
+                st.warning(f'Esta acción eliminará definitivamente el análisis ID {aid} del participante seleccionado. No se puede deshacer.')
+                confirmar = st.checkbox('Confirmo que deseo eliminar este análisis', key=f'confirm_delete_{aid}')
+                if st.button('Eliminar análisis definitivamente', disabled=not confirmar, key=f'delete_soil_{aid}'):
+                    try:
+                        execute('DELETE FROM analisis WHERE id=? AND participante_id=?', (aid, pid))
+                        st.success('Análisis eliminado.')
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f'No se pudo eliminar: {e}')
     st.subheader('Importación masiva de análisis')
     ac=['codigo','fecha']+FIELDS+['textura','observaciones']
     template_download(ac,'plantilla_analisis_unas.xlsx','Descargar plantilla UNAS')
