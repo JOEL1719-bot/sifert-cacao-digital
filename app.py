@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V4.9 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V5.0 · AVANCE — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V4.9 · Evaluación sencilla del análisis de suelo para cacao · Alto Huallaga')
+st.caption('V5.0 · AVANCE · Evaluación sencilla del análisis de suelo para cacao · Alto Huallaga')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -126,7 +126,7 @@ def init_db():
         cur = conn.cursor()
         cur.execute(f'''CREATE TABLE IF NOT EXISTS participantes (
             id {ident}, codigo TEXT UNIQUE NOT NULL, nombre TEXT NOT NULL,
-            caserio TEXT, area_ha REAL, plantas_ha INTEGER, edad_anios REAL, creado TEXT)''')
+            caserio TEXT, area_ha REAL, plantas_ha INTEGER, edad_anios REAL, manejo_cascaras TEXT, retiro_pct REAL, meta_kg_ha REAL, creado TEXT)''')
         cur.execute(f'''CREATE TABLE IF NOT EXISTS analisis (
             id {ident}, participante_id INTEGER NOT NULL, fecha TEXT NOT NULL,
             ph REAL, mo REAL, n REAL, p REAL, k2o REAL, k_cmol REAL,
@@ -140,6 +140,17 @@ def init_db():
             dosis_recomendada REAL, dosis_real REAL, unidad TEXT,
             area_ha REAL, observaciones TEXT,
             FOREIGN KEY(participante_id) REFERENCES participantes(id))''')
+        # Migración no destructiva para participantes existentes.
+        nuevas = {'manejo_cascaras':'TEXT', 'retiro_pct':'REAL', 'meta_kg_ha':'REAL'}
+        if IS_POSTGRES:
+            for columna, tipo in nuevas.items():
+                cur.execute(f'ALTER TABLE participantes ADD COLUMN IF NOT EXISTS {columna} {tipo}')
+        else:
+            cur.execute('PRAGMA table_info(participantes)')
+            existentes = {r[1] for r in cur.fetchall()}
+            for columna, tipo in nuevas.items():
+                if columna not in existentes:
+                    cur.execute(f'ALTER TABLE participantes ADD COLUMN {columna} {tipo}')
         if IS_POSTGRES:
             cur.execute('ALTER TABLE analisis ADD COLUMN IF NOT EXISTS dap REAL')
         else:
@@ -155,25 +166,56 @@ def participantes():
 
 def elegir_participante(df, key, permitir_ninguno=False):
     if df.empty:
-        st.info('Registre primero un participante en la pestaña Participantes.')
+        st.info('Registre primero un participante en la pestaña Inicio.')
         return None
     opciones = {f"{r['codigo']} · {r['nombre']}": int(r['id']) for _, r in df.iterrows()}
     if permitir_ninguno:
         opciones = {'Solo evaluar (sin guardar)': None, **opciones}
     return opciones[st.selectbox('Participante', list(opciones), key=key)]
 
-secciones = st.tabs(['🌱 Evaluar suelo', '👥 Participantes', '💾 Análisis guardados',
+secciones = st.tabs(['🏠 Inicio', '🌱 Evaluar suelo', '💾 Análisis guardados',
                      '📈 Comparación histórica', '🌿 Aplicaciones', '📥 Exportar / importar'])
 
 with secciones[0]:
+    st.subheader('1. Registrar participante y datos de la parcela')
+    st.caption('Registre una sola vez al participante. Después seleccione su código en Evaluar suelo.')
+    with st.form('nuevo_participante'):
+        c1,c2,c3=st.columns(3)
+        codigo=c1.text_input('Código único (evite DNI)')
+        nombre=c2.text_input('Nombre o identificación interna')
+        caserio=c3.text_input('Caserío')
+        area=c1.number_input('Área (ha)', min_value=0.0, value=1.0)
+        plantas=c2.number_input('Plantas por ha', min_value=1, value=1100)
+        edad=c3.number_input('Edad del cacao (años)', min_value=0.0, value=5.0)
+        meta=c1.number_input('Meta de cacao seco (kg/ha/año)', min_value=100.0, max_value=10000.0, value=1000.0, step=100.0)
+        manejo=c2.selectbox('Manejo de cáscaras', ['Permanecen en la parcela','Se retiran completamente','Retiro parcial'])
+        retiro=c3.number_input('Porcentaje retirado (%)', min_value=0.0, max_value=100.0, value=50.0, step=5.0) if manejo=='Retiro parcial' else (100.0 if manejo=='Se retiran completamente' else 0.0)
+        crear=st.form_submit_button('Guardar participante')
+    if crear:
+        try:
+            if not codigo.strip() or not nombre.strip():
+                raise ValueError('Código y nombre son obligatorios.')
+            execute('INSERT INTO participantes(codigo,nombre,caserio,area_ha,plantas_ha,edad_anios,manejo_cascaras,retiro_pct,meta_kg_ha,creado) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                    (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,meta,date.today().isoformat()))
+            st.success('Participante guardado.')
+            st.rerun()
+        except Exception as e:
+            st.error(str(e))
+    st.dataframe(participantes(), hide_index=True, use_container_width=True)
+
+
+with secciones[1]:
     p_guardar = participantes()
     pid_guardar = elegir_participante(p_guardar, "elegir_para_evaluar", permitir_ninguno=True) if not p_guardar.empty else None
     fecha_guardar = st.date_input("Fecha del análisis", value=date.today(), key="fecha_evaluacion")
     st.caption("Seleccione un participante registrado para guardar el análisis; también puede evaluar sin guardar.")
+    fila_parcela = p_guardar[p_guardar['id'] == pid_guardar].iloc[0] if pid_guardar is not None else None
+    if fila_parcela is not None:
+        st.caption(f"Parcela: {fila_parcela['plantas_ha'] or 1100} plantas/ha · Edad: {fila_parcela['edad_anios']} años · Cáscaras: {fila_parcela['manejo_cascaras'] or 'No registrado'} · Retiro: {fila_parcela['retiro_pct'] if pd.notna(fila_parcela['retiro_pct']) else 'No registrado'} %")
     with st.form('evaluacion'):
         st.subheader('1. ¿Cuánto cacao seco desea producir?')
         rendimiento = st.number_input('Producción esperada (kg de grano seco por hectárea y año)',
-                                      min_value=100.0, max_value=10000.0, value=1000.0, step=100.0)
+                                      min_value=100.0, max_value=10000.0, value=float(fila_parcela['meta_kg_ha']) if fila_parcela is not None and pd.notna(fila_parcela['meta_kg_ha']) else 1000.0, step=100.0)
         st.subheader('2. Copie los valores de su análisis de suelo')
         st.caption('Si el laboratorio no midió un indicador, déjelo vacío. No coloque cero para representar un dato faltante.')
         datos_texto = {}
@@ -229,12 +271,14 @@ with secciones[0]:
             if mg is not None and 0 < mg < 0.5:
                 st.info('Magnesio intercambiable bajo según criterio provisional. Verificar antes de seleccionar una enmienda.')
             st.subheader('4. Nutrientes extraídos por la cosecha de cacao')
-            st.caption('Estimación de nutrientes que salen de la parcela al cosechar y vender el grano seco. No equivale a cuánto fertilizante debe aplicar; tampoco incluye las cáscaras retiradas.')
+            st.caption('Extracción estimada por grano seco. El efecto de las cáscaras se registra, pero aún no se cuantifica sin un coeficiente de biomasa validado.')
             extraccion = pd.DataFrame([{'Macronutriente': nutriente,
                                         'Exportación estimada en grano (kg/ha/año)': round(rendimiento*coef/1000, 2)}
                                        for nutriente, coef in EXTRACCION_GRANO_KG_T.items()])
             st.dataframe(extraccion, hide_index=True, use_container_width=True)
             st.caption('Coeficientes bibliográficos orientativos de V4.2 (N 22; P₂O₅ 6.87; K₂O 10.8; CaO 1.3; MgO 5.3; S 0.9 kg/t). No validados localmente. Las cáscaras retiradas exportan nutrientes adicionales que aquí no se cuantifican.')
+            if fila_parcela is not None:
+                st.info(f"Manejo de cáscaras registrado: {fila_parcela['manejo_cascaras'] or 'No definido'}. La extracción adicional por cáscaras y el crecimiento vegetativo aún están pendientes de validación; no se asignan dosis.")
             st.subheader('5. Contenido analítico del suelo y aporte anual')
             st.caption('Se utilizan directamente los resultados de suelo ingresados arriba. El contenido analítico de la capa 0–20 cm no es equivalente al suministro anual aprovechable por las raíces.')
             dap = datos.get('dap')
@@ -302,7 +346,7 @@ with secciones[0]:
         st.divider()
         st.subheader('💾 Guardar análisis de suelo')
         if pid_guardar is None:
-            st.info('Para guardar este análisis, registre un participante en la pestaña Participantes y selecciónelo arriba. Puede evaluar sin guardar.')
+            st.info('Para guardar este análisis, registre un participante en la pestaña Inicio y selecciónelo arriba. Puede evaluar sin guardar.')
         else:
             st.caption('Se guardarán los resultados de la última evaluación para el participante seleccionado y la fecha indicada. Compruebe ambos antes de continuar.')
             if st.button('💾 Guardar análisis de suelo', type='primary', key='guardar_evaluacion', use_container_width=True):
@@ -320,28 +364,6 @@ with secciones[0]:
     with st.expander('Información técnica y fuentes de referencia'):
         st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- S: Malavolta et al. (1984), 0.9 g/kg de grano seco.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- No se presupone densidad aparente ni se convierte directamente inventario analítico en dosis.\n\n**Para guardar un análisis, evalúelo y pulse «Guardar análisis de suelo» después de seleccionar un participante. Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
 
-with secciones[1]:
-    st.subheader('Registrar participantes')
-    with st.form('nuevo_participante'):
-        c1,c2,c3=st.columns(3)
-        codigo=c1.text_input('Código único (evite DNI)')
-        nombre=c2.text_input('Nombre o identificación interna')
-        caserio=c3.text_input('Caserío')
-        area=c1.number_input('Área (ha)', min_value=0.0, value=1.0)
-        plantas=c2.number_input('Plantas por ha', min_value=1, value=1100)
-        edad=c3.number_input('Edad del cacao (años)', min_value=0.0, value=5.0)
-        crear=st.form_submit_button('Guardar participante')
-    if crear:
-        try:
-            if not codigo.strip() or not nombre.strip():
-                raise ValueError('Código y nombre son obligatorios.')
-            execute('INSERT INTO participantes(codigo,nombre,caserio,area_ha,plantas_ha,edad_anios,creado) VALUES (?,?,?,?,?,?,?)',
-                    (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,date.today().isoformat()))
-            st.success('Participante guardado.')
-            st.rerun()
-        except Exception as e:
-            st.error(str(e))
-    st.dataframe(participantes(), hide_index=True, use_container_width=True)
 
 with secciones[2]:
     st.subheader('Consultar, editar y eliminar análisis de suelo')
