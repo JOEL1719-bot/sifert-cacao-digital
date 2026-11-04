@@ -7,7 +7,7 @@ import streamlit as st
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 3.9 · inventario analítico de nutrientes y capa arable a 20 cm y diagnóstico preliminar de fertilidad y simulador nutricional en validación')
+st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 4.0 · inventario analítico de nutrientes y capa arable a 20 cm y diagnóstico preliminar de fertilidad y simulador nutricional en validación')
 
 # Configure DATABASE_URL in Streamlit secrets for persistent PostgreSQL storage.
 try:
@@ -945,35 +945,31 @@ with tabs[5]:
                 tipo_enmienda = 'No se identifica necesidad evidente de enmienda con estos indicadores'
                 st.success('**Orientación automática: no se identifica necesidad evidente de encalado** con los indicadores disponibles.')
             st.caption('Criterios provisionales de cribado: pH < 5.5 o saturación de Al ≥ 20 % sugieren evaluar encalado; Mg < 0.5 cmol(+)/kg orienta hacia dolomita. La relación Ca/Mg se informa, pero no determina por sí sola el producto. Verificar método UNAS, saturación de Al, Ca/Mg, calidad de la enmienda y calibración local. No se calculan dosis.')
-            st.markdown('#### 1. Requerimientos según rendimiento esperado')
-            st.caption('El técnico ingresa el rendimiento esperado. Se calcula automáticamente un rango preliminar de extracción nutricional, no una dosis de fertilización. No se incluye un ajuste por edad sin calibración.')
-            yield_kg=st.number_input('Rendimiento esperado (kg de cacao seco/ha/año)',min_value=0.0,value=0.0,step=100.0,key='v3_yield')
+            st.markdown('#### 1. Extracción por grano seco y exportación de cáscaras')
+            st.caption('La producción objetivo corresponde únicamente a almendras secas. La extracción de nutrientes de las cáscaras se registra por separado cuando salen de la parcela.')
+            yield_kg=st.number_input('Rendimiento esperado (kg de grano seco/ha/año)',min_value=0.0,value=1000.0,step=100.0,key='v3_yield')
             st.caption(f"Edad del cultivo: {grower['edad_anios']} años (informativa; sin factor automático).")
             nutrientes=['N','P₂O₅','K₂O','CaO','MgO','S']
-            # Rangos preliminares discutidos durante el diseño; requieren cotejo con
-            # fuente primaria, componentes cosechados y condiciones locales.
-            rangos={'N':(31.0,40.0),'P₂O₅':(11.0,14.0),'K₂O':(61.0,103.0),
-                    'CaO':(5.0,11.0),'MgO':(9.0,12.0)}
             demanda={}; oferta={}; efic={}; aporte={}; configured={}
-            st.warning('RANGOS PRELIMINARES NO VALIDADOS LOCALMENTE. Las cifras se utilizan solo para explorar extracción de nutrientes. No equivalen a requerimientos totales ni a una recomendación de fertilización. Verificar fuente, unidades y componentes de cosecha antes de uso agronómico.')
+            st.warning('Los antiguos rangos de extracción (31–40 N, 11–14 P₂O₅ y 61–103 K₂O) no se atribuyen exclusivamente al grano seco y se han desactivado. Introduzca coeficientes de grano seco respaldados por una fuente técnica antes de calcular.')
+            st.markdown('##### Coeficientes exclusivos del grano seco')
+            st.caption('Unidad: kg de nutriente por 1,000 kg de grano seco. Introduzca el nutriente en la forma indicada (P₂O₅, K₂O, CaO, MgO), no como elemento sin convertir.')
+            verificado_grano=st.checkbox('Confirmo que los coeficientes ingresados corresponden SOLO al grano seco y están sustentados',value=False,key='v41_grano_validado')
             extracciones=[]
             for n in nutrientes:
-                if n in rangos:
-                    bajo,alto=rangos[n]
-                    demanda[n]=yield_kg/1000*(bajo+alto)/2
-                    extracciones.append({'Nutriente':n,'Coeficiente preliminar mínimo (kg/1,000 kg)':bajo,
-                        'Coeficiente preliminar máximo (kg/1,000 kg)':alto,
-                        'Extracción mínima (kg/ha/año)':round(yield_kg*bajo/1000,2),
-                        'Extracción máxima (kg/ha/año)':round(yield_kg*alto/1000,2),
-                        'Punto medio ilustrativo (kg/ha/año)':round(demanda[n],2)})
-                else:
-                    demanda[n]=None
-                    extracciones.append({'Nutriente':n,'Coeficiente preliminar mínimo (kg/1,000 kg)':None,
-                        'Coeficiente preliminar máximo (kg/1,000 kg)':None,
-                        'Extracción mínima (kg/ha/año)':None,'Extracción máxima (kg/ha/año)':None,
-                        'Punto medio ilustrativo (kg/ha/año)':None})
-            st.dataframe(pd.DataFrame(extracciones).astype(object).where(pd.notna(pd.DataFrame(extracciones)), 'ND'),hide_index=True,use_container_width=True)
-            st.caption('Para S no se dispone de coeficiente preliminar verificado: se muestra sin cálculo. El punto medio es una referencia aritmética, no un valor calibrado. No se considera manejo de cáscaras.')
+                c1,c2=st.columns([2,3])
+                coef=c1.number_input(f'{n}: kg por 1,000 kg de grano seco',min_value=0.0,value=0.0,step=0.1,format='%.2f',key='v41_coef_grano_'+n)
+                fuente=c2.text_input(f'Fuente del coeficiente de {n}',value='',key='v41_fuente_grano_'+n,placeholder='Autor, año o documento técnico')
+                valido=bool(verificado_grano and coef>0 and fuente.strip())
+                demanda[n]=yield_kg*coef/1000 if valido else None
+                extracciones.append({'Nutriente':n,'Coeficiente grano seco (kg/t)':round(coef,2) if valido else 'ND',
+                    'Extracción por grano seco (kg/ha/año)':round(demanda[n],2) if valido else 'ND',
+                    'Estado':'Validado por técnico' if valido else 'Pendiente de coeficiente/fuente'})
+            st.dataframe(pd.DataFrame(extracciones),hide_index=True,use_container_width=True)
+            st.markdown('##### Cáscaras retiradas de la parcela')
+            manejo_cascaras=st.selectbox('Destino predominante de las cáscaras', ['Se retiran; compostaje mínimo', 'Se retiran sin retorno', 'Se compostan y retornan a la parcela', 'Permanecen en la parcela'],key='v41_destino_cascaras')
+            st.caption('La extracción del grano seco no incluye nutrientes de las cáscaras. Si estas salen del sistema, existe una exportación adicional que requiere estimar masa de cáscaras y composición nutricional. No se supone una tasa de retorno por compostaje.')
+            st.info('Exportación de nutrientes por cáscaras: ND (sin medición de biomasa, análisis y retorno efectivo). El balance que sigue usa solo grano seco y, por tanto, puede subestimar las pérdidas totales del sistema.')
             st.markdown('##### Comparación didáctica: inventario, escenario regional y extracción')
             st.caption('Tablas independientes. La diferencia aritmética NO se convierte en déficit agronómico ni en dosis: el inventario y la extracción tienen bases temporales y biológicas distintas.')
             if masa_suelo_ha is not None:
@@ -983,7 +979,7 @@ with tabs[5]:
                     comp_38.append({'Nutriente':nutr,
                         'Inventario 0–20 cm (kg/ha)':round(invent_38,2) if invent_38 is not None else 'ND',
                         'Escenario Alto Huallaga (kg/ha)':round(oferta_38[nutr],2) if oferta_38[nutr] is not None else 'ND',
-                        'Extracción ilustrativa (kg/ha/año)':round(demanda[nutr],2) if demanda[nutr] is not None else 'ND',
+                        'Extracción por grano seco (kg/ha/año)':round(demanda[nutr],2) if demanda[nutr] is not None else 'ND',
                         'Interpretación':'No calcular déficit automáticamente'})
                 st.dataframe(pd.DataFrame(comp_38), hide_index=True, use_container_width=True)
                 st.caption('K usa la fuente seleccionada en la tabla regional. No se suman K₂O en ppm y K intercambiable. Los parámetros regionales no alimentan el módulo de formulación comercial.')
@@ -1010,13 +1006,30 @@ with tabs[5]:
                      next((r for r in organicos if r['nombre']==seleccion_compost), None))
             if ficha:
                 st.info('Ficha referencial seleccionada: '+seleccion_compost+'. Verifique la garantía comercial y la base analítica.')
-            compost_kg=st.number_input('Compost aplicado (kg/ha/año, base húmeda)',min_value=0.0,value=0.0,step=100.0)
+            st.markdown('##### Dosis de compost: por planta o por hectárea')
+            unidad_compost = st.radio('Unidad para ingresar la dosis', ['kg/planta/año', 'kg/ha/año'], horizontal=True, key='v40_compost_unidad')
+            plantas_compost = float(grower['plantas_ha']) if pd.notna(grower['plantas_ha']) else 0.0
+            area_compost = float(grower['area_ha']) if pd.notna(grower['area_ha']) else 0.0
+            if unidad_compost == 'kg/planta/año':
+                dosis_compost = st.number_input('Compost aplicado (kg/planta/año)', min_value=0.0, value=0.0, step=0.5, key='v40_compost_planta')
+                compost_kg = dosis_compost * plantas_compost
+            else:
+                compost_kg = st.number_input('Compost aplicado (kg/ha/año, base húmeda)', min_value=0.0, value=0.0, step=100.0, key='v40_compost_ha')
+                dosis_compost = compost_kg / plantas_compost if plantas_compost > 0 else None
+            a_dosis, b_dosis, c_dosis, d_dosis = st.columns(4)
+            a_dosis.metric('kg/planta/año', f'{dosis_compost:,.2f}' if dosis_compost is not None else 'ND')
+            b_dosis.metric('kg/ha/año', f'{compost_kg:,.1f}')
+            c_dosis.metric('kg/parcela/año', f'{compost_kg * area_compost:,.1f}')
+            d_dosis.metric('Sacos de 50 kg/parcela', f'{compost_kg * area_compost / 50:,.2f}')
+            st.caption('Conversión con plantas/ha y área de la ficha del participante. Los sacos equivalentes no se redondean para no alterar el cálculo; para compra se puede redondear hacia arriba.')
             hum=st.number_input('Humedad del compost (%)',min_value=0.0,max_value=99.0,
                 value=float(ficha.get('humedad',30.0)) if ficha else 30.0,step=1.0,key='v39_hum_'+str(seleccion_compost))
             base_compost=st.radio('Base de los porcentajes declarados',
                 ['No determinada','Base seca','Base húmeda'],horizontal=True,key='v39_base_'+str(seleccion_compost))
             st.caption('La etiqueta GOVA no especifica si los porcentajes son sobre materia seca o producto húmedo. Hasta confirmarlo, el aporte computable permanece ND (no se resta del balance).')
             claves_compost={'N':'n','P₂O₅':'p','K₂O':'k','CaO':'ca','MgO':'mg','S':'s'}
+            aporte_potencial = {}
+            aporte_estado = {}
             for n in nutrientes:
                 c1,c2=st.columns(2)
                 raw = ficha.get(claves_compost[n]) if ficha else None
@@ -1026,28 +1039,41 @@ with tabs[5]:
                 liber=c2.number_input(f'{n} disponible primer año (%)',min_value=0.0,max_value=100.0,
                     value=0.0,step=5.0,key='v39_lib_'+str(seleccion_compost)+'_'+n)
                 if base_compost=='Base seca':
-                    aporte[n]=compost_kg*(1-hum/100)*(pct/100)*(liber/100)
+                    aporte_potencial[n]=compost_kg*(1-hum/100)*(pct/100)
                 elif base_compost=='Base húmeda':
-                    aporte[n]=compost_kg*(pct/100)*(liber/100)
+                    aporte_potencial[n]=compost_kg*(pct/100)
                 else:
-                    aporte[n]=0.0
+                    aporte_potencial[n]=None
+                aporte[n] = aporte_potencial[n]*(liber/100) if aporte_potencial[n] is not None else 0.0
+                aporte_estado[n] = bool(aporte_potencial[n] is not None and liber > 0)
+            st.markdown('##### Aporte potencial y liberación del primer año')
+            st.dataframe(pd.DataFrame([{
+                'Nutriente': n,
+                'Concentración potencial (kg/ha)': round(aporte_potencial[n], 2) if aporte_potencial[n] is not None else 'ND',
+                'Aporte primer año (kg/ha)': round(aporte[n], 2) if aporte_estado[n] else 'ND',
+                'Observación': 'Base y liberación indicadas; escenario técnico' if aporte_estado[n] else 'Falta base analítica o coeficiente de liberación'
+            } for n in nutrientes]), hide_index=True, use_container_width=True)
             if base_compost=='No determinada' and compost_kg>0:
-                st.warning('Aporte del compost excluido provisionalmente del balance: confirme la base de los porcentajes. El cero mostrado en el balance significa no contabilizado, no ausencia de nutrientes.')
+                st.warning('La base analítica del compost no está confirmada. El aporte potencial y el del primer año permanecen ND: no se descuentan del balance.')
+            elif compost_kg>0 and not any(aporte_estado.values()):
+                st.info('El aporte potencial puede mostrarse, pero sin porcentajes de liberación sustentados no se calcula el aporte disponible del primer año.')
+            st.caption('El compost se evalúa también por su aporte de materia orgánica y manejo del suelo. La dosis no se deduce solo de la diferencia NPK. No se optimiza automáticamente una dosis sin calibración agronómica.')
             st.markdown('#### 3. Balance nutricional y dosis teóricas')
+            st.warning('El balance es un escenario experimental y requiere oferta anual del suelo y eficiencias verificadas. Los valores de laboratorio por sí solos no permiten obtener una dosis de compost ni fertilizante confiable.')
             rows=[]; deficit={}
             for n in nutrientes:
-                if configured[n]:
+                if configured[n] and (compost_kg == 0 or aporte_estado[n]):
                     faltante=max(0.0,demanda[n]-oferta[n]-aporte[n])
                     deficit[n]=faltante/(efic[n]/100)
-                    rows.append({'Nutriente':n,'Extracción ilustrativa kg/ha':round(demanda[n],2),'Suelo kg/ha':oferta[n],'Compost disponible kg/ha':round(aporte[n],2),'Déficit kg/ha':round(faltante,2),'Aporte fertilizante kg/ha':round(deficit[n],2),'Estado':'Simulación experimental, no prescripción'})
+                    rows.append({'Nutriente':n,'Extracción grano seco kg/ha':round(demanda[n],2),'Suelo kg/ha':oferta[n],'Compost disponible kg/ha':round(aporte[n],2),'Déficit kg/ha':round(faltante,2),'Aporte fertilizante kg/ha':round(deficit[n],2),'Estado':'Simulación experimental, no prescripción'})
                 else:
                     deficit[n]=None
-                    rows.append({'Nutriente':n,'Extracción ilustrativa kg/ha':round(demanda[n],2) if demanda[n] is not None else None,'Suelo kg/ha':oferta[n],'Compost disponible kg/ha':round(aporte[n],2),'Déficit kg/ha':None,'Aporte fertilizante kg/ha':None,'Estado':'Sin simulación: falta validación'})
+                    rows.append({'Nutriente':n,'Extracción grano seco kg/ha':round(demanda[n],2) if demanda[n] is not None else None,'Suelo kg/ha':oferta[n],'Compost disponible kg/ha':round(aporte[n],2),'Déficit kg/ha':None,'Aporte fertilizante kg/ha':None,'Estado':'Sin simulación: parámetros u aporte del compost no validados'})
             st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
-            st.caption('En el escenario experimental: aporte del fertilizante = máximo(0, extracción ilustrativa − oferta disponible − compost disponible) / eficiencia. Este balance simplificado NO representa necesariamente la demanda real de la planta.')
+            st.caption('En el escenario experimental: aporte del fertilizante = máximo(0, extracción del grano seco − oferta disponible − compost disponible) / eficiencia. Este balance simplificado NO incluye exportación por cáscaras ni representa necesariamente la demanda real de la planta.')
             st.markdown('#### 4. Productos comerciales · ejercicio de formulación')
             st.caption('Ejemplo simplificado con urea (46% N), MAP (11% N, 52% P₂O₅) y sulfato de potasio (50% K₂O). No cubre automáticamente Ca, Mg, S ni micronutrientes; los productos y sus análisis requieren verificación.')
-            if all(configured[n] for n in ['N','P₂O₅','K₂O']):
+            if all(configured[n] and deficit.get(n) is not None for n in ['N','P₂O₅','K₂O']):
                 mapkg=deficit['P₂O₅']/0.52
                 ureakg=max(0.0,deficit['N']-mapkg*0.11)/0.46
                 skg=deficit['K₂O']/0.50
@@ -1099,4 +1125,4 @@ with tabs[6]:
     st.dataframe(pd.DataFrame(CRITERIOS_CACAO_REFERENCIA),hide_index=True,use_container_width=True)
 
 st.divider()
-st.caption('SIFERT CACAO DIGITAL V3.9 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
+st.caption('SIFERT CACAO DIGITAL V4.0 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
