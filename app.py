@@ -7,7 +7,7 @@ import streamlit as st
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 3.5 · capa arable a 20 cm y diagnóstico preliminar de fertilidad y simulador nutricional en validación')
+st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 3.6 · inventario analítico de nutrientes y capa arable a 20 cm y diagnóstico preliminar de fertilidad y simulador nutricional en validación')
 
 # Configure DATABASE_URL in Streamlit secrets for persistent PostgreSQL storage.
 try:
@@ -319,7 +319,7 @@ with tabs[4]:
     st.info('La exportación CSV es un respaldo manual. Para persistencia real en Streamlit Cloud configure una base PostgreSQL externa.')
 
 with tabs[5]:
-    st.subheader('Motor nutricional · V3.5 (capa arable y diagnóstico preliminar)')
+    st.subheader('Motor nutricional · V3.6 (inventario analítico y diagnóstico preliminar)')
     st.warning('SIMULACIÓN NO VALIDADA: los requerimientos se estiman desde rendimiento y coeficientes aportados por el técnico; la oferta del suelo y las eficiencias requieren calibración. No utilizar como prescripción de campo sin calibración local.')
     pid=selector(p,'sel_nutrition')
     if pid is not None:
@@ -341,7 +341,38 @@ with tabs[5]:
             else:
                 masa_suelo_ha = None
                 st.info('DAP: ND. Registre la densidad aparente medida en este análisis para calcular el peso de la capa arable. No se supone 1.33 ni otro valor.')
-            st.caption('Profundidad fija: 20 cm. El peso de suelo es informativo en V3.5; no modifica todavía las dosis ni la oferta nutricional.')
+            st.caption('Profundidad fija: 20 cm. El peso de suelo permite calcular el inventario analítico en V3.6; no modifica todavía las dosis ni la oferta nutricional disponible.')
+
+            st.markdown('#### Inventario analítico de nutrientes en la capa 0–20 cm · V3.6')
+            st.caption('Conversión matemática de resultados UNAS a kg/ha, NO equivalente a suministro anual ni a disponibilidad real para el cacao. Los coeficientes del Alto Huallaga se reservarán para una etapa posterior, tras verificar su definición y metodología.')
+            if masa_suelo_ha is None:
+                st.info('Inventario ND: se necesita la DAP medida para este análisis. No se calcula con densidades supuestas.')
+            else:
+                # Unidades: ppm = mg/kg; cmol(+)/kg a mg/kg por peso equivalente.
+                # Las cantidades de P y bases corresponden a fracciones determinadas por
+                # métodos de laboratorio, NO al contenido total del suelo.
+                inventario = [
+                    ('N total', 'n', '%', 'N', lambda x: masa_suelo_ha * x / 100, 'N total; no todo es mineralizable'),
+                    ('P extraíble', 'p', 'ppm', 'P', lambda x: masa_suelo_ha * x / 1_000_000, 'P extraído por el método UNAS; no es P total'),
+                    ('P extraíble expresado como P₂O₅', 'p', 'ppm', 'P₂O₅', lambda x: masa_suelo_ha * x / 1_000_000 * 2.291, 'Conversión de unidades; no equivale a P₂O₅ disponible anual'),
+                    ('K intercambiable', 'k_cmol', 'cmol(+)/kg', 'K₂O', lambda x: masa_suelo_ha * x * 391 / 1_000_000 * 1.205, 'K intercambiable expresado como K₂O; no sumar con K₂O reportado'),
+                    ('Ca intercambiable', 'ca', 'cmol(+)/kg', 'CaO', lambda x: masa_suelo_ha * x * 200.4 / 1_000_000 * 1.399, 'Ca intercambiable expresado como CaO'),
+                    ('Mg intercambiable', 'mg', 'cmol(+)/kg', 'MgO', lambda x: masa_suelo_ha * x * 121.5 / 1_000_000 * 1.658, 'Mg intercambiable expresado como MgO'),
+                ]
+                inventario_rows = []
+                for nombre, campo, unidad, expresado, calculo, nota in inventario:
+                    valor = soil.get(campo)
+                    valido = pd.notna(valor) and float(valor) > 0
+                    inventario_rows.append({
+                        'Indicador': nombre,
+                        'Dato UNAS': f'{float(valor):.3f} {unidad}' if valido else 'ND / verificar',
+                        'Expresado como': expresado,
+                        'Cantidad analítica (kg/ha)': round(calculo(float(valor)), 2) if valido else None,
+                        'Alcance': nota,
+                    })
+                st.dataframe(pd.DataFrame(inventario_rows), use_container_width=True, hide_index=True)
+                st.caption('La profundidad es fija (20 cm). P₂O₅ es otra expresión del mismo P, no un segundo aporte. K₂O, CaO y MgO son equivalentes químicos calculados desde cationes intercambiables. No se usan para recomendar dosis de fertilizante sin calibración de disponibilidad y recuperación.')
+                st.info('Coeficientes regionales Alto Huallaga (pendientes de validación documental): N mineralización 2.4 %, disponibilidad N/P/K 30/20/40 % y asimilación N/P/K 60/20/70 %. Se registran como referencia, pero NO se aplican todavía al inventario ni al balance.')
 
             st.markdown('#### Diagnóstico descriptivo (sin umbrales automáticos)')
             diag={ 'Indicador':['pH','M.O. (%)','N total (%)','P (ppm)','K₂O reportado (ppm)','K intercambiable (cmol(+)/kg)','Ca (cmol(+)/kg)','Mg (cmol(+)/kg)','Al saturación (%)','CICe (cmol(+)/kg)'],
@@ -531,4 +562,4 @@ with tabs[5]:
             st.caption(f'Orientación de enmienda: {tipo_enmienda}. No se emiten cantidades de cal o dolomita. No es una prescripción validada.')
 
 st.divider()
-st.caption('SIFERT CACAO DIGITAL V3.5 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
+st.caption('SIFERT CACAO DIGITAL V3.6 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
