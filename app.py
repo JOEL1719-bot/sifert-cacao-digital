@@ -306,12 +306,42 @@ with tabs[5]:
             'Resultado':[soil.get(k) for k in ['ph','mo','n','p','k2o','k_cmol','ca','mg','sat_al','cice']]}
             st.dataframe(pd.DataFrame(diag),hide_index=True,use_container_width=True)
             st.caption('K₂O reportado y K intercambiable son indicadores distintos: no se suman. La CICe no se sustituye por CIC a pH 7.')
-            st.markdown('#### Enmienda (orientación por evaluación técnica)')
-            c1,c2=st.columns(2)
-            with c1:
-                tipo_enmienda=st.selectbox('Recomendación de enmienda',['Pendiente de evaluación','Aplicar cal agrícola','Aplicar dolomita','No aplicar enmienda'])
-            with c2:
-                st.info('La elección debe evaluar pH, Al, Ca, Mg y relación Ca/Mg. No se calculan ni muestran dosis de enmienda.')
+            st.markdown('#### Enmienda: evaluación automática orientativa')
+            # Los ceros iniciales de la ficha de registro no equivalen a un resultado medido.
+            def lectura_positiva(campo):
+                dato = soil.get(campo)
+                if pd.isna(dato):
+                    return None
+                valor = float(dato)
+                return valor if valor > 0 else None
+
+            ph_suelo = lectura_positiva('ph')
+            ca_suelo = lectura_positiva('ca')
+            mg_suelo = lectura_positiva('mg')
+            sat_al_suelo = soil.get('sat_al')
+            sat_al_suelo = float(sat_al_suelo) if pd.notna(sat_al_suelo) and float(sat_al_suelo) >= 0 else None
+            relacion_ca_mg = ca_suelo / mg_suelo if ca_suelo is not None and mg_suelo is not None else None
+            if relacion_ca_mg is not None:
+                st.metric('Relación Ca/Mg (cmol/cmol)', f'{relacion_ca_mg:.2f}')
+            else:
+                st.warning('No se puede calcular la relación Ca/Mg: faltan valores positivos de Ca o Mg.')
+
+            # Reglas preliminares transparentes; NO constituyen prescripción de encalado.
+            # pH bajo = indicador para evaluar acidez; saturación Al alta refuerza la señal.
+            if ph_suelo is None or ca_suelo is None or mg_suelo is None:
+                tipo_enmienda = 'Evaluación pendiente: faltan pH, Ca o Mg válidos'
+                st.warning(tipo_enmienda)
+            elif ph_suelo < 5.5 or (sat_al_suelo is not None and sat_al_suelo >= 20):
+                if mg_suelo < 0.5:
+                    tipo_enmienda = 'Dolomita (opción preliminar)'
+                    st.info('**Orientación automática: evaluar aplicación de dolomita.** El suelo presenta una señal de acidez y Mg intercambiable bajo (< 0.5 cmol(+)/kg).')
+                else:
+                    tipo_enmienda = 'Cal agrícola (opción preliminar)'
+                    st.info('**Orientación automática: evaluar aplicación de cal agrícola.** Existe una señal de acidez, sin Mg intercambiable bajo según el criterio provisional.')
+            else:
+                tipo_enmienda = 'No se identifica necesidad evidente de enmienda con estos indicadores'
+                st.success('**Orientación automática: no se identifica necesidad evidente de encalado** con los indicadores disponibles.')
+            st.caption('Criterios provisionales de cribado: pH < 5.5 o saturación de Al ≥ 20 % sugieren evaluar encalado; Mg < 0.5 cmol(+)/kg orienta hacia dolomita. La relación Ca/Mg se informa, pero no determina por sí sola el producto. Verificar método UNAS, saturación de Al, Ca/Mg, calidad de la enmienda y calibración local. No se calculan dosis.')
             st.markdown('#### 1. Requerimientos según rendimiento esperado')
             st.caption('Ingrese el rendimiento esperado manualmente. Los coeficientes deben proceder de una referencia técnica validada para el sistema de producción; no se asignan valores arbitrarios. La edad del cultivo se muestra como contexto y requiere calibración específica para ajustar necesidades de crecimiento.')
             yield_kg=st.number_input('Rendimiento esperado (kg de cacao seco/ha/año)',min_value=0.0,value=0.0,step=100.0,key='v3_yield')
@@ -368,7 +398,7 @@ with tabs[5]:
             else:
                 st.info('Para calcular productos, configure rendimiento, coeficientes y eficiencias de N, P₂O₅ y K₂O. No se muestran dosis ficticias en cero.')
             st.warning('El ingreso de oferta del suelo y coeficientes no valida su exactitud. No utilizar estas estimaciones como receta de fertilización sin validación agronómica local.')
-            st.caption(f'Enmienda seleccionada: {tipo_enmienda}. No se emiten cantidades de cal o dolomita. Los resultados son orientativos y NO se guardan como prescripción.')
+            st.caption(f'Orientación de enmienda: {tipo_enmienda}. No se emiten cantidades de cal o dolomita. No es una prescripción validada.')
 
 st.divider()
 st.caption('SIFERT CACAO DIGITAL · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
