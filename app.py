@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V4.5 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V4.6 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V4.5 · Evaluación sencilla del análisis de suelo para cacao · Alto Huallaga')
+st.caption('V4.6 · Evaluación sencilla del análisis de suelo para cacao · Alto Huallaga')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -147,7 +147,37 @@ if calcular:
                                    for nutriente, coef in EXTRACCION_GRANO_KG_T.items()])
         st.dataframe(extraccion, hide_index=True, use_container_width=True)
         st.caption('Coeficientes bibliográficos orientativos de V4.2 (N 22; P₂O₅ 6.87; K₂O 10.8; CaO 1.3; MgO 5.3; S 0.9 kg/t). No validados localmente. Las cáscaras retiradas exportan nutrientes adicionales que aquí no se cuantifican.')
-        st.subheader('5. ¿Cuánto compost y fertilizante debo aplicar?')
+        st.subheader('5. Balance nutricional preliminar')
+        st.caption('Se contrasta la extracción estimada del grano con la información que aún falta para conocer la oferta anual del suelo. No se calcula un déficit numérico sin esa oferta.')
+        balance = []
+        for nutriente, coef in EXTRACCION_GRANO_KG_T.items():
+            balance.append({
+                'Nutriente': nutriente,
+                'Salida por grano (kg/ha/año)': round(rendimiento * coef / 1000, 2),
+                'Aporte anual del suelo (kg/ha/año)': 'No determinado',
+                'Déficit real (kg/ha/año)': 'No calculable',
+            })
+        st.dataframe(pd.DataFrame(balance), hide_index=True, use_container_width=True)
+        st.caption('Los resultados de UNAS permiten describir propiedades y concentraciones del suelo, pero no equivalen directamente al aporte anual absorbible. La exportación por cáscaras y la demanda de crecimiento tampoco están cuantificadas.')
+
+        st.subheader('6. Compost GOVA SAC – DEVIDA: aporte potencial')
+        st.caption('Composición de referencia calculada con puntos medios de la etiqueta del producto; no es una dosis recomendada.')
+        # Porcentajes de nutrientes totales estimados, expresados en forma de fertilizante.
+        # No se conoce la base húmeda/seca ni la fracción liberada el primer año.
+        compost_pct = {'N': 0.90, 'P₂O₅': 0.55 * 2.291, 'K₂O': 0.65 * 1.205}
+        tabla_compost = []
+        for nutriente, porcentaje in compost_pct.items():
+            tabla_compost.append({
+                'Nutriente': nutriente,
+                'Contenido de referencia (%)': round(porcentaje, 3),
+                'Cantidad potencial por saco de 50 kg (kg)': round(50 * porcentaje / 100, 3),
+                'Aporte disponible el primer año': 'No determinado',
+            })
+        st.dataframe(pd.DataFrame(tabla_compost), hide_index=True, use_container_width=True)
+        st.warning('Los contenidos son valores medios referenciales, NO nutrientes disponibles en el primer año. La etiqueta no precisa si los porcentajes se expresan en base seca o húmeda; por ello no se calculan dosis ni equivalencias de sustitución con fertilizantes minerales.')
+        st.markdown('**¿Qué falta para recomendar una dosis?** Validar la oferta anual de nutrientes del suelo según el método UNAS, los requerimientos completos del cultivo, la recuperación de fertilizantes, la liberación del compost y el aporte o retiro de las cáscaras.')
+
+        st.subheader('7. ¿Cuánto compost y fertilizante debo aplicar?')
         st.info('Todavía no se puede calcular una dosis confiable únicamente con estos resultados. Falta validar la oferta anual del suelo, la recuperación de fertilizantes y la liberación del compost GOVA SAC. SIFERT no inventará una receta.')
         st.caption('El análisis de suelo expresa concentraciones y reservas analíticas, no necesariamente suministro anual para el cacao. Si no se midió azufre, no se diagnostica su suficiencia.')
     except ValueError as e:
