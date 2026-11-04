@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V4.7 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V4.9 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V4.7 · Evaluación sencilla del análisis de suelo para cacao · Alto Huallaga')
+st.caption('V4.9 · Evaluación sencilla del análisis de suelo para cacao · Alto Huallaga')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -195,6 +195,7 @@ with secciones[0]:
             fracciones = [datos[k] for k in ['arena','limo','arcilla']]
             if all(v is not None for v in fracciones) and abs(sum(fracciones)-100)>2:
                 st.warning('Arena + limo + arcilla no suman aproximadamente 100 %. Revise la transcripción.')
+            st.session_state['evaluacion_pendiente'] = {'datos': datos.copy(), 'rendimiento': float(rendimiento)}
             st.divider()
             st.subheader('3. Resultado de su evaluación')
             tabla = []
@@ -234,18 +235,41 @@ with secciones[0]:
                                        for nutriente, coef in EXTRACCION_GRANO_KG_T.items()])
             st.dataframe(extraccion, hide_index=True, use_container_width=True)
             st.caption('Coeficientes bibliográficos orientativos de V4.2 (N 22; P₂O₅ 6.87; K₂O 10.8; CaO 1.3; MgO 5.3; S 0.9 kg/t). No validados localmente. Las cáscaras retiradas exportan nutrientes adicionales que aquí no se cuantifican.')
-            st.subheader('5. Balance nutricional preliminar')
-            st.caption('Se contrasta la extracción estimada del grano con la información que aún falta para conocer la oferta anual del suelo. No se calcula un déficit numérico sin esa oferta.')
-            balance = []
-            for nutriente, coef in EXTRACCION_GRANO_KG_T.items():
-                balance.append({
-                    'Nutriente': nutriente,
-                    'Salida por grano (kg/ha/año)': round(rendimiento * coef / 1000, 2),
-                    'Aporte anual del suelo (kg/ha/año)': 'No determinado',
-                    'Déficit real (kg/ha/año)': 'No calculable',
-                })
-            st.dataframe(pd.DataFrame(balance), hide_index=True, use_container_width=True)
-            st.caption('Los resultados de UNAS permiten describir propiedades y concentraciones del suelo, pero no equivalen directamente al aporte anual absorbible. La exportación por cáscaras y la demanda de crecimiento tampoco están cuantificadas.')
+            st.subheader('5. Contenido analítico del suelo y aporte anual')
+            st.caption('Se utilizan directamente los resultados de suelo ingresados arriba. El contenido analítico de la capa 0–20 cm no es equivalente al suministro anual aprovechable por las raíces.')
+            dap = datos.get('dap')
+            if dap is None or dap <= 0:
+                st.info('Para convertir las concentraciones a kg/ha, ingrese la densidad aparente (DAP) medida en el análisis de suelo. No se asigna una DAP supuesta.')
+            else:
+                masa = 10000 * 0.20 * dap * 1000
+                st.metric('Masa estimada de suelo, 0–20 cm (kg/ha)', f'{masa:,.0f}')
+                st.caption(f'10 000 m²/ha × 0.20 m × {dap:.3f} t/m³ × 1 000 = {masa:,.0f} kg/ha.')
+                # ppm = mg/kg. Los cationes se convierten por peso equivalente;
+                # P extraíble y bases intercambiables NO son nutrientes totales.
+                conversiones = [
+                    ('N total', 'n', 'N', lambda v: masa * v / 100, 'Reserva de N total; no es N disponible al año'),
+                    ('P extraíble', 'p', 'P₂O₅', lambda v: masa * v / 1e6 * 2.291, 'P extraíble expresado como P₂O₅; no es P total'),
+                    ('K intercambiable', 'k_cmol', 'K₂O', lambda v: masa * v * 391 / 1e6 * 1.205, 'K intercambiable expresado como K₂O'),
+                    ('Ca intercambiable', 'ca', 'CaO', lambda v: masa * v * 200.4 / 1e6 * 1.399, 'Ca intercambiable expresado como CaO'),
+                    ('Mg intercambiable', 'mg', 'MgO', lambda v: masa * v * 121.5 / 1e6 * 1.658, 'Mg intercambiable expresado como MgO'),
+                ]
+                filas_contenido = []
+                for nombre, clave, oxido, convertir, alcance in conversiones:
+                    v = datos.get(clave)
+                    filas_contenido.append({
+                        'Indicador de suelo': nombre,
+                        'Expresado como': oxido,
+                        'Contenido analítico (kg/ha)': round(convertir(v), 2) if v is not None else 'No medido',
+                        'Aporte anual aprovechable (kg/ha/año)': 'No determinado',
+                        'Alcance': alcance,
+                    })
+                st.dataframe(pd.DataFrame(filas_contenido), hide_index=True, use_container_width=True)
+                k2o_ppm = datos.get('k2o')
+                if k2o_ppm is not None:
+                    st.caption(f'K₂O reportado directamente por de suelo: {masa * k2o_ppm / 1e6:.2f} kg/ha de la fracción analizada (vía alternativa). No se suma al K intercambiable ni se multiplica nuevamente por 1.205.')
+                st.caption('Los valores en kg/ha son conversiones del resultado analítico para 0–20 cm; no son reservas totales de P, K, Ca o Mg ni dosis de fertilizante. El azufre no se estima porque no se ingresó un análisis de S.')
+            st.markdown('**¿Cuánto aporta el suelo durante el año?** Todavía no se puede determinar con confiabilidad a partir de estos resultados únicamente. Se requiere una relación calibrada entre los métodos de suelo, la dinámica del suelo y la absorción del cacao.')
+            st.info('El déficit de fertilización no se calcula aún: también faltan la demanda completa del cultivo, las cáscaras retiradas y la eficiencia de los fertilizantes. No se deben restar directamente los kg/ha analíticos de la extracción del grano.')
 
             st.subheader('6. Compost GOVA SAC – DEVIDA: aporte potencial')
             st.caption('Composición de referencia calculada con puntos medios de la etiqueta del producto; no es una dosis recomendada.')
@@ -262,16 +286,39 @@ with secciones[0]:
                 })
             st.dataframe(pd.DataFrame(tabla_compost), hide_index=True, use_container_width=True)
             st.warning('Los contenidos son valores medios referenciales, NO nutrientes disponibles en el primer año. La etiqueta no precisa si los porcentajes se expresan en base seca o húmeda; por ello no se calculan dosis ni equivalencias de sustitución con fertilizantes minerales.')
-            st.markdown('**¿Qué falta para recomendar una dosis?** Validar la oferta anual de nutrientes del suelo según el método UNAS, los requerimientos completos del cultivo, la recuperación de fertilizantes, la liberación del compost y el aporte o retiro de las cáscaras.')
+            st.markdown('**¿Qué falta para recomendar una dosis?** Validar la oferta anual de nutrientes del suelo según el método de suelo, los requerimientos completos del cultivo, la recuperación de fertilizantes, la liberación del compost y el aporte o retiro de las cáscaras.')
 
             st.subheader('7. ¿Cuánto compost y fertilizante debo aplicar?')
             st.info('Todavía no se puede calcular una dosis confiable únicamente con estos resultados. Falta validar la oferta anual del suelo, la recuperación de fertilizantes y la liberación del compost GOVA SAC. SIFERT no inventará una receta.')
             st.caption('El análisis de suelo expresa concentraciones y reservas analíticas, no necesariamente suministro anual para el cacao. Si no se midió azufre, no se diagnostica su suficiencia.')
         except ValueError as e:
+            st.session_state.pop('evaluacion_pendiente', None)
             st.error(str(e))
 
+    # El botón permanece disponible tras el recálculo de Streamlit.
+    # Se guarda exactamente el último análisis evaluado, no campos sin validar.
+    pendiente = st.session_state.get('evaluacion_pendiente')
+    if pendiente is not None:
+        st.divider()
+        st.subheader('💾 Guardar análisis de suelo')
+        if pid_guardar is None:
+            st.info('Para guardar este análisis, registre un participante en la pestaña Participantes y selecciónelo arriba. Puede evaluar sin guardar.')
+        else:
+            st.caption('Se guardarán los resultados de la última evaluación para el participante seleccionado y la fecha indicada. Compruebe ambos antes de continuar.')
+            if st.button('💾 Guardar análisis de suelo', type='primary', key='guardar_evaluacion', use_container_width=True):
+                try:
+                    valores = pendiente['datos']
+                    columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['textura', 'observaciones']
+                    textura = textura_usda(valores['arena'], valores['limo'], valores['arcilla'])
+                    params = [pid_guardar, fecha_guardar.isoformat()] + [valores[k] for k in FIELD_KEYS] + [textura, f"Producción esperada al evaluar: {pendiente['rendimiento']:g} kg/ha/año"]
+                    execute(f"INSERT INTO analisis({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})", params)
+                    st.session_state.pop('evaluacion_pendiente', None)
+                    st.success('Análisis de suelo guardado correctamente. Consúltelo en «Análisis guardados».')
+                except Exception as e:
+                    st.error(f'No se pudo guardar el análisis: {e}')
+
     with st.expander('Información técnica y fuentes de referencia'):
-        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- S: Malavolta et al. (1984), 0.9 g/kg de grano seco.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- No se presupone densidad aparente ni se convierte directamente inventario analítico en dosis.\n\n**Los análisis se guardan solo si se selecciona un participante. Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
+        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- S: Malavolta et al. (1984), 0.9 g/kg de grano seco.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- No se presupone densidad aparente ni se convierte directamente inventario analítico en dosis.\n\n**Para guardar un análisis, evalúelo y pulse «Guardar análisis de suelo» después de seleccionar un participante. Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
 
 with secciones[1]:
     st.subheader('Registrar participantes')
@@ -297,7 +344,7 @@ with secciones[1]:
     st.dataframe(participantes(), hide_index=True, use_container_width=True)
 
 with secciones[2]:
-    st.subheader('Consultar, editar y eliminar análisis UNAS')
+    st.subheader('Consultar, editar y eliminar análisis de suelo')
     dfp=participantes()
     pid=elegir_participante(dfp, 'p_guardados')
     if pid is not None:
