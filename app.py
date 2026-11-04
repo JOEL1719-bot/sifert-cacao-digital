@@ -207,15 +207,56 @@ with secciones[0]:
 with secciones[1]:
     p_guardar = participantes()
     pid_guardar = elegir_participante(p_guardar, "elegir_para_evaluar", permitir_ninguno=True) if not p_guardar.empty else None
+    # Al cambiar de productor, recuperar automáticamente su último análisis.
+    # Los campos se actualizan ANTES de crear los widgets de Streamlit.
+    anterior = st.session_state.get('_productor_evaluacion_anterior', '__inicial__')
+    if anterior != pid_guardar:
+        st.session_state['_productor_evaluacion_anterior'] = pid_guardar
+        st.session_state.pop('evaluacion_pendiente', None)
+        for clave in FIELD_KEYS:
+            st.session_state['dato_' + clave] = ''
+        st.session_state['rendimiento_evaluacion'] = 1000.0
+        if pid_guardar is not None:
+            ultimos = execute('SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC LIMIT 1', (pid_guardar,), True)
+            if not ultimos.empty:
+                ultimo = ultimos.iloc[0]
+                for clave in FIELD_KEYS:
+                    v = ultimo[clave]
+                    st.session_state['dato_' + clave] = f'{float(v):g}' if pd.notna(v) else ''
+                st.session_state['_analisis_cargado'] = f"Último análisis cargado: {ultimo['fecha']} (registro {int(ultimo['id'])})"
+            else:
+                st.session_state['_analisis_cargado'] = 'Este participante todavía no tiene análisis guardados.'
+            fila_meta = p_guardar[p_guardar['id'] == pid_guardar].iloc[0]
+            if pd.notna(fila_meta['meta_kg_ha']):
+                st.session_state['rendimiento_evaluacion'] = float(fila_meta['meta_kg_ha'])
+        else:
+            st.session_state['_analisis_cargado'] = ''
+
     fecha_guardar = st.date_input("Fecha del análisis", value=date.today(), key="fecha_evaluacion")
     st.caption("Seleccione un participante registrado para guardar el análisis; también puede evaluar sin guardar.")
     fila_parcela = p_guardar[p_guardar['id'] == pid_guardar].iloc[0] if pid_guardar is not None else None
     if fila_parcela is not None:
         st.caption(f"Parcela: {fila_parcela['plantas_ha'] or 1100} plantas/ha · Edad: {fila_parcela['edad_anios']} años · Cáscaras: {fila_parcela['manejo_cascaras'] or 'No registrado'} · Retiro: {fila_parcela['retiro_pct'] if pd.notna(fila_parcela['retiro_pct']) else 'No registrado'} %")
+        if st.session_state.get('_analisis_cargado'):
+            st.info(st.session_state['_analisis_cargado'])
+        historico = execute('SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC', (pid_guardar,), True)
+        if not historico.empty:
+            etiquetas = {f"{r['fecha']} · Análisis {int(r['id'])}": int(r['id']) for _, r in historico.iterrows()}
+            elegido = st.selectbox('Cargar un análisis guardado', list(etiquetas), key='analisis_para_cargar')
+            if st.button('📂 Cargar análisis seleccionado', key='boton_cargar_analisis'):
+                registro = historico[historico['id'] == etiquetas[elegido]].iloc[0]
+                for clave in FIELD_KEYS:
+                    valor = registro[clave]
+                    st.session_state['dato_' + clave] = f'{float(valor):g}' if pd.notna(valor) else ''
+                st.session_state.pop('evaluacion_pendiente', None)
+                st.session_state['_analisis_cargado'] = f"Análisis cargado: {registro['fecha']} (registro {int(registro['id'])})"
+                st.rerun()
+        else:
+            st.caption('Ingrese los resultados del primer análisis de este participante.')
     with st.form('evaluacion'):
         st.subheader('1. ¿Cuánto cacao seco desea producir?')
         rendimiento = st.number_input('Producción esperada (kg de grano seco por hectárea y año)',
-                                      min_value=100.0, max_value=10000.0, value=float(fila_parcela['meta_kg_ha']) if fila_parcela is not None and pd.notna(fila_parcela['meta_kg_ha']) else 1000.0, step=100.0)
+                                      min_value=100.0, max_value=10000.0, step=100.0, key='rendimiento_evaluacion')
         st.subheader('2. Copie los valores de su análisis de suelo')
         st.caption('Si el laboratorio no midió un indicador, déjelo vacío. No coloque cero para representar un dato faltante.')
         datos_texto = {}
