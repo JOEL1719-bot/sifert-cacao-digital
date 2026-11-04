@@ -7,7 +7,7 @@ import streamlit as st
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 1 (sin cálculo de dosis)')
+st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 2 · simulador nutricional en validación')
 
 # Configure DATABASE_URL in Streamlit secrets for persistent PostgreSQL storage.
 try:
@@ -243,9 +243,72 @@ with tabs[4]:
     st.info('La exportación CSV es un respaldo manual. Para persistencia real en Streamlit Cloud configure una base PostgreSQL externa.')
 
 with tabs[5]:
-    st.subheader('Motor de recomendación nutricional')
-    st.info('En preparación. No se calculan dosis de compost, cal, dolomita ni fertilizantes hasta validar el modelo agronómico y los coeficientes para las condiciones de cacao de Leoncio Prado.')
-    st.write('Pendiente: demanda por edad/rendimiento; oferta del suelo; disponibilidad del compost GOVASAC; reciclaje de cáscaras; eficiencias; selección de productos; costos y ficha PDF con firma.')
+    st.subheader('Motor nutricional · simulador técnico V2')
+    st.warning('SIMULACIÓN NO VALIDADA: las dosis solo se calculan a partir de necesidades, oferta del suelo y eficiencias introducidas por el técnico. No utilizar como prescripción de campo sin calibración local.')
+    pid=selector(p,'sel_nutrition')
+    if pid is not None:
+        grower=p[p.id==pid].iloc[0]
+        soils=execute('SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC',(pid,),True)
+        if soils.empty:
+            st.info('Registre primero un análisis UNAS de este participante.')
+        else:
+            soil=soils.iloc[0]
+            st.caption(f"Análisis UNAS más reciente: {soil['fecha']} · Área: {grower['area_ha']} ha · Densidad: {grower['plantas_ha']} plantas/ha")
+            st.markdown('#### Diagnóstico descriptivo (sin umbrales automáticos)')
+            diag={ 'Indicador':['pH','M.O. (%)','N total (%)','P (ppm)','K₂O reportado (ppm)','K intercambiable (cmol(+)/kg)','Ca (cmol(+)/kg)','Mg (cmol(+)/kg)','Al saturación (%)','CICe (cmol(+)/kg)'],
+            'Resultado':[soil.get(k) for k in ['ph','mo','n','p','k2o','k_cmol','ca','mg','sat_al','cice']]}
+            st.dataframe(pd.DataFrame(diag),hide_index=True,use_container_width=True)
+            st.caption('K₂O reportado y K intercambiable son indicadores distintos: no se suman. La CICe no se sustituye por CIC a pH 7.')
+            st.markdown('#### Enmienda (orientación por evaluación técnica)')
+            c1,c2=st.columns(2)
+            with c1:
+                tipo_enmienda=st.selectbox('Recomendación de enmienda',['Pendiente de evaluación','Aplicar cal agrícola','Aplicar dolomita','No aplicar enmienda'])
+            with c2:
+                st.info('La elección debe evaluar pH, Al, Ca, Mg y relación Ca/Mg. No se calculan ni muestran dosis de enmienda.')
+            st.markdown('#### 1. Demanda y oferta de nutrientes (kg/ha/año)')
+            st.caption('Ingrese necesidades anuales y aporte disponible del suelo determinados con un método agronómico calibrado. Los análisis UNAS en ppm o % NO se convierten automáticamente a kg/ha disponibles.')
+            yield_kg=st.number_input('Rendimiento esperado (kg de cacao seco/ha/año) · dato de contexto',min_value=0.0,value=0.0,step=100.0)
+            nutrientes=['N','P₂O₅','K₂O','CaO','MgO','S']
+            demanda={}; oferta={}; efic={}; aporte={}
+            st.caption('Los valores iniciales 0 significan «no configurado», no una recomendación de cero fertilizante.')
+            for n in nutrientes:
+                c1,c2,c3=st.columns(3)
+                demanda[n]=c1.number_input(f'Demanda {n} (kg/ha/año)',min_value=0.0,value=0.0,step=1.0,key='dem_'+n)
+                oferta[n]=c2.number_input(f'Oferta disponible {n} (kg/ha/año)',min_value=0.0,value=0.0,step=1.0,key='of_'+n)
+                efic[n]=c3.number_input(f'Eficiencia de recuperación {n} (%)',min_value=1.0,max_value=100.0,value=50.0,step=5.0,key='ef_'+n,help='Valor ilustrativo editable, no coeficiente validado para Leoncio Prado.')
+            st.markdown('#### 2. Compost: aporte durante el primer año')
+            compost_kg=st.number_input('Compost aplicado (kg/ha/año, base húmeda)',min_value=0.0,value=0.0,step=100.0)
+            hum=st.number_input('Humedad del compost (%)',min_value=0.0,max_value=99.0,value=30.0,step=5.0)
+            st.caption('Indique el análisis del compost en porcentaje sobre materia seca y la fracción disponible el primer año. Sin análisis, mantenga 0 y no atribuya aporte.')
+            for n in nutrientes:
+                c1,c2=st.columns(2)
+                pct=c1.number_input(f'{n} en compost (% base seca)',min_value=0.0,max_value=100.0,value=0.0,step=0.1,key='co_'+n)
+                liber=c2.number_input(f'{n} disponible primer año (%)',min_value=0.0,max_value=100.0,value=0.0,step=5.0,key='lib_'+n)
+                aporte[n]=compost_kg*(1-hum/100)*(pct/100)*(liber/100)
+            st.markdown('#### 3. Balance nutricional y dosis teóricas')
+            rows=[]; deficit={}
+            for n in nutrientes:
+                faltante=max(0.0,demanda[n]-oferta[n]-aporte[n])
+                deficit[n]=faltante/(efic[n]/100)
+                rows.append({'Nutriente':n,'Demanda kg/ha':demanda[n],'Suelo kg/ha':oferta[n],'Compost disponible kg/ha':round(aporte[n],2),'Déficit kg/ha':round(faltante,2),'Aporte fertilizante kg/ha':round(deficit[n],2)})
+            st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
+            st.caption('Aporte del fertilizante = máximo(0, demanda − oferta disponible − compost disponible) / eficiencia. La eficiencia no equivale necesariamente al porcentaje de pérdidas.')
+            st.markdown('#### 4. Productos comerciales · ejercicio de formulación')
+            st.caption('Ejemplo simplificado con urea (46% N), MAP (11% N, 52% P₂O₅) y sulfato de potasio (50% K₂O). No cubre automáticamente Ca, Mg, S ni micronutrientes. Ajustar con análisis de productos y compatibilidad.')
+            mapkg=deficit['P₂O₅']/0.52
+            ureakg=max(0.0,deficit['N']-mapkg*0.11)/0.46
+            skg=deficit['K₂O']/0.50
+            excess=max(0.0,mapkg*0.11-deficit['N'])
+            area=float(grower['area_ha'] or 0)
+            density=float(grower['plantas_ha'] or 0)
+            prows=[]
+            for nombre,kg in [('MAP 11-52-0',mapkg),('Urea 46-0-0',ureakg),('Sulfato de potasio 0-0-50',skg)]:
+                prows.append({'Producto':nombre,'kg/ha/año':round(kg,2),'kg/parcela/año':round(kg*area,2),'g/planta/año':round(kg*1000/density,2) if density>0 else None,'g/planta/aplicación (3)':round(kg*1000/density/3,2) if density>0 else None})
+            st.dataframe(pd.DataFrame(prows),hide_index=True,use_container_width=True)
+            if excess>0: st.error(f'La cantidad de MAP requerida por fósforo excede el objetivo de N en {excess:.2f} kg/ha. Debe reformularse la mezcla antes de usarla.')
+            if any(deficit[n]>0 for n in ['CaO','MgO','S']):st.warning('Hay necesidades de CaO, MgO o S no cubiertas por esta formulación simplificada. No considerar completa la recomendación.')
+            if not any(demanda.values()):st.info('Para obtener un cálculo, introduzca una demanda anual calibrada para cada nutriente. Los ceros actuales no significan ausencia de necesidades.')
+            st.caption(f'Enmienda seleccionada: {tipo_enmienda}. No se emiten cantidades de cal o dolomita. Los resultados son orientativos y NO se guardan como prescripción.')
 
 st.divider()
 st.caption('SIFERT CACAO DIGITAL · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
