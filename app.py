@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V5.0 · AVANCE — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V5.1 · AVANCE — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V5.0 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
+st.caption('V5.1 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
