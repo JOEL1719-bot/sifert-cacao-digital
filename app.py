@@ -153,6 +153,7 @@ with tabs[0]:
 
 with tabs[1]:
     st.subheader('Registrar análisis de suelo UNAS')
+    st.caption('Los campos numéricos comienzan en 0.000. Si UNAS no reportó CE, marque «CE no determinada» para guardar el dato como ausente.')
     pid=selector(p,'sel_analysis')
     if pid is not None:
         with st.form('soil'):
@@ -163,11 +164,14 @@ with tabs[1]:
                 for col,field in zip(cols,FIELDS[j:j+3]):
                     vals[field]=col.number_input(LABELS[field],value=0.0,format='%.3f',key='soil_'+field,
                         help='Deje 0 solo si el resultado de laboratorio es realmente cero. Si no está medido, use importación Excel con celda vacía.')
+            ce_nd=st.checkbox('CE no determinada por el laboratorio (ND)', value=False, key='soil_ce_nd', help='Marque esta opción cuando UNAS no haya reportado CE. Se guardará como dato ausente, no como cero.')
             textura=st.text_input('Textura')
             obs=st.text_area('Observaciones')
             save=st.form_submit_button('Guardar análisis')
         if save:
             try:
+                if ce_nd:
+                    vals['ce'] = None
                 if abs(vals['arena']+vals['limo']+vals['arcilla']-100)>2 and any(vals[k] for k in ['arena','limo','arcilla']):
                     st.warning('Verifique textura: arena + limo + arcilla no suman 100 %.')
                 columns=['participante_id','fecha']+FIELDS+['textura','observaciones']
@@ -198,11 +202,14 @@ with tabs[1]:
                             LABELS[campo], value=float(previo) if pd.notna(previo) else 0.0,
                             format='%.3f', key=f'edit_{aid}_{campo}',
                             help='Si el resultado original estaba vacío, se muestra 0 para editarlo. Verifique los valores antes de guardar.')
+                ce_nd_ed = st.checkbox('CE no determinada por el laboratorio (ND)', value=pd.isna(actual['ce']), key=f'edit_ce_nd_{aid}', help='Se guardará como dato ausente (NULL), no como 0.')
                 textura_ed = st.text_input('Textura (editar)', value=str(actual['textura']) if pd.notna(actual['textura']) else '', key=f'edit_texture_{aid}')
                 obs_ed = st.text_area('Observaciones (editar)', value=str(actual['observaciones']) if pd.notna(actual['observaciones']) else '', key=f'edit_obs_{aid}')
                 guardar_ed = st.form_submit_button('💾 Guardar cambios')
             if guardar_ed:
                 try:
+                    if ce_nd_ed:
+                        valores_ed['ce'] = None
                     if any(valores_ed[k] for k in ['arena','limo','arcilla']) and abs(sum(valores_ed[k] for k in ['arena','limo','arcilla']) - 100) > 2:
                         st.warning('Verifique textura: arena + limo + arcilla no suman 100 %.')
                     asignaciones = ','.join(f'{campo}=?' for campo in ['fecha'] + FIELDS + ['textura','observaciones'])
@@ -225,7 +232,7 @@ with tabs[1]:
     st.subheader('Importación masiva de análisis')
     ac=['codigo','fecha']+FIELDS+['textura','observaciones']
     template_download(ac,'plantilla_analisis_unas.xlsx','Descargar plantilla UNAS')
-    st.caption('Fecha en formato AAAA-MM-DD. Deje vacíos los resultados no medidos. El código debe existir en Participantes. K₂O y K intercambiable son campos diferentes.')
+    st.caption('Fecha en formato AAAA-MM-DD. Deje vacíos los resultados no medidos (incluida CE). El código debe existir en Participantes. K₂O y K intercambiable son campos diferentes.')
     def add_a(r):
         found=execute('SELECT id FROM participantes WHERE codigo=?',(str(r['codigo']).strip(),),True)
         if found.empty: raise ValueError('Código de participante no encontrado')
