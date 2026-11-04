@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V6.0 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
+st.caption('V6.1 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -681,11 +681,32 @@ with secciones[1]:
                                 if otras_cols[i % 2].checkbox(producto, value=False, key=f'check_fuente_v54_{producto}', help=detalle):
                                     fuentes.append(producto)
                     st.caption(f'✓ {len(fuentes)} producto(s) marcado(s). El balance NPK se recalcula automáticamente.')
-                    st.caption('Puede marcar productos simples o compuestos. SIFERT considera todos sus aportes NPK; no necesariamente utilizará todos los marcados. Los orgánicos se calculan con disponibilidad anual provisional editable; las enmiendas y los productos sin NPK declarado no entran en este balance.')
+                    st.caption('Puede marcar productos simples o compuestos. La participación de todos depende de la modalidad elegida abajo. Los orgánicos se calculan con disponibilidad anual provisional editable; las enmiendas y los productos sin NPK declarado no entran en este balance.')
+                estrategia_manual = 'Permitir que SIFERT descarte los innecesarios'
+                minimo_kg_planta = 0.01
+                if modo.startswith('El agricultor') and fuentes:
+                    estrategia_manual = st.radio(
+                        '¿Cómo desea utilizar los fertilizantes seleccionados?',
+                        ['Utilizar todos los fertilizantes seleccionados', 'Permitir que SIFERT descarte los innecesarios'],
+                        key='estrategia_manual_v61', horizontal=False)
+                    if estrategia_manual.startswith('Utilizar todos'):
+                        minimo_kg_planta = st.number_input(
+                            'Cantidad mínima de cada producto seleccionado (kg/planta/año)',
+                            min_value=0.001, max_value=1.0, value=0.01, step=0.005,
+                            format='%.3f', key='minimo_manual_v61',
+                            help='Mínimo de simulación, no una dosis agronómica recomendada. Se aplica a cada producto marcado.')
+                        st.caption('SIFERT asigna primero ese mínimo a cada fuente y calcula el complemento para cubrir el NPK restante. Revise los excedentes antes de aplicar.')
                 if not fuentes:
                     st.warning('Seleccione al menos un fertilizante para calcular las cantidades.')
                 else:
-                    plan, alerta = optimizar_fuentes(fuentes, minerales_efectivos, objetivo)
+                    if modo.startswith('El agricultor') and estrategia_manual.startswith('Utilizar todos'):
+                        minimo = minimo_kg_planta * total_plantas
+                        base = {x: minimo for x in fuentes}
+                        objetivo_pendiente = {k: max(0.0, objetivo[k] - sum(base[x]*minerales_efectivos[x][k] for x in fuentes)) for k in objetivo}
+                        complemento, alerta = optimizar_fuentes(fuentes, minerales_efectivos, objetivo_pendiente)
+                        plan = {x: base[x] + complemento[x] for x in fuentes}
+                    else:
+                        plan, alerta = optimizar_fuentes(fuentes, minerales_efectivos, objetivo)
                     if alerta:
                         st.error('No se pudo generar una mezcla NPK equilibrada: ' + alerta)
                         st.info('Marque una fuente que aporte los nutrientes faltantes; el cálculo acepta excedentes y los mostrará en la auditoría.')
@@ -694,7 +715,10 @@ with secciones[1]:
                         no_usados = [x for x in fuentes if plan[x] <= 1e-7]
                         if no_usados:
                             st.caption('Productos seleccionados que no se necesitan para la combinación de menor masa: ' + ', '.join(no_usados))
-                        st.caption('El cálculo cubre los objetivos NPK con los productos marcados, minimizando primero los excedentes relativos y luego la masa. No optimiza costo, compatibilidad ni respuesta agronómica.')
+                        if modo.startswith('El agricultor') and estrategia_manual.startswith('Utilizar todos'):
+                            st.info('Se asignó una cantidad mínima a cada fertilizante marcado. La mezcla puede presentar excedentes de NPK; el mínimo no constituye una recomendación de campo.')
+                        else:
+                            st.caption('El cálculo cubre los objetivos NPK con los productos marcados, minimizando primero los excedentes relativos y luego la masa. No optimiza costo, compatibilidad ni respuesta agronómica.')
                         st.markdown('**Productos seleccionados y cantidad calculada automáticamente**')
                         inventario = {}
                         presentacion = {}
@@ -748,6 +772,8 @@ with secciones[1]:
                         n_primero = sum(kg*minerales_efectivos[x]['N'] for x,kg in etapas[0].items())
                         if n_primero > objetivo['N']/3 + 0.01:
                             st.warning('El primer abonamiento supera un tercio del N anual por los fertilizantes compuestos. Revisar la distribución antes de aplicar.')
+                        if any(aporte_plan[k] > objetivo[k] * 1.20 + 0.01 for k in objetivo if objetivo[k] > 0):
+                            st.error('Atención: al menos un nutriente supera en más del 20 % su objetivo. Esta simulación NO debe interpretarse como dosis de aplicación; ajuste el mínimo o cambie la combinación.')
                         if all(abs(aporte_plan[k]-objetivo[k]) < 0.01 for k in objetivo):
                             st.success('Auditoría matemática NPK: objetivos cubiertos sin excedentes relevantes.')
                         else:
