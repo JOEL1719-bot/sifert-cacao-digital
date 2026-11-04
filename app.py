@@ -7,7 +7,7 @@ import streamlit as st
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 3.6 · inventario analítico de nutrientes y capa arable a 20 cm y diagnóstico preliminar de fertilidad y simulador nutricional en validación')
+st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 3.7 · inventario analítico de nutrientes y capa arable a 20 cm y diagnóstico preliminar de fertilidad y simulador nutricional en validación')
 
 # Configure DATABASE_URL in Streamlit secrets for persistent PostgreSQL storage.
 try:
@@ -319,7 +319,7 @@ with tabs[4]:
     st.info('La exportación CSV es un respaldo manual. Para persistencia real en Streamlit Cloud configure una base PostgreSQL externa.')
 
 with tabs[5]:
-    st.subheader('Motor nutricional · V3.6 (inventario analítico y diagnóstico preliminar)')
+    st.subheader('Motor nutricional · V3.7 (inventario analítico y diagnóstico preliminar)')
     st.warning('SIMULACIÓN NO VALIDADA: los requerimientos se estiman desde rendimiento y coeficientes aportados por el técnico; la oferta del suelo y las eficiencias requieren calibración. No utilizar como prescripción de campo sin calibración local.')
     pid=selector(p,'sel_nutrition')
     if pid is not None:
@@ -341,9 +341,9 @@ with tabs[5]:
             else:
                 masa_suelo_ha = None
                 st.info('DAP: ND. Registre la densidad aparente medida en este análisis para calcular el peso de la capa arable. No se supone 1.33 ni otro valor.')
-            st.caption('Profundidad fija: 20 cm. El peso de suelo permite calcular el inventario analítico en V3.6; no modifica todavía las dosis ni la oferta nutricional disponible.')
+            st.caption('Profundidad fija: 20 cm. El peso de suelo permite calcular el inventario analítico en V3.7; no modifica todavía las dosis ni la oferta nutricional disponible.')
 
-            st.markdown('#### Inventario analítico de nutrientes en la capa 0–20 cm · V3.6')
+            st.markdown('#### Inventario analítico de nutrientes en la capa 0–20 cm · V3.7')
             st.caption('Conversión matemática de resultados UNAS a kg/ha, NO equivalente a suministro anual ni a disponibilidad real para el cacao. Los coeficientes del Alto Huallaga se reservarán para una etapa posterior, tras verificar su definición y metodología.')
             if masa_suelo_ha is None:
                 st.info('Inventario ND: se necesita la DAP medida para este análisis. No se calcula con densidades supuestas.')
@@ -373,6 +373,76 @@ with tabs[5]:
                 st.dataframe(pd.DataFrame(inventario_rows), use_container_width=True, hide_index=True)
                 st.caption('La profundidad es fija (20 cm). P₂O₅ es otra expresión del mismo P, no un segundo aporte. K₂O, CaO y MgO son equivalentes químicos calculados desde cationes intercambiables. No se usan para recomendar dosis de fertilizante sin calibración de disponibilidad y recuperación.')
                 st.info('Coeficientes regionales Alto Huallaga (pendientes de validación documental): N mineralización 2.4 %, disponibilidad N/P/K 30/20/40 % y asimilación N/P/K 60/20/70 %. Se registran como referencia, pero NO se aplican todavía al inventario ni al balance.')
+
+            st.markdown('#### Procedimiento del examen · cálculo automático paso a paso')
+            st.caption('Se reproduce la secuencia de cálculo del ejercicio del Alto Huallaga. Los resultados de laboratorio alimentan las fórmulas sin volver a digitar concentraciones. Es un ejercicio exploratorio, no una recomendación de fertilización.')
+            if masa_suelo_ha is None:
+                st.info('Para desarrollar el ejercicio registre la DAP medida en este análisis. Sin DAP no se estiman cantidades en kg/ha.')
+            else:
+                def valor_suelo(campo):
+                    dato = soil.get(campo)
+                    if pd.isna(dato) or float(dato) <= 0:
+                        return None
+                    return float(dato)
+
+                st.markdown('##### A. Cálculos directos desde UNAS')
+                calculos = []
+                n_total = valor_suelo('n')
+                p_ppm = valor_suelo('p')
+                k2o_ppm = valor_suelo('k2o')
+                k_cmol = valor_suelo('k_cmol')
+                ca_cmol = valor_suelo('ca')
+                mg_cmol = valor_suelo('mg')
+                n_stock = masa_suelo_ha * n_total / 100 if n_total is not None else None
+                p2o5_stock = masa_suelo_ha * p_ppm / 1e6 * 2.291 if p_ppm is not None else None
+                # Si UNAS reporta K2O en ppm, ya está expresado como óxido.
+                k2o_stock = masa_suelo_ha * k2o_ppm / 1e6 if k2o_ppm is not None else None
+                k2o_cmol_stock = masa_suelo_ha * k_cmol * 391 / 1e6 * 1.205 if k_cmol is not None else None
+                ca_o_stock = masa_suelo_ha * ca_cmol * 200.4 / 1e6 * 1.399 if ca_cmol is not None else None
+                mg_o_stock = masa_suelo_ha * mg_cmol * 121.5 / 1e6 * 1.658 if mg_cmol is not None else None
+                calculos += [
+                    ('N total', f'{masa_suelo_ha:,.0f} × {n_total}/100' if n_total is not None else 'ND', n_stock, 'Reserva total, no aporte anual'),
+                    ('P extraíble → P₂O₅', f'{masa_suelo_ha:,.0f} × {p_ppm}/1 000 000 × 2.291' if p_ppm is not None else 'ND', p2o5_stock, 'Fracción extraíble expresada como óxido'),
+                    ('K₂O reportado (ppm)', f'{masa_suelo_ha:,.0f} × {k2o_ppm}/1 000 000' if k2o_ppm is not None else 'ND', k2o_stock, 'No multiplicar nuevamente por 1.205'),
+                    ('K intercambiable → K₂O', f'{masa_suelo_ha:,.0f} × {k_cmol} × 391/1 000 000 × 1.205' if k_cmol is not None else 'ND', k2o_cmol_stock, 'Vía alternativa: no sumar con K₂O reportado'),
+                    ('Ca intercambiable → CaO', f'{masa_suelo_ha:,.0f} × {ca_cmol} × 200.4/1 000 000 × 1.399' if ca_cmol is not None else 'ND', ca_o_stock, 'Inventario intercambiable'),
+                    ('Mg intercambiable → MgO', f'{masa_suelo_ha:,.0f} × {mg_cmol} × 121.5/1 000 000 × 1.658' if mg_cmol is not None else 'ND', mg_o_stock, 'Inventario intercambiable'),
+                ]
+                st.dataframe(pd.DataFrame([{'Nutriente':a, 'Operación':b, 'Resultado (kg/ha)':round(c,2) if c is not None else 'ND', 'Interpretación':d} for a,b,c,d in calculos]), use_container_width=True, hide_index=True)
+                st.caption('Los factores 391, 200.4 y 121.5 convierten cmol(+)/kg a mg/kg de K, Ca y Mg respectivamente. Los factores 2.291, 1.205, 1.399 y 1.658 expresan los elementos como óxidos. No se divide CaO o MgO entre 1 000 nuevamente.')
+
+                with st.expander('B. Ejercicio regional Alto Huallaga: mineralización, disponibilidad y asimilación', expanded=False):
+                    st.warning('Coeficientes aportados del examen regional, sin documentación metodológica verificada. El producto de porcentajes es una HIPÓTESIS de cálculo didáctico: puede representar descuentos duplicados. No constituye oferta real ni dosis de campo.')
+                    usar_region = st.checkbox('Mostrar escenario didáctico con coeficientes del Alto Huallaga', value=False, key='v37_region')
+                    if usar_region:
+                        c1,c2,c3 = st.columns(3)
+                        with c1:
+                            min_n = st.number_input('Mineralización anual de N total (%)', 0.0, 100.0, 2.4, 0.1, key='v37_min_n')
+                            disp_n = st.number_input('Disponibilidad N (%)', 0.0, 100.0, 30.0, 1.0, key='v37_disp_n')
+                            asim_n = st.number_input('Asimilación N (%)', 0.0, 100.0, 60.0, 1.0, key='v37_asim_n')
+                        with c2:
+                            disp_p = st.number_input('Disponibilidad P (%)', 0.0, 100.0, 20.0, 1.0, key='v37_disp_p')
+                            asim_p = st.number_input('Asimilación P (%)', 0.0, 100.0, 20.0, 1.0, key='v37_asim_p')
+                        with c3:
+                            disp_k = st.number_input('Disponibilidad K (%)', 0.0, 100.0, 40.0, 1.0, key='v37_disp_k')
+                            asim_k = st.number_input('Asimilación K (%)', 0.0, 100.0, 70.0, 1.0, key='v37_asim_k')
+                        # K2O de laboratorio y K intercambiable son vías alternativas.
+                        k_origen = st.radio('Fuente de K para el ejercicio (no se suman)', ['K₂O reportado (ppm)', 'K intercambiable (cmol(+)/kg)'], horizontal=True, key='v37_k_origen')
+                        k_base = k2o_stock if k_origen.startswith('K₂O') else k2o_cmol_stock
+                        base_n = n_stock * min_n / 100 if n_stock is not None else None
+                        escenarios = [
+                            ('N', base_n, disp_n, asim_n),
+                            ('P₂O₅', p2o5_stock, disp_p, asim_p),
+                            ('K₂O', k_base, disp_k, asim_k),
+                        ]
+                        resultado = []
+                        for nombre, base, disponible, asimilable in escenarios:
+                            oferta_regional = base * disponible/100 * asimilable/100 if base is not None else None
+                            resultado.append({'Nutriente':nombre, 'Base después de mineralización (kg/ha)':round(base,2) if base is not None else 'ND', 'Disponibilidad (%)':disponible, 'Asimilación (%)':asimilable, 'Resultado didáctico (kg/ha)':round(oferta_regional,2) if oferta_regional is not None else 'ND'})
+                        st.dataframe(pd.DataFrame(resultado), use_container_width=True, hide_index=True)
+                        st.caption('N: N total × mineralización × disponibilidad × asimilación. P y K: inventario analítico × disponibilidad × asimilación. No se aplica mineralización 2.29 al P ni 1.21 al K: esos números son factores de conversión de unidades.')
+                        st.error('Los resultados de esta tabla NO alimentan automáticamente el balance nutricional ni la formulación de fertilizantes. Se requiere calibrar el suministro anual real y evitar duplicar factores de recuperación.')
+                st.info('CaO y MgO se muestran como inventarios intercambiables. No se les asigna asimilación de 1000 % ni se transforman directamente en déficits de fertilización.')
 
             st.markdown('#### Diagnóstico descriptivo (sin umbrales automáticos)')
             diag={ 'Indicador':['pH','M.O. (%)','N total (%)','P (ppm)','K₂O reportado (ppm)','K intercambiable (cmol(+)/kg)','Ca (cmol(+)/kg)','Mg (cmol(+)/kg)','Al saturación (%)','CICe (cmol(+)/kg)'],
@@ -562,4 +632,4 @@ with tabs[5]:
             st.caption(f'Orientación de enmienda: {tipo_enmienda}. No se emiten cantidades de cal o dolomita. No es una prescripción validada.')
 
 st.divider()
-st.caption('SIFERT CACAO DIGITAL V3.6 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
+st.caption('SIFERT CACAO DIGITAL V3.7 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
