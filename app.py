@@ -7,7 +7,7 @@ import streamlit as st
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 3.4 · diagnóstico preliminar de fertilidad y simulador nutricional en validación')
+st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 3.5 · capa arable a 20 cm y diagnóstico preliminar de fertilidad y simulador nutricional en validación')
 
 # Configure DATABASE_URL in Streamlit secrets for persistent PostgreSQL storage.
 try:
@@ -57,7 +57,7 @@ def initialize():
             id {ident}, participante_id INTEGER NOT NULL, fecha TEXT NOT NULL,
             ph REAL, mo REAL, n REAL, p REAL, k2o REAL, k_cmol REAL,
             ca REAL, mg REAL, al REAL, h REAL, na REAL, cice REAL,
-            sat_al REAL, ce REAL, arena REAL, limo REAL, arcilla REAL,
+            sat_al REAL, ce REAL, dap REAL, arena REAL, limo REAL, arcilla REAL,
             textura TEXT, observaciones TEXT,
             FOREIGN KEY(participante_id) REFERENCES participantes(id))''')
         cur.execute(f'''CREATE TABLE IF NOT EXISTS aplicaciones (
@@ -66,14 +66,22 @@ def initialize():
             dosis_recomendada REAL, dosis_real REAL, unidad TEXT,
             area_ha REAL, observaciones TEXT,
             FOREIGN KEY(participante_id) REFERENCES participantes(id))''')
+        # Migración no destructiva para bases creadas antes de V3.5.
+        if IS_POSTGRES:
+            cur.execute('ALTER TABLE analisis ADD COLUMN IF NOT EXISTS dap REAL')
+        else:
+            cur.execute('PRAGMA table_info(analisis)')
+            existentes = {fila[1] for fila in cur.fetchall()}
+            if 'dap' not in existentes:
+                cur.execute('ALTER TABLE analisis ADD COLUMN dap REAL')
 initialize()
 
-FIELDS = ['ph','mo','n','p','k2o','k_cmol','ca','mg','al','h','na','cice','sat_al','ce','arena','limo','arcilla']
+FIELDS = ['ph','mo','n','p','k2o','k_cmol','ca','mg','al','h','na','cice','sat_al','ce','dap','arena','limo','arcilla']
 LABELS = {'ph':'pH','mo':'Materia orgánica (%)','n':'N total (%)','p':'P disponible (ppm)',
 'k2o':'K₂O reportado (ppm)','k_cmol':'K intercambiable (cmol(+)/kg)',
 'ca':'Ca (cmol(+)/kg)','mg':'Mg (cmol(+)/kg)','al':'Al (cmol(+)/kg)',
 'h':'H (cmol(+)/kg)','na':'Na (cmol(+)/kg)','cice':'CICe (cmol(+)/kg)',
-'sat_al':'Saturación Al (%)','ce':'CE (dS/m)','arena':'Arena (%)','limo':'Limo (%)','arcilla':'Arcilla (%)'}
+'sat_al':'Saturación Al (%)','ce':'CE (dS/m)','dap':'Densidad aparente (g/cm³ o t/m³)','arena':'Arena (%)','limo':'Limo (%)','arcilla':'Arcilla (%)'}
 
 def participants():
     return execute('SELECT * FROM participantes ORDER BY nombre', fetch=True)
@@ -153,7 +161,7 @@ with tabs[0]:
 
 with tabs[1]:
     st.subheader('Registrar análisis de suelo UNAS')
-    st.caption('Los campos numéricos comienzan en 0.000. Si UNAS no reportó CE, marque «CE no determinada» para guardar el dato como ausente.')
+    st.caption('Los campos numéricos comienzan en 0.000. DAP: introduzca el valor medido de cada análisis; 0 significa ND. La profundidad es fija: 20 cm.')
     pid=selector(p,'sel_analysis')
     if pid is not None:
         with st.form('soil'):
@@ -172,6 +180,10 @@ with tabs[1]:
             try:
                 if ce_nd:
                     vals['ce'] = None
+                if vals['dap'] < 0 or vals['dap'] > 2.5:
+                    raise ValueError('La DAP debe estar entre 0 (ND) y 2.5 g/cm³. Verifique unidades.')
+                if vals['dap'] == 0:
+                    vals['dap'] = None
                 if abs(vals['arena']+vals['limo']+vals['arcilla']-100)>2 and any(vals[k] for k in ['arena','limo','arcilla']):
                     st.warning('Verifique textura: arena + limo + arcilla no suman 100 %.')
                 columns=['participante_id','fecha']+FIELDS+['textura','observaciones']
@@ -210,6 +222,10 @@ with tabs[1]:
                 try:
                     if ce_nd_ed:
                         valores_ed['ce'] = None
+                    if valores_ed['dap'] < 0 or valores_ed['dap'] > 2.5:
+                        raise ValueError('La DAP debe estar entre 0 (ND) y 2.5 g/cm³.')
+                    if valores_ed['dap'] == 0:
+                        valores_ed['dap'] = None
                     if any(valores_ed[k] for k in ['arena','limo','arcilla']) and abs(sum(valores_ed[k] for k in ['arena','limo','arcilla']) - 100) > 2:
                         st.warning('Verifique textura: arena + limo + arcilla no suman 100 %.')
                     asignaciones = ','.join(f'{campo}=?' for campo in ['fecha'] + FIELDS + ['textura','observaciones'])
@@ -238,7 +254,13 @@ with tabs[1]:
         if found.empty: raise ValueError('Código de participante no encontrado')
         columns=['participante_id','fecha']+FIELDS+['textura','observaciones']
         fecha=pd.to_datetime(r['fecha']).date().isoformat()
-        vals=[int(found.iloc[0]['id']),fecha]+[optional_float(r.get(k)) for k in FIELDS]
+        datos_analisis = {k: optional_float(r.get(k)) for k in FIELDS}
+        if datos_analisis['dap'] is not None:
+            if datos_analisis['dap'] < 0 or datos_analisis['dap'] > 2.5:
+                raise ValueError('DAP fuera de rango (0–2.5 g/cm³)')
+            if datos_analisis['dap'] == 0:
+                datos_analisis['dap'] = None
+        vals=[int(found.iloc[0]['id']),fecha]+[datos_analisis[k] for k in FIELDS]
         vals += [None if pd.isna(r.get('textura')) else str(r.get('textura')),
                  None if pd.isna(r.get('observaciones')) else str(r.get('observaciones'))]
         execute(f"INSERT INTO analisis({','.join(columns)}) VALUES ({','.join('?' for _ in columns)})",vals)
@@ -297,7 +319,7 @@ with tabs[4]:
     st.info('La exportación CSV es un respaldo manual. Para persistencia real en Streamlit Cloud configure una base PostgreSQL externa.')
 
 with tabs[5]:
-    st.subheader('Motor nutricional · V3.4 (diagnóstico preliminar y estimación configurable)')
+    st.subheader('Motor nutricional · V3.5 (capa arable y diagnóstico preliminar)')
     st.warning('SIMULACIÓN NO VALIDADA: los requerimientos se estiman desde rendimiento y coeficientes aportados por el técnico; la oferta del suelo y las eficiencias requieren calibración. No utilizar como prescripción de campo sin calibración local.')
     pid=selector(p,'sel_nutrition')
     if pid is not None:
@@ -308,6 +330,19 @@ with tabs[5]:
         else:
             soil=soils.iloc[0]
             st.caption(f"Análisis UNAS más reciente: {soil['fecha']} · Área: {grower['area_ha']} ha · Densidad: {grower['plantas_ha']} plantas/ha")
+            st.markdown('#### Peso de la capa arable (0–20 cm)')
+            dap_val = soil.get('dap')
+            if pd.notna(dap_val) and 0 < float(dap_val) <= 2.5:
+                masa_suelo_ha = 10000 * 0.20 * float(dap_val) * 1000
+                c_dap, c_masa = st.columns(2)
+                c_dap.metric('Densidad aparente (DAP)', f'{float(dap_val):.3f} g/cm³')
+                c_masa.metric('Masa de suelo (kg/ha)', f'{masa_suelo_ha:,.0f}')
+                st.caption(f'Cálculo: 10,000 m²/ha × 0.20 m × {float(dap_val):.3f} t/m³ × 1,000 kg/t = {masa_suelo_ha:,.0f} kg/ha. La DAP corresponde exclusivamente a este análisis.')
+            else:
+                masa_suelo_ha = None
+                st.info('DAP: ND. Registre la densidad aparente medida en este análisis para calcular el peso de la capa arable. No se supone 1.33 ni otro valor.')
+            st.caption('Profundidad fija: 20 cm. El peso de suelo es informativo en V3.5; no modifica todavía las dosis ni la oferta nutricional.')
+
             st.markdown('#### Diagnóstico descriptivo (sin umbrales automáticos)')
             diag={ 'Indicador':['pH','M.O. (%)','N total (%)','P (ppm)','K₂O reportado (ppm)','K intercambiable (cmol(+)/kg)','Ca (cmol(+)/kg)','Mg (cmol(+)/kg)','Al saturación (%)','CICe (cmol(+)/kg)'],
             'Resultado':[soil.get(k) for k in ['ph','mo','n','p','k2o','k_cmol','ca','mg','sat_al','cice']]}
@@ -496,4 +531,4 @@ with tabs[5]:
             st.caption(f'Orientación de enmienda: {tipo_enmienda}. No se emiten cantidades de cal o dolomita. No es una prescripción validada.')
 
 st.divider()
-st.caption('SIFERT CACAO DIGITAL V3.4 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
+st.caption('SIFERT CACAO DIGITAL V3.5 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
