@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V5.8 · AVANCE — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V5.9 · AVANCE — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V5.8 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
+st.caption('V6.0 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -43,6 +43,23 @@ FICHAS_ENMIENDAS = {
         'observacion': 'PRNT sin verificar; no calcular dosis de encalado automáticamente.'
     }
 }
+
+def clasificar_origen_producto(nombre, tipo):
+    """Clasificación descriptiva para la biblioteca; no altera el optimizador NPK."""
+    if nombre.startswith('Roca fosfórica'):
+        return 'Mineral (fuente fosfatada)'
+    if nombre.startswith('Ceniza vegetal'):
+        return 'Orgánico (origen vegetal; enmienda mineral)'
+    if tipo == 'Org':
+        return 'Orgánico'
+    if tipo == 'Enm' or nombre == 'Yeso agrícola':
+        return 'Mineral (enmienda)'
+    if nombre.startswith('Hydran'):
+        return 'Por verificar (ficha técnica)'
+    if tipo in ('N', 'P', 'K', 'Ca', 'Mg'):
+        return 'Químico (mineral)'
+    return 'Por verificar (ficha técnica)'
+
 
 def catalogo_v6():
     return {nombre: {'tipo':tipo, 'N':n/100, 'P₂O₅':p/100, 'K₂O':k/100,
@@ -596,12 +613,12 @@ with secciones[1]:
                 catalogo = catalogo_v6()
                 st.caption('Biblioteca de SIFERT V6: 26 productos + MOLIMAX 20-20-20. Composiciones originales orientativas; confirme las etiquetas. Los orgánicos y enmiendas no se incluyen automáticamente en el balance mineral NPK.')
                 with st.expander('📚 Consultar biblioteca completa de 27 productos', expanded=False):
-                    st.dataframe(pd.DataFrame([{'Producto':nombre,'Tipo':v['tipo'], 'N %':round(v['N']*100,2),
+                    st.dataframe(pd.DataFrame([{'Producto':nombre,'Origen':clasificar_origen_producto(nombre, v['tipo']), 'N %':round(v['N']*100,2),
                         'P₂O₅ %':round(v['P₂O₅']*100,2),'K₂O %':round(v['K₂O']*100,2),
                         'Ca (dato V6) %':v['Ca_reportado'],'Mg (dato V6) %':v['Mg_reportado'],
                         'S (dato V6) %':v['S_reportado']} for nombre,v in catalogo.items()]),
                         hide_index=True,use_container_width=True)
-                    st.caption('El tipo de algunos productos en la base original es administrativo, no una clasificación química validada. Ca y Mg requieren confirmar su forma de expresión.')
+                    st.caption('Origen descriptivo: químico (mineral), orgánico o mineral (enmienda). Roca fosfórica y ceniza vegetal se identifican específicamente; Hydran requiere ficha técnica. Esta columna no modifica el cálculo NPK. Ca y Mg requieren confirmar su forma de expresión.')
                 with st.expander('➕ Registrar composición de un fertilizante comercial (simulación)'):
                     nom_nuevo = st.text_input('Nombre comercial exacto y fabricante', key='comercial_nuevo')
                     co1,co2,co3 = st.columns(3)
@@ -618,10 +635,24 @@ with secciones[1]:
                 modo = st.radio('Modalidad de fertilización',
                     ['Selección automática de fertilizantes', 'El agricultor elige sus fertilizantes'],
                     horizontal=True, key='modo_fertilizacion')
-                # Excluir orgánicos, enmiendas y productos sin NPK declarado.
+                # Admitir orgánicos con NPK declarado; excluir enmiendas y productos sin análisis.
                 minerales = {x:v for x,v in catalogo.items()
-                    if v['tipo'] not in ('Org','Enm','Otro','Ca','Mg')
+                    if v['tipo'] not in ('Enm','Otro','Ca','Mg')
                     and any(v[k] > 0 for k in ('N','P₂O₅','K₂O'))}
+                organicos = [x for x,v in minerales.items() if v['tipo'] == 'Org']
+                st.caption('Los orgánicos con NPK declarado pueden seleccionarse. Sus nutrientes no son necesariamente disponibles de inmediato.')
+                with st.expander('🌿 Disponibilidad anual estimada de nutrientes orgánicos (editar)', expanded=False):
+                    st.warning('Porcentajes de simulación, NO validados para los productos locales. Verifique análisis del lote y mineralización. No confundir contenido total con aporte disponible.')
+                    co_n, co_p, co_k = st.columns(3)
+                    org_n = co_n.number_input('N orgánico disponible en el año (%)', min_value=0, max_value=100, value=30, step=5, key='org_dispon_n') / 100
+                    org_p = co_p.number_input('P₂O₅ orgánico disponible en el año (%)', min_value=0, max_value=100, value=30, step=5, key='org_dispon_p') / 100
+                    org_k = co_k.number_input('K₂O orgánico disponible en el año (%)', min_value=0, max_value=100, value=70, step=5, key='org_dispon_k') / 100
+                # Para el balance anual usar fracciones estimadas; conservar catálogo original
+                # para mostrar composición declarada y evitar afirmar disponibilidad total.
+                minerales_efectivos = {x:dict(v) for x,v in minerales.items()}
+                for x in organicos:
+                    for nutriente, factor in [('N',org_n), ('P₂O₅',org_p), ('K₂O',org_k)]:
+                        minerales_efectivos[x][nutriente] *= factor
                 objetivo = {k:dosis[k]*area_real for k in ('N','P₂O₅','K₂O')}
                 if modo.startswith('Selección automática'):
                     predefinidos = ['MAP 11-52-0','Urea','KCl 0-0-60 (cloruro)']
@@ -629,9 +660,9 @@ with secciones[1]:
                     st.info('Modo automático: SIFERT selecciona MAP, urea y KCl como fuentes de referencia. Puede cambiar al modo agricultor para escoger otros productos.')
                 else:
                     st.markdown('**Marque ✓ los fertilizantes que desea utilizar.** El resultado se actualiza automáticamente al marcar o desmarcar, sin pulsar Calcular.')
-                    sugeridos = ['MOLIMAX 20-20-20 (Molinos & Cía.)', 'Urea', 'MAP 11-52-0', 'DAP 18-46-0', 'KCl 0-0-60 (cloruro)', 'Sulfato de potasio 0-0-50', 'NPK 15-15-15']
+                    sugeridos = ['MOLIMAX 20-20-20 (Molinos & Cía.)', 'Urea', 'MAP 11-52-0', 'DAP 18-46-0', 'KCl 0-0-60 (cloruro)', 'Sulfato de potasio 0-0-50', 'NPK 15-15-15', 'Guano de isla (verificar garantía)']
                     nombres_ordenados = [x for x in sugeridos if x in minerales] + [x for x in minerales if x not in sugeridos]
-                    st.caption('Todos los fertilizantes minerales NPK están disponibles. Despliegue la lista completa para marcar los adicionales.')
+                    st.caption('Fertilizantes minerales y orgánicos con NPK declarado. Despliegue la lista completa para ver los adicionales.')
                     fuentes = []
                     frecuentes = [x for x in nombres_ordenados if x in sugeridos]
                     cols = st.columns(2)
@@ -642,7 +673,7 @@ with secciones[1]:
                             fuentes.append(producto)
                     adicionales = [x for x in nombres_ordenados if x not in frecuentes]
                     if adicionales:
-                        with st.expander('➕ Ver todos los demás fertilizantes minerales NPK', expanded=True):
+                        with st.expander('➕ Ver todos los demás fertilizantes NPK (minerales y orgánicos)', expanded=True):
                             otras_cols = st.columns(2)
                             for i, producto in enumerate(adicionales):
                                 composicion = minerales[producto]
@@ -650,11 +681,11 @@ with secciones[1]:
                                 if otras_cols[i % 2].checkbox(producto, value=False, key=f'check_fuente_v54_{producto}', help=detalle):
                                     fuentes.append(producto)
                     st.caption(f'✓ {len(fuentes)} producto(s) marcado(s). El balance NPK se recalcula automáticamente.')
-                    st.caption('Puede marcar productos simples o compuestos. SIFERT considera todos sus aportes NPK; no necesariamente utilizará todos los marcados. Los orgánicos, enmiendas y productos sin NPK garantizado se consultan en la biblioteca, pero no entran en este optimizador mineral.')
+                    st.caption('Puede marcar productos simples o compuestos. SIFERT considera todos sus aportes NPK; no necesariamente utilizará todos los marcados. Los orgánicos se calculan con disponibilidad anual provisional editable; las enmiendas y los productos sin NPK declarado no entran en este balance.')
                 if not fuentes:
                     st.warning('Seleccione al menos un fertilizante para calcular las cantidades.')
                 else:
-                    plan, alerta = optimizar_fuentes(fuentes, minerales, objetivo)
+                    plan, alerta = optimizar_fuentes(fuentes, minerales_efectivos, objetivo)
                     if alerta:
                         st.error('No se pudo generar una mezcla NPK equilibrada: ' + alerta)
                         st.info('Marque una fuente que aporte los nutrientes faltantes; el cálculo acepta excedentes y los mostrará en la auditoría.')
@@ -691,7 +722,18 @@ with secciones[1]:
                                 'Sobrante estimado kg':round(stock+sacos*presentacion[producto]-necesario,2)})
                         st.dataframe(pd.DataFrame(filas_comerciales), hide_index=True, use_container_width=True)
                         st.caption('Los sacos se redondean hacia arriba, sin aumentar la dosis. El inventario se registra como dato de simulación y no se descuenta hasta la aplicación real.')
-                        aporte_plan = {k:sum(plan[x]*minerales[x][k] for x in usados) for k in objetivo}
+                        aporte_plan = {k:sum(plan[x]*minerales_efectivos[x][k] for x in usados) for k in objetivo}
+                        if any(x in organicos for x in usados):
+                            st.warning('El aporte disponible de los fertilizantes orgánicos es hipotético y puede diferir del real. Si también se aplica compost en el módulo 6, evite contar dos veces el mismo producto.')
+                            st.dataframe(pd.DataFrame([
+                                {'Producto orgánico': x, 'Cantidad (kg)':round(plan[x],2),
+                                 'N total declarado (kg)':round(plan[x]*minerales[x]['N'],2),
+                                 'N disponible supuesto (kg)':round(plan[x]*minerales_efectivos[x]['N'],2),
+                                 'P₂O₅ total declarado (kg)':round(plan[x]*minerales[x]['P₂O₅'],2),
+                                 'P₂O₅ disponible supuesto (kg)':round(plan[x]*minerales_efectivos[x]['P₂O₅'],2),
+                                 'K₂O total declarado (kg)':round(plan[x]*minerales[x]['K₂O'],2),
+                                 'K₂O disponible supuesto (kg)':round(plan[x]*minerales_efectivos[x]['K₂O'],2)}
+                                for x in usados if x in organicos]), hide_index=True, use_container_width=True)
                         st.markdown('**Auditoría NPK para la parcela**')
                         st.dataframe(pd.DataFrame([{'Nutriente':k,
                             'Objetivo kg':round(objetivo[k],3),
@@ -700,10 +742,10 @@ with secciones[1]:
                             for k in objetivo]), hide_index=True, use_container_width=True)
                         st.markdown('**Tres abonamientos: dosis TOTAL por planta**')
                         filas_aplicacion, etapas = distribuir_abonamientos(
-                            {x:plan[x] for x in usados}, minerales, objetivo, total_plantas)
+                            {x:plan[x] for x in usados}, minerales_efectivos, objetivo, total_plantas)
                         st.dataframe(pd.DataFrame(filas_aplicacion), hide_index=True, use_container_width=True)
                         st.caption('Los fertilizantes con P₂O₅ se asignan al primer abonamiento; las demás fuentes se distribuyen en tercios. Esto conserva el total anual, pero no garantiza tercios exactos de N y K. Ajustar según fenología y compatibilidad de mezclas.')
-                        n_primero = sum(kg*minerales[x]['N'] for x,kg in etapas[0].items())
+                        n_primero = sum(kg*minerales_efectivos[x]['N'] for x,kg in etapas[0].items())
                         if n_primero > objetivo['N']/3 + 0.01:
                             st.warning('El primer abonamiento supera un tercio del N anual por los fertilizantes compuestos. Revisar la distribución antes de aplicar.')
                         if all(abs(aporte_plan[k]-objetivo[k]) < 0.01 for k in objetivo):
