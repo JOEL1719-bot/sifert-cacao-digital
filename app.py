@@ -951,20 +951,32 @@ with tabs[5]:
             st.caption(f"Edad del cultivo: {grower['edad_anios']} años (informativa; sin factor automático).")
             nutrientes=['N','P₂O₅','K₂O','CaO','MgO','S']
             demanda={}; oferta={}; efic={}; aporte={}; configured={}
-            st.warning('Los antiguos rangos de extracción (31–40 N, 11–14 P₂O₅ y 61–103 K₂O) no se atribuyen exclusivamente al grano seco y se han desactivado. Introduzca coeficientes de grano seco respaldados por una fuente técnica antes de calcular.')
-            st.markdown('##### Coeficientes exclusivos del grano seco')
-            st.caption('Unidad: kg de nutriente por 1,000 kg de grano seco. Introduzca el nutriente en la forma indicada (P₂O₅, K₂O, CaO, MgO), no como elemento sin convertir.')
-            verificado_grano=st.checkbox('Confirmo que los coeficientes ingresados corresponden SOLO al grano seco y están sustentados',value=False,key='v41_grano_validado')
+            st.warning('Los rangos antiguos (31–40 N, 11–14 P₂O₅ y 61–103 K₂O) NO corresponden exclusivamente al grano seco. No se usan en este módulo.')
+            st.markdown('##### Coeficientes de extracción por grano seco · seis macronutrientes')
+            st.caption('kg de nutriente por tonelada de grano seco. P, K, Ca y Mg se expresan como equivalentes P₂O₅, K₂O, CaO y MgO. Son referencias bibliográficas heterogéneas, NO calibración local.')
+            # NPK: valores centrales referenciales usados en V4.1; CaO y MgO:
+            # cuadro IFA 2008 (Camerún, solo granos); S: Malavolta et al. (1984), 0.9 g/kg.
+            referencias_grano = {
+                'N': (22.00, 'Referencia orientativa de extracción del grano: ~20–24 kg/t; Hartemink y Donald (2005), revisión'),
+                'P₂O₅': (6.87, 'Referencia orientativa para grano seco: P elemental convertido a P₂O₅; comparar con IFA (2008), tabla por país'),
+                'K₂O': (10.80, 'Referencia orientativa para grano seco: K elemental convertido a K₂O; comparar con IFA (2008), tabla por país'),
+                'CaO': (1.30, 'IFA (2008), cuadro de extracción de granos, Camerún: 1.3 kg CaO/t'),
+                'MgO': (5.30, 'IFA (2008), cuadro de extracción de granos, Camerún: 5.3 kg MgO/t'),
+                'S': (0.90, 'Malavolta et al. (1984), grano seco: 0.9 g S/kg = 0.9 kg S/t'),
+            }
+            st.info('Referencias: IFA (2008), tabla de extracción de granos/cáscaras reproducida en https://libstore.ugent.be/fulltxt/RUG01/002/509/449/RUG01-002509449_2018_0001_AC.pdf ; Malavolta et al. (1984), DOI: 10.1590/S0071-12761984000100014. CaO y MgO proceden de Camerún; NPK son valores orientativos de distintas referencias, no un conjunto medido en una sola parcela.')
+            verificado_grano=st.checkbox('He revisado las fuentes y acepto usar estos coeficientes SOLO como escenario de extracción por grano seco',value=False,key='v42_grano_validado')
             extracciones=[]
             for n in nutrientes:
                 c1,c2=st.columns([2,3])
-                coef=c1.number_input(f'{n}: kg por 1,000 kg de grano seco',min_value=0.0,value=0.0,step=0.1,format='%.2f',key='v41_coef_grano_'+n)
-                fuente=c2.text_input(f'Fuente del coeficiente de {n}',value='',key='v41_fuente_grano_'+n,placeholder='Autor, año o documento técnico')
+                valor, fuente_default = referencias_grano[n]
+                coef=c1.number_input(f'{n}: kg por 1,000 kg de grano seco',min_value=0.0,value=valor,step=0.1,format='%.2f',key='v42_coef_grano_'+n)
+                fuente=c2.text_input(f'Fuente del coeficiente de {n}',value=fuente_default,key='v42_fuente_grano_'+n)
                 valido=bool(verificado_grano and coef>0 and fuente.strip())
                 demanda[n]=yield_kg*coef/1000 if valido else None
-                extracciones.append({'Nutriente':n,'Coeficiente grano seco (kg/t)':round(coef,2) if valido else 'ND',
-                    'Extracción por grano seco (kg/ha/año)':round(demanda[n],2) if valido else 'ND',
-                    'Estado':'Validado por técnico' if valido else 'Pendiente de coeficiente/fuente'})
+                extracciones.append({'Nutriente':n,'Coeficiente grano seco (kg/t)':round(coef,2),
+                    'Extracción por grano seco (kg/ha/año)':round(demanda[n],2) if valido else 'Pendiente de confirmación',
+                    'Estado':'Escenario bibliográfico aceptado (no validación local)' if valido else 'Referencia pendiente de revisión'})
             st.dataframe(pd.DataFrame(extracciones),hide_index=True,use_container_width=True)
             st.markdown('##### Cáscaras retiradas de la parcela')
             manejo_cascaras=st.selectbox('Destino predominante de las cáscaras', ['Se retiran; compostaje mínimo', 'Se retiran sin retorno', 'Se compostan y retornan a la parcela', 'Permanecen en la parcela'],key='v41_destino_cascaras')
@@ -1093,7 +1105,7 @@ with tabs[5]:
             st.caption(f'Orientación de enmienda: {tipo_enmienda}. No se emiten cantidades de cal o dolomita. No es una prescripción validada.')
 
 with tabs[6]:
-    st.subheader('Catálogo de fertilizantes, abonos y enmiendas · V3.9')
+    st.subheader('Catálogo de fertilizantes, abonos y enmiendas · V4.2')
     st.caption('Referencia importada de la tabla fert de sifert.db (26 productos) y ficha GOVA SAC – DEVIDA (valores medios de etiqueta). No se importaron datos personales ni configuración.')
     st.warning('Los valores del catálogo son referencias, no garantías verificadas. En particular, confirmar unidades de Ca y Mg, base húmeda/seca de orgánicos y formulación real del fabricante antes de recomendar dosis.')
     catalogo = [dict(r, origen='SIFERT v6 · base aportada') for r in FERT_REFERENCIA]
@@ -1125,4 +1137,4 @@ with tabs[6]:
     st.dataframe(pd.DataFrame(CRITERIOS_CACAO_REFERENCIA),hide_index=True,use_container_width=True)
 
 st.divider()
-st.caption('SIFERT CACAO DIGITAL V4.0 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
+st.caption('SIFERT CACAO DIGITAL V4.2 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
