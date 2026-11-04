@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V5.3 · AVANCE — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V5.5 · AVANCE — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V5.3 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
+st.caption('V5.5 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -485,22 +485,81 @@ with secciones[1]:
             st.markdown('**¿Cuánto aporta el suelo durante el año?** Todavía no se puede determinar con confiabilidad a partir de estos resultados únicamente. Se requiere una relación calibrada entre los métodos de suelo, la dinámica del suelo y la absorción del cacao.')
             st.info('El déficit de fertilización no se calcula aún: también faltan la demanda completa del cultivo, las cáscaras retiradas y la eficiencia de los fertilizantes. No se deben restar directamente los kg/ha analíticos de la extracción del grano.')
 
-            st.subheader('6. Compost: manejo de materia orgánica')
+            st.subheader('6. Compost: simulador de recuperación de materia orgánica')
+            st.caption('Simulación de balance de carbono, no prescripción agronómica. La meta no está garantizada y requiere análisis de suelo anuales.')
             mo_val = datos.get('mo')
             if mo_val is None:
-                st.info('Ingrese el porcentaje de materia orgánica para evaluar el manejo del compost.')
+                st.info('Ingrese la materia orgánica (%) del análisis de suelo para activar el simulador.')
             else:
-                st.metric('Materia orgánica del suelo', f'{mo_val:.2f} %')
-                st.caption(f'Clasificación orientativa: {clasificar("mo", mo_val)}. Los umbrales requieren validación local.')
-            st.info('Compost: una aplicación anual para mejorar la materia orgánica. En el balance mineral se computan 0 kg/ha de N, P₂O₅, K₂O, CaO, MgO y S, por decisión metodológica. Esto NO significa que el compost carezca de nutrientes.')
-            plantas_compost = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
-            st.caption('Intervalo bibliográfico orientativo de compost para cultivos permanentes: 2–5 kg/planta. No existe aquí una ecuación validada que transforme automáticamente un porcentaje de M.O. en una dosis única.')
-            dosis_compost = st.select_slider('Dosis orientativa de compost seleccionada por el técnico (kg/planta)',options=[2,3,4,5],value=2,key='dosis_compost')
-            area_compost = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
-            saco_compost = st.number_input('Presentación de compost (kg/saco)',min_value=1.0,value=50.0,key='saco_compost')
-            import math
-            st.dataframe(pd.DataFrame([{'kg/planta':dosis_compost,'kg/ha':dosis_compost*plantas_compost,'kg/parcela':dosis_compost*plantas_compost*area_compost,'Sacos para comprar':math.ceil(dosis_compost*plantas_compost*area_compost/saco_compost)}]),hide_index=True,use_container_width=True)
-            st.caption('Rango bibliográfico orientativo, elegido por el técnico; no se deriva matemáticamente del % de materia orgánica.')
+                import math
+                plantas_compost = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
+                area_compost = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
+                dap_compost = datos.get('dap')
+                st.metric('Materia orgánica actual del suelo', f'{mo_val:.2f} %')
+                c1, c2, c3 = st.columns(3)
+                meta_mo = c1.number_input('Meta de M.O. (%)', min_value=0.1, max_value=20.0, value=4.0, step=0.1, key='compost_meta_mo')
+                anios_mo = c2.selectbox('Horizonte de recuperación (años)', [1, 2, 3, 4, 5], index=2, key='compost_anios')
+                saco_compost = c3.number_input('Presentación de compost (kg/saco)', min_value=1.0, value=50.0, key='saco_compost')
+                c4, c5, c6 = st.columns(3)
+                radio_in = c4.number_input('Radio interior del anillo (m)', min_value=0.0, value=0.80, step=0.05, key='compost_radio_in')
+                radio_out = c5.number_input('Radio exterior del anillo (m)', min_value=0.05, value=1.20, step=0.05, key='compost_radio_out')
+                profundidad = c6.number_input('Profundidad evaluada (cm)', min_value=1.0, max_value=100.0, value=20.0, key='compost_prof')
+                with st.expander('⚙️ Parámetros técnicos editables y supuestos del modelo', expanded=False):
+                    p1, p2, p3 = st.columns(3)
+                    carbono_poda = p1.number_input('Carbono anual de poda (t C/ha/año)', min_value=0.0, value=3.45, step=0.05, key='compost_carbono_poda', help='Referencia bibliográfica de sistemas cacaoteros; no medida local.')
+                    retencion_poda = p2.number_input('Estabilización estimada de poda (%)', min_value=0.0, max_value=100.0, value=20.0, step=5.0, key='compost_retencion_poda')
+                    residuos_anillo = p3.number_input('Residuos de poda que quedan en anillos (%)', min_value=0.0, max_value=100.0, value=100.0, step=5.0, key='compost_residuos_anillo')
+                    p4, p5, p6 = st.columns(3)
+                    mo_compost = p4.number_input('M.O. declarada del compost (%)', min_value=0.1, max_value=100.0, value=30.0, step=1.0, key='compost_mo_producto')
+                    retencion_compost = p5.number_input('Estabilización estimada del compost (%)', min_value=0.1, max_value=100.0, value=20.0, step=5.0, key='compost_retencion_producto')
+                    humedad_compost = p6.number_input('Humedad del compost (%)', min_value=0.0, max_value=99.0, value=25.0, step=1.0, key='compost_humedad')
+                    base_mo = st.radio('¿En qué base declara la etiqueta el % de M.O. del compost?', ['Producto tal como se vende (base húmeda)', 'Materia seca (base seca)'], horizontal=True, key='compost_base_mo')
+                    st.caption('Etiqueta DEVIDA: M.O. 20–40 % y humedad 15–35 %. Confirmar con proveedor la base analítica; 30 % y 25 % son puntos medios ilustrativos. Estabilizaciones del 20 % son hipótesis editables, no resultados validados localmente.')
+                if dap_compost is None or dap_compost <= 0:
+                    st.warning('Ingrese la densidad aparente medida (g/cm³) en el análisis de suelo. Sin ella no se calcula el déficit de M.O. ni la cantidad teórica de compost.')
+                elif radio_out <= radio_in:
+                    st.error('El radio exterior debe ser mayor que el radio interior.')
+                else:
+                    area_anillo_planta = math.pi * (radio_out**2 - radio_in**2)
+                    area_anillos_ha = area_anillo_planta * plantas_compost
+                    area_anillos_parcela = area_anillos_ha * area_compost
+                    if area_anillos_ha > 10000:
+                        st.error('Los anillos calculados superan 1 ha. Se solapan o exceden el terreno: revise radios o densidad de plantas. No se calcula el balance.')
+                    else:
+                        masa_suelo_ha = area_anillos_ha * profundidad / 100 * dap_compost * 1000
+                        deficit_mo_ha = masa_suelo_ha * max(0.0, meta_mo - mo_val) / 100
+                        # Carbono de poda por hectárea de plantación, con todos los residuos
+                        # depositados dentro del área de anillos. No multiplicar de nuevo por
+                        # la fracción de superficie tratada.
+                        poda_mo_anual_ha = carbono_poda * 1000 * 1.724 * retencion_poda / 100 * residuos_anillo / 100
+                        aporte_poda_horizonte_ha = poda_mo_anual_ha * anios_mo
+                        deficit_post_poda_ha = max(0.0, deficit_mo_ha - aporte_poda_horizonte_ha)
+                        fraccion_mo = mo_compost / 100
+                        if base_mo.startswith('Materia seca'):
+                            fraccion_mo *= (1 - humedad_compost / 100)
+                        fraccion_efectiva = fraccion_mo * retencion_compost / 100
+                        compost_total_ha = deficit_post_poda_ha / fraccion_efectiva
+                        compost_anual_ha = compost_total_ha / anios_mo
+                        compost_anual_parcela = compost_anual_ha * area_compost
+                        plantas_parcela = plantas_compost * area_compost
+                        st.caption(f'Anillo: {area_anillo_planta:.3f} m²/planta · {area_anillos_ha:,.1f} m²/ha de plantación ({area_anillos_ha/100:.1f} %) · Suelo evaluado: 0–{profundidad:g} cm · DAP: {dap_compost:g} g/cm³.')
+                        st.dataframe(pd.DataFrame([
+                            {'Concepto':'Déficit inicial teórico de M.O.','kg/ha de plantación':round(deficit_mo_ha,1)},
+                            {'Concepto':'Aporte estimado de poda por año','kg/ha de plantación':round(poda_mo_anual_ha,1)},
+                            {'Concepto':f'Aporte acumulado de poda ({anios_mo} años)','kg/ha de plantación':round(aporte_poda_horizonte_ha,1)},
+                            {'Concepto':'Déficit restante después de poda','kg/ha de plantación':round(deficit_post_poda_ha,1)},
+                        ]), hide_index=True, use_container_width=True)
+                        r1, r2, r3, r4 = st.columns(4)
+                        r1.metric('Compost teórico anual (t/ha)', f'{compost_anual_ha/1000:,.2f}')
+                        r2.metric('Compost anual (kg/planta)', f'{compost_anual_ha/plantas_compost:,.1f}')
+                        r3.metric('Compost anual para parcela (kg)', f'{compost_anual_parcela:,.0f}')
+                        r4.metric('Sacos anuales para parcela', f'{math.ceil(compost_anual_parcela/saco_compost):,}')
+                        st.caption(f'Total teórico para {anios_mo} año(s): {compost_total_ha/1000:,.2f} t/ha; {compost_total_ha*area_compost/1000:,.2f} t/parcela. Fracción de M.O. estabilizada asumida por kg de compost comercial: {fraccion_efectiva*100:.2f} %.')
+                        if compost_anual_ha/plantas_compost > 5:
+                            st.warning('La cantidad anual teórica supera 5 kg/planta: es una señal de revisión agronómica, NO una dosis autorizada. Evaluar viabilidad, manejo y análisis de suelo periódicos antes de aplicar.')
+                        st.warning('Modelo exploratorio de balance de masas: no representa la mineralización de la M.O. ya existente, cambios de densidad aparente, pérdidas por erosión, saturación de carbono ni la dinámica anual real. Repartir el total en años NO garantiza alcanzar la meta. El aporte de poda supone que el carbono estabilizado llega a la capa 0–20 cm dentro de los anillos; no se ha verificado localmente. No usar las cantidades como orden de compra.')
+                        st.caption('Referencia de poda: Schneidewind et al. (2019), sistemas de cacao en Bolivia (valores transferidos de manera exploratoria). Factor C→M.O. 1.724 convencional. Coeficientes de estabilización del 20 %: supuestos provisionales, no mediciones en cacao de Leoncio Prado. Compost DEVIDA: etiqueta comercial aportada por el usuario.')
+            st.info('El compost no se incorpora automáticamente al balance mineral NPK de esta versión. Eso no significa que carezca de nutrientes.')
 
             st.subheader('7. Balance NPK · simulación técnica preliminar')
             st.warning('Cálculos exploratorios basados en los coeficientes del ejemplo INIA 2025 discutidos durante el desarrollo. NO constituyen una recomendación agronómica validada. Verificar método de extracción de P, calibración local y demanda por edad y manejo de cáscaras antes de aplicar.')
@@ -562,11 +621,29 @@ with secciones[1]:
                     fuentes = [x for x in predefinidos if x in minerales]
                     st.info('Modo automático: SIFERT selecciona MAP, urea y KCl como fuentes de referencia. Puede cambiar al modo agricultor para escoger otros productos.')
                 else:
-                    fuentes = st.multiselect('Seleccione uno o varios fertilizantes comerciales que desea utilizar',
-                        options=list(minerales),
-                        default=[x for x in ['MOLIMAX 20-20-20 (Molinos & Cía.)','Urea','KCl 0-0-60 (cloruro)'] if x in minerales],
-                        key='productos_elegidos_sifert')
-                    st.caption('Puede seleccionar productos simples o compuestos. El cálculo considera simultáneamente todos sus aportes NPK; no es obligatorio utilizar todos los seleccionados.')
+                    st.markdown('**Marque ✓ los fertilizantes que desea utilizar.** El resultado se actualiza automáticamente al marcar o desmarcar, sin pulsar Calcular.')
+                    sugeridos = ['MOLIMAX 20-20-20 (Molinos & Cía.)', 'Urea', 'MAP 11-52-0', 'DAP 18-46-0', 'KCl 0-0-60 (cloruro)', 'Sulfato de potasio 0-0-50', 'NPK 15-15-15']
+                    nombres_ordenados = [x for x in sugeridos if x in minerales] + [x for x in minerales if x not in sugeridos]
+                    st.caption('Productos frecuentes primero; abra «Otros fertilizantes» para ver el resto.')
+                    fuentes = []
+                    frecuentes = [x for x in nombres_ordenados if x in sugeridos]
+                    cols = st.columns(2)
+                    for i, producto in enumerate(frecuentes):
+                        composicion = minerales[producto]
+                        detalle = f"N {composicion['N']*100:g} % · P₂O₅ {composicion['P₂O₅']*100:g} % · K₂O {composicion['K₂O']*100:g} %"
+                        if cols[i % 2].checkbox(producto, value=producto in ['MOLIMAX 20-20-20 (Molinos & Cía.)', 'Urea', 'KCl 0-0-60 (cloruro)'], key=f'check_fuente_v54_{producto}', help=detalle):
+                            fuentes.append(producto)
+                    adicionales = [x for x in nombres_ordenados if x not in frecuentes]
+                    if adicionales:
+                        with st.expander('➕ Otros fertilizantes disponibles'):
+                            otras_cols = st.columns(2)
+                            for i, producto in enumerate(adicionales):
+                                composicion = minerales[producto]
+                                detalle = f"N {composicion['N']*100:g} % · P₂O₅ {composicion['P₂O₅']*100:g} % · K₂O {composicion['K₂O']*100:g} %"
+                                if otras_cols[i % 2].checkbox(producto, value=False, key=f'check_fuente_v54_{producto}', help=detalle):
+                                    fuentes.append(producto)
+                    st.caption(f'✓ {len(fuentes)} producto(s) marcado(s). El balance NPK se recalcula automáticamente.')
+                    st.caption('Puede marcar productos simples o compuestos. SIFERT considera todos sus aportes NPK; no necesariamente utilizará todos los marcados.')
                 if not fuentes:
                     st.warning('Seleccione al menos un fertilizante para calcular las cantidades.')
                 else:
