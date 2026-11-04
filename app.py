@@ -7,7 +7,7 @@ import streamlit as st
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 3.7 · inventario analítico de nutrientes y capa arable a 20 cm y diagnóstico preliminar de fertilidad y simulador nutricional en validación')
+st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 3.9 · inventario analítico de nutrientes y capa arable a 20 cm y diagnóstico preliminar de fertilidad y simulador nutricional en validación')
 
 # Configure DATABASE_URL in Streamlit secrets for persistent PostgreSQL storage.
 try:
@@ -128,8 +128,379 @@ def import_rows(uploaded, required, fn):
     except Exception as e:
         st.error(f'No se pudo leer Excel: {e}')
 
+
+# Catálogo de referencia extraído exclusivamente de las tablas fert y ranges (Cacao)
+# de sifert.db proporcionado por el usuario. No se incluyen tablas an ni cfg.
+# En la tabla fert, las columnas p/k se interpretan como P2O5/K2O conforme
+# a las fórmulas comerciales; ca/mg se conservan como declaradas y se verifican.
+FERT_REFERENCIA = [{'nombre': 'Urea', 'tipo': 'N', 'n': 46, 'p': 0, 'k': 0, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'Sulfato de amonio', 'tipo': 'N', 'n': 21, 'p': 0, 'k': 0, 'ca': 0, 'mg': 0, 's': 24},
+ {'nombre': 'Nitrato de amonio', 'tipo': 'N', 'n': 33, 'p': 0, 'k': 0, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'DAP 18-46-0', 'tipo': 'P', 'n': 18, 'p': 46, 'k': 0, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'MAP 11-52-0', 'tipo': 'P', 'n': 11, 'p': 52, 'k': 0, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'Superfosfato triple 0-46-0', 'tipo': 'P', 'n': 0, 'p': 46, 'k': 0, 'ca': 14, 'mg': 0, 's': 0},
+ {'nombre': 'NPK 20-20-20 (soluble)', 'tipo': 'P', 'n': 20, 'p': 20, 'k': 20, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'NPK 15-15-15', 'tipo': 'P', 'n': 15, 'p': 15, 'k': 15, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'KCl 0-0-60 (cloruro)', 'tipo': 'K', 'n': 0, 'p': 0, 'k': 60, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'Sulfato de potasio 0-0-50', 'tipo': 'K', 'n': 0, 'p': 0, 'k': 50, 'ca': 0, 'mg': 0, 's': 18},
+ {'nombre': 'Nitrato de potasio 13-0-46', 'tipo': 'K', 'n': 13, 'p': 0, 'k': 46, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'Nitrato de calcio', 'tipo': 'Ca', 'n': 15.5, 'p': 0, 'k': 0, 'ca': 19, 'mg': 0, 's': 0},
+ {'nombre': 'Sulfato de magnesio', 'tipo': 'Mg', 'n': 0, 'p': 0, 'k': 0, 'ca': 0, 'mg': 9.6, 's': 13},
+ {'nombre': 'Dolomita', 'tipo': 'Enm', 'n': 0, 'p': 0, 'k': 0, 'ca': 21, 'mg': 12, 's': 0},
+ {'nombre': 'Cal agrícola', 'tipo': 'Enm', 'n': 0, 'p': 0, 'k': 0, 'ca': 38, 'mg': 0, 's': 0},
+ {'nombre': 'Yeso agrícola', 'tipo': 'Otro', 'n': 0, 'p': 0, 'k': 0, 'ca': 23, 'mg': 0, 's': 18},
+ {'nombre': 'Guano de isla (verificar garantía)',
+  'tipo': 'Org',
+  'n': 10,
+  'p': 10,
+  'k': 2,
+  'ca': 0,
+  'mg': 0,
+  's': 0},
+ {'nombre': 'Compost', 'tipo': 'Org', 'n': 2, 'p': 1, 'k': 1.5, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'Gallinaza compostada', 'tipo': 'Org', 'n': 2.5, 'p': 2.5, 'k': 2, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'Humus de lombriz', 'tipo': 'Org', 'n': 1.5, 'p': 1, 'k': 1, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'Roca fosfórica (baja reactividad)',
+  'tipo': 'Org',
+  'n': 0,
+  'p': 28,
+  'k': 0,
+  'ca': 30,
+  'mg': 0,
+  's': 0},
+ {'nombre': 'Harina de hueso', 'tipo': 'Org', 'n': 4, 'p': 20, 'k': 0, 'ca': 25, 'mg': 0, 's': 0},
+ {'nombre': 'Ceniza vegetal', 'tipo': 'Org', 'n': 0, 'p': 1.5, 'k': 5, 'ca': 20, 'mg': 0, 's': 0},
+ {'nombre': 'Sulfato de K y Mg (K-Mag)', 'tipo': 'K', 'n': 0, 'p': 0, 'k': 22, 'ca': 0, 'mg': 11, 's': 22},
+ {'nombre': 'Biol (ingrese su análisis)', 'tipo': 'Org', 'n': 0, 'p': 0, 'k': 0, 'ca': 0, 'mg': 0, 's': 0},
+ {'nombre': 'Hydran (completar ficha real)', 'tipo': 'Otro', 'n': 0, 'p': 0, 'k': 0, 'ca': 0, 'mg': 0, 's': 0}]
+CRITERIOS_CACAO_REFERENCIA = [{'cultivo': 'Cacao',
+  'param': 'pH',
+  'crit': 4.8,
+  'bajo': 5.4,
+  'omin': 5.5,
+  'omax': 7,
+  'alto': 7.8,
+  'unidad': '',
+  'metodo': 'pH 1:1 agua',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'CE',
+  'crit': 0,
+  'bajo': 0,
+  'omin': 0,
+  'omax': 1.5,
+  'alto': 3,
+  'unidad': 'dS/m',
+  'metodo': 'ECe / 1:5 convertido',
+  'fuente': 'USDA/Ayers y Westcot; umbral por cultivo estimado - validar'},
+ {'cultivo': 'Cacao',
+  'param': 'MO',
+  'crit': 1.5,
+  'bajo': 2.5,
+  'omin': 3,
+  'omax': 5,
+  'alto': 8,
+  'unidad': '%',
+  'metodo': 'Walkley-Black',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'Nt',
+  'crit': 0.05,
+  'bajo': 0.1,
+  'omin': 0.15,
+  'omax': 0.3,
+  'alto': 0.5,
+  'unidad': '%',
+  'metodo': 'Kjeldahl',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'CN',
+  'crit': 5,
+  'bajo': 8,
+  'omin': 8,
+  'omax': 15,
+  'alto': 25,
+  'unidad': '',
+  'metodo': 'calculada',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'P',
+  'crit': 4,
+  'bajo': 8,
+  'omin': 14,
+  'omax': 30,
+  'alto': 50,
+  'unidad': 'ppm',
+  'metodo': 'Olsen modificado',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'K',
+  'crit': 80,
+  'bajo': 120,
+  'omin': 160,
+  'omax': 300,
+  'alto': 400,
+  'unidad': 'ppm',
+  'metodo': 'NH4OAc 1N pH 7',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'S',
+  'crit': 5,
+  'bajo': 10,
+  'omin': 10,
+  'omax': 25,
+  'alto': 40,
+  'unidad': 'ppm',
+  'metodo': 'fosfato de Ca',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'Ca',
+  'crit': 1,
+  'bajo': 3,
+  'omin': 4,
+  'omax': 10,
+  'alto': 15,
+  'unidad': 'cmol/kg',
+  'metodo': 'NH4OAc 1N pH 7',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'Mg',
+  'crit': 0.3,
+  'bajo': 0.8,
+  'omin': 1,
+  'omax': 3,
+  'alto': 4,
+  'unidad': 'cmol/kg',
+  'metodo': 'NH4OAc 1N pH 7',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'PSI',
+  'crit': 0,
+  'bajo': 0,
+  'omin': 0,
+  'omax': 6,
+  'alto': 15,
+  'unidad': '%',
+  'metodo': 'calculada',
+  'fuente': 'USDA (suelo sódico PSI>15)'},
+ {'cultivo': 'Cacao',
+  'param': 'CIC',
+  'crit': 6,
+  'bajo': 12,
+  'omin': 12,
+  'omax': 25,
+  'alto': 40,
+  'unidad': 'cmol/kg',
+  'metodo': 'NH4OAc 1N pH 7',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'SatBas',
+  'crit': 20,
+  'bajo': 35,
+  'omin': 50,
+  'omax': 80,
+  'alto': 100,
+  'unidad': '%',
+  'metodo': 'calculada',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'SatAl',
+  'crit': 0,
+  'bajo': 0,
+  'omin': 0,
+  'omax': 10,
+  'alto': 30,
+  'unidad': '%',
+  'metodo': 'KCl 1M / calculada',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'Zn',
+  'crit': 0.5,
+  'bajo': 1.5,
+  'omin': 2,
+  'omax': 10,
+  'alto': 20,
+  'unidad': 'ppm',
+  'metodo': 'DTPA',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'B',
+  'crit': 0.2,
+  'bajo': 0.4,
+  'omin': 0.5,
+  'omax': 1.5,
+  'alto': 2.5,
+  'unidad': 'ppm',
+  'metodo': 'agua caliente',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'Fe',
+  'crit': 2.5,
+  'bajo': 4.5,
+  'omin': 4.5,
+  'omax': 50,
+  'alto': 150,
+  'unidad': 'ppm',
+  'metodo': 'DTPA',
+  'fuente': 'DTPA, Lindsay-Norvell - referencial'},
+ {'cultivo': 'Cacao',
+  'param': 'Mn',
+  'crit': 1,
+  'bajo': 5,
+  'omin': 5,
+  'omax': 50,
+  'alto': 100,
+  'unidad': 'ppm',
+  'metodo': 'DTPA',
+  'fuente': 'DTPA, Lindsay-Norvell - referencial'},
+ {'cultivo': 'Cacao',
+  'param': 'Cu',
+  'crit': 0.2,
+  'bajo': 1,
+  'omin': 1,
+  'omax': 5,
+  'alto': 20,
+  'unidad': 'ppm',
+  'metodo': 'DTPA',
+  'fuente': 'DTPA, Lindsay-Norvell - referencial'},
+ {'cultivo': 'Cacao',
+  'param': 'Dap',
+  'crit': 0,
+  'bajo': 0,
+  'omin': 0,
+  'omax': 1.4,
+  'alto': 1.65,
+  'unidad': 'g/cm³',
+  'metodo': 'cilindro / terrón',
+  'fuente': 'NRCS (guía de calidad de suelo) por grupo textural - referencial'},
+ {'cultivo': 'Cacao',
+  'param': 'Por',
+  'crit': 35,
+  'bajo': 45,
+  'omin': 45,
+  'omax': 60,
+  'alto': 70,
+  'unidad': '%',
+  'metodo': 'calculada (1 − Da/Dr)',
+  'fuente': 'Referencial genérico (UNALM/INIA/SEMARNAT, evidencia transferida) - validar con su laboratorio'},
+ {'cultivo': 'Cacao',
+  'param': 'F_N',
+  'crit': 1.44,
+  'bajo': 1.8,
+  'omin': 1.8,
+  'omax': 2.0,
+  'alto': 2.6,
+  'unidad': '%',
+  'metodo': 'hoja diagnóstica',
+  'fuente': 'Referencial (FAO Soils Bull. 38/2; Malavolta/Cenicafé; Embleton/UC; transferido) - validar'},
+ {'cultivo': 'Cacao',
+  'param': 'F_P',
+  'crit': 0.104,
+  'bajo': 0.13,
+  'omin': 0.13,
+  'omax': 0.2,
+  'alto': 0.26,
+  'unidad': '%',
+  'metodo': 'hoja diagnóstica',
+  'fuente': 'Referencial (FAO Soils Bull. 38/2; Malavolta/Cenicafé; Embleton/UC; transferido) - validar'},
+ {'cultivo': 'Cacao',
+  'param': 'F_K',
+  'crit': 0.96,
+  'bajo': 1.2,
+  'omin': 1.2,
+  'omax': 2.0,
+  'alto': 2.6,
+  'unidad': '%',
+  'metodo': 'hoja diagnóstica',
+  'fuente': 'Referencial (FAO Soils Bull. 38/2; Malavolta/Cenicafé; Embleton/UC; transferido) - validar'},
+ {'cultivo': 'Cacao',
+  'param': 'F_Ca',
+  'crit': 0.24,
+  'bajo': 0.3,
+  'omin': 0.3,
+  'omax': 0.4,
+  'alto': 0.52,
+  'unidad': '%',
+  'metodo': 'hoja diagnóstica',
+  'fuente': 'Referencial (FAO Soils Bull. 38/2; Malavolta/Cenicafé; Embleton/UC; transferido) - validar'},
+ {'cultivo': 'Cacao',
+  'param': 'F_Mg',
+  'crit': 0.16,
+  'bajo': 0.2,
+  'omin': 0.2,
+  'omax': 0.45,
+  'alto': 0.585,
+  'unidad': '%',
+  'metodo': 'hoja diagnóstica',
+  'fuente': 'Referencial (FAO Soils Bull. 38/2; Malavolta/Cenicafé; Embleton/UC; transferido) - validar'},
+ {'cultivo': 'Cacao',
+  'param': 'F_S',
+  'crit': 0.12,
+  'bajo': 0.15,
+  'omin': 0.15,
+  'omax': 0.25,
+  'alto': 0.325,
+  'unidad': '%',
+  'metodo': 'hoja diagnóstica',
+  'fuente': 'Referencial (FAO Soils Bull. 38/2; Malavolta/Cenicafé; Embleton/UC; transferido) - validar'},
+ {'cultivo': 'Cacao',
+  'param': 'F_Fe',
+  'crit': 80.0,
+  'bajo': 100,
+  'omin': 100,
+  'omax': 200,
+  'alto': 260.0,
+  'unidad': 'ppm',
+  'metodo': 'hoja diagnóstica',
+  'fuente': 'Referencial (FAO Soils Bull. 38/2; Malavolta/Cenicafé; Embleton/UC; transferido) - validar'},
+ {'cultivo': 'Cacao',
+  'param': 'F_Mn',
+  'crit': 40.0,
+  'bajo': 50,
+  'omin': 50,
+  'omax': 200,
+  'alto': 260.0,
+  'unidad': 'ppm',
+  'metodo': 'hoja diagnóstica',
+  'fuente': 'Referencial (FAO Soils Bull. 38/2; Malavolta/Cenicafé; Embleton/UC; transferido) - validar'},
+ {'cultivo': 'Cacao',
+  'param': 'F_Cu',
+  'crit': 8.0,
+  'bajo': 10,
+  'omin': 10,
+  'omax': 20,
+  'alto': 26.0,
+  'unidad': 'ppm',
+  'metodo': 'hoja diagnóstica',
+  'fuente': 'Referencial (FAO Soils Bull. 38/2; Malavolta/Cenicafé; Embleton/UC; transferido) - validar'},
+ {'cultivo': 'Cacao',
+  'param': 'F_Zn',
+  'crit': 32.0,
+  'bajo': 40,
+  'omin': 40,
+  'omax': 100,
+  'alto': 130.0,
+  'unidad': 'ppm',
+  'metodo': 'hoja diagnóstica',
+  'fuente': 'Referencial (FAO Soils Bull. 38/2; Malavolta/Cenicafé; Embleton/UC; transferido) - validar'},
+ {'cultivo': 'Cacao',
+  'param': 'F_B',
+  'crit': 24.0,
+  'bajo': 30,
+  'omin': 30,
+  'omax': 80,
+  'alto': 104.0,
+  'unidad': 'ppm',
+  'metodo': 'hoja diagnóstica',
+  'fuente': 'Referencial (FAO Soils Bull. 38/2; Malavolta/Cenicafé; Embleton/UC; transferido) - validar'}]
+GOVA_REFERENCIA = {'nombre':'Compost GOVA SAC – DEVIDA','tipo':'Org',
+    'n':0.90,'p':0.55*2.291,'k':0.65*1.205,'ca':None,'mg':None,'s':None,
+    'humedad':25.0,'mo':30.0,'ph':7.25,'cn':17.5}
+# La etiqueta no indica la base analítica (húmeda/seca), ni la liberación anual.
+# Los valores GOVA son puntos medios; P y K se convierten de elementos a óxidos.
+
 p=participants()
-tabs=st.tabs(['👥 Participantes','🧪 Análisis UNAS','📈 Comparación histórica','🌿 Aplicaciones reales','📥 Exportar datos','🧮 Motor nutricional'])
+tabs=st.tabs(['👥 Participantes','🧪 Análisis UNAS','📈 Comparación histórica','🌿 Aplicaciones reales','📥 Exportar datos','🧮 Motor nutricional','📚 Catálogo de insumos'])
 with tabs[0]:
     st.subheader('Registrar participante')
     with st.form('participante'):
@@ -443,6 +814,31 @@ with tabs[5]:
                         st.caption('N: N total × mineralización × disponibilidad × asimilación. P y K: inventario analítico × disponibilidad × asimilación. No se aplica mineralización 2.29 al P ni 1.21 al K: esos números son factores de conversión de unidades.')
                         st.error('Los resultados de esta tabla NO alimentan automáticamente el balance nutricional ni la formulación de fertilizantes. Se requiere calibrar el suministro anual real y evitar duplicar factores de recuperación.')
                 st.info('CaO y MgO se muestran como inventarios intercambiables. No se les asigna asimilación de 1000 % ni se transforman directamente en déficits de fertilización.')
+                st.markdown('##### C. Oferta regional ilustrativa · Alto Huallaga (editable)')
+                st.warning('ESCENARIO DIDÁCTICO: los coeficientes proceden del examen regional, pero no se ha verificado su método de estimación. Disponibilidad y asimilación pueden superponerse; su producto NO equivale a una oferta anual validada. Esta tabla no modifica las dosis de fertilizantes.')
+                with st.expander('Ajustar coeficientes regionales para la tabla comparativa', expanded=False):
+                    r1, r2, r3 = st.columns(3)
+                    mn = r1.number_input('N: mineralización anual (%)', min_value=0.0, max_value=100.0, value=2.4, step=0.1, key='v38_mn')
+                    dn = r1.number_input('N: disponibilidad (%)', min_value=0.0, max_value=100.0, value=30.0, key='v38_dn')
+                    an = r1.number_input('N: asimilación (%)', min_value=0.0, max_value=100.0, value=60.0, key='v38_an')
+                    dp = r2.number_input('P: disponibilidad (%)', min_value=0.0, max_value=100.0, value=20.0, key='v38_dp')
+                    ap = r2.number_input('P: asimilación (%)', min_value=0.0, max_value=100.0, value=20.0, key='v38_ap')
+                    dk = r3.number_input('K: disponibilidad (%)', min_value=0.0, max_value=100.0, value=40.0, key='v38_dk')
+                    ak = r3.number_input('K: asimilación (%)', min_value=0.0, max_value=100.0, value=70.0, key='v38_ak')
+                    k_fuente_38 = st.radio('Fuente de K (vías alternativas, no sumar)', ['K₂O reportado (ppm)', 'K intercambiable (cmol(+)/kg)'], horizontal=True, key='v38_kfuente')
+                k_base_38 = k2o_stock if k_fuente_38.startswith('K₂O') else k2o_cmol_stock
+                entradas_38 = [('N', n_stock, mn, dn, an), ('P₂O₅', p2o5_stock, None, dp, ap), ('K₂O', k_base_38, None, dk, ak), ('CaO', ca_o_stock, None, None, None), ('MgO', mg_o_stock, None, None, None)]
+                oferta_38 = {}
+                filas_38 = []
+                for nutr, stock, mineral, disp, asim in entradas_38:
+                    tras_min = stock * mineral / 100 if stock is not None and mineral is not None else stock
+                    tras_disp = tras_min * disp / 100 if tras_min is not None and disp is not None else None
+                    tras_asim = tras_disp * asim / 100 if tras_disp is not None and asim is not None else None
+                    oferta_38[nutr] = tras_asim
+                    filas_38.append({'Nutriente':nutr, 'Inventario analítico (kg/ha)':round(stock,2) if stock is not None else 'ND', 'Tras mineralización (kg/ha)':round(tras_min,2) if tras_min is not None and mineral is not None else 'No aplica', 'Tras disponibilidad (kg/ha)':round(tras_disp,2) if tras_disp is not None else 'ND', 'Tras asimilación (kg/ha)':round(tras_asim,2) if tras_asim is not None else 'ND'})
+                st.dataframe(pd.DataFrame(filas_38), hide_index=True, use_container_width=True)
+                st.caption('N: inventario total × 2.4 % × 30 % × 60 %. P: inventario extraíble expresado como P₂O₅ × 20 % × 20 %. K: inventario K₂O de la fuente seleccionada × 40 % × 70 %. Ca y Mg: ND por ausencia de coeficientes. Son hipótesis del examen, no disponibilidad medida ni absorción real.')
+
 
             st.markdown('#### Diagnóstico descriptivo (sin umbrales automáticos)')
             diag={ 'Indicador':['pH','M.O. (%)','N total (%)','P (ppm)','K₂O reportado (ppm)','K intercambiable (cmol(+)/kg)','Ca (cmol(+)/kg)','Mg (cmol(+)/kg)','Al saturación (%)','CICe (cmol(+)/kg)'],
@@ -578,6 +974,22 @@ with tabs[5]:
                         'Punto medio ilustrativo (kg/ha/año)':None})
             st.dataframe(pd.DataFrame(extracciones).astype(object).where(pd.notna(pd.DataFrame(extracciones)), 'ND'),hide_index=True,use_container_width=True)
             st.caption('Para S no se dispone de coeficiente preliminar verificado: se muestra sin cálculo. El punto medio es una referencia aritmética, no un valor calibrado. No se considera manejo de cáscaras.')
+            st.markdown('##### Comparación didáctica: inventario, escenario regional y extracción')
+            st.caption('Tablas independientes. La diferencia aritmética NO se convierte en déficit agronómico ni en dosis: el inventario y la extracción tienen bases temporales y biológicas distintas.')
+            if masa_suelo_ha is not None:
+                comp_38 = []
+                for nutr in ['N','P₂O₅','K₂O','CaO','MgO']:
+                    invent_38 = {'N':n_stock,'P₂O₅':p2o5_stock,'K₂O':k_base_38,'CaO':ca_o_stock,'MgO':mg_o_stock}[nutr]
+                    comp_38.append({'Nutriente':nutr,
+                        'Inventario 0–20 cm (kg/ha)':round(invent_38,2) if invent_38 is not None else 'ND',
+                        'Escenario Alto Huallaga (kg/ha)':round(oferta_38[nutr],2) if oferta_38[nutr] is not None else 'ND',
+                        'Extracción ilustrativa (kg/ha/año)':round(demanda[nutr],2) if demanda[nutr] is not None else 'ND',
+                        'Interpretación':'No calcular déficit automáticamente'})
+                st.dataframe(pd.DataFrame(comp_38), hide_index=True, use_container_width=True)
+                st.caption('K usa la fuente seleccionada en la tabla regional. No se suman K₂O en ppm y K intercambiable. Los parámetros regionales no alimentan el módulo de formulación comercial.')
+            else:
+                st.info('Comparación ND: se necesita DAP medida en el análisis.')
+
             st.markdown('##### Parámetros técnicos para simular fertilización (opcionales)')
             st.info('La oferta del suelo NO se deduce automáticamente de ppm UNAS. Para evitar dosis engañosas, la simulación requiere habilitación explícita y valores de oferta y eficiencia sustentados para cada nutriente.')
             habilitar=st.checkbox('Habilitar simulación experimental de fertilizantes con parámetros técnicos verificados',value=False,key='v32_habilitar')
@@ -590,14 +1002,37 @@ with tabs[5]:
                     confirmado=c3.checkbox(f'Parámetros de {n} verificados',value=False,key='v32_confirm_'+n)
                     configured[n]=bool(habilitar and confirmado and demanda[n] is not None and yield_kg>0 and efic[n]>0)
             st.markdown('#### 2. Compost: aporte durante el primer año')
+            st.caption('Seleccione una ficha de referencia. Las composiciones pueden editarse; no se presupone disponibilidad anual.')
+            organicos = [r for r in FERT_REFERENCIA if r['tipo']=='Org' and 'Biol' not in r['nombre']]
+            opciones_compost = ['Ingreso manual', GOVA_REFERENCIA['nombre']] + [r['nombre'] for r in organicos]
+            seleccion_compost = st.selectbox('Producto orgánico de referencia', opciones_compost, key='v39_compost_select')
+            ficha = (GOVA_REFERENCIA if seleccion_compost == GOVA_REFERENCIA['nombre'] else
+                     next((r for r in organicos if r['nombre']==seleccion_compost), None))
+            if ficha:
+                st.info('Ficha referencial seleccionada: '+seleccion_compost+'. Verifique la garantía comercial y la base analítica.')
             compost_kg=st.number_input('Compost aplicado (kg/ha/año, base húmeda)',min_value=0.0,value=0.0,step=100.0)
-            hum=st.number_input('Humedad del compost (%)',min_value=0.0,max_value=99.0,value=30.0,step=5.0)
-            st.caption('Indique el análisis del compost en porcentaje sobre materia seca y la fracción disponible el primer año. Sin análisis, mantenga 0 y no atribuya aporte.')
+            hum=st.number_input('Humedad del compost (%)',min_value=0.0,max_value=99.0,
+                value=float(ficha.get('humedad',30.0)) if ficha else 30.0,step=1.0,key='v39_hum_'+str(seleccion_compost))
+            base_compost=st.radio('Base de los porcentajes declarados',
+                ['No determinada','Base seca','Base húmeda'],horizontal=True,key='v39_base_'+str(seleccion_compost))
+            st.caption('La etiqueta GOVA no especifica si los porcentajes son sobre materia seca o producto húmedo. Hasta confirmarlo, el aporte computable permanece ND (no se resta del balance).')
+            claves_compost={'N':'n','P₂O₅':'p','K₂O':'k','CaO':'ca','MgO':'mg','S':'s'}
             for n in nutrientes:
                 c1,c2=st.columns(2)
-                pct=c1.number_input(f'{n} en compost (% base seca)',min_value=0.0,max_value=100.0,value=0.0,step=0.1,key='co_'+n)
-                liber=c2.number_input(f'{n} disponible primer año (%)',min_value=0.0,max_value=100.0,value=0.0,step=5.0,key='lib_'+n)
-                aporte[n]=compost_kg*(1-hum/100)*(pct/100)*(liber/100)
+                raw = ficha.get(claves_compost[n]) if ficha else None
+                valor_base = float(raw) if raw is not None else 0.0
+                pct=c1.number_input(f'{n} en compost (% según base indicada)',min_value=0.0,max_value=100.0,
+                    value=valor_base,step=0.01,format='%.3f',key='v39_co_'+str(seleccion_compost)+'_'+n)
+                liber=c2.number_input(f'{n} disponible primer año (%)',min_value=0.0,max_value=100.0,
+                    value=0.0,step=5.0,key='v39_lib_'+str(seleccion_compost)+'_'+n)
+                if base_compost=='Base seca':
+                    aporte[n]=compost_kg*(1-hum/100)*(pct/100)*(liber/100)
+                elif base_compost=='Base húmeda':
+                    aporte[n]=compost_kg*(pct/100)*(liber/100)
+                else:
+                    aporte[n]=0.0
+            if base_compost=='No determinada' and compost_kg>0:
+                st.warning('Aporte del compost excluido provisionalmente del balance: confirme la base de los porcentajes. El cero mostrado en el balance significa no contabilizado, no ausencia de nutrientes.')
             st.markdown('#### 3. Balance nutricional y dosis teóricas')
             rows=[]; deficit={}
             for n in nutrientes:
@@ -631,5 +1066,37 @@ with tabs[5]:
             st.warning('El ingreso de oferta del suelo y coeficientes no valida su exactitud. No utilizar estas estimaciones como receta de fertilización sin validación agronómica local.')
             st.caption(f'Orientación de enmienda: {tipo_enmienda}. No se emiten cantidades de cal o dolomita. No es una prescripción validada.')
 
+with tabs[6]:
+    st.subheader('Catálogo de fertilizantes, abonos y enmiendas · V3.9')
+    st.caption('Referencia importada de la tabla fert de sifert.db (26 productos) y ficha GOVA SAC – DEVIDA (valores medios de etiqueta). No se importaron datos personales ni configuración.')
+    st.warning('Los valores del catálogo son referencias, no garantías verificadas. En particular, confirmar unidades de Ca y Mg, base húmeda/seca de orgánicos y formulación real del fabricante antes de recomendar dosis.')
+    catalogo = [dict(r, origen='SIFERT v6 · base aportada') for r in FERT_REFERENCIA]
+    catalogo.append(dict(GOVA_REFERENCIA, origen='Etiqueta GOVA SAC – DEVIDA · punto medio'))
+    columnas = ['nombre','tipo','n','p','k','ca','mg','s','origen']
+    tabla = pd.DataFrame(catalogo)[columnas].rename(columns={
+        'nombre':'Producto','tipo':'Tipo','n':'N (%)','p':'P₂O₅ (%)','k':'K₂O (%)',
+        'ca':'Ca (unidad por confirmar)','mg':'Mg (unidad por confirmar)','s':'S (%)','origen':'Procedencia'})
+    st.dataframe(tabla, use_container_width=True, hide_index=True)
+    st.download_button('Descargar catálogo de referencia (CSV)',tabla.to_csv(index=False).encode('utf-8-sig'),
+        file_name='sifert_catalogo_referencia_v3_9.csv',mime='text/csv')
+    st.subheader('Calculadora de aporte nominal del producto')
+    nombres=[r['nombre'] for r in catalogo]
+    elegido=st.selectbox('Producto',nombres,key='v39_producto')
+    producto=next(r for r in catalogo if r['nombre']==elegido)
+    dosis=st.number_input('Cantidad aplicada (kg/ha)',min_value=0.0,value=0.0,step=10.0,key='v39_dosis')
+    if elegido==GOVA_REFERENCIA['nombre']:
+        st.warning('GOVA: los porcentajes de etiqueta tienen base analítica no especificada; los aportes nominales no representan aporte anual ni disponibilidad para cacao.')
+    datos=[]
+    for key,label in [('n','N'),('p','P₂O₅'),('k','K₂O'),('ca','Ca (revisar unidad)'),('mg','Mg (revisar unidad)'),('s','S')]:
+        pct=producto.get(key)
+        datos.append({'Nutriente':label,'Concentración (%)':pct if pct is not None else 'ND',
+            'Cantidad nominal (kg/ha)':round(dosis*float(pct)/100,3) if pct is not None else 'ND'})
+    st.dataframe(pd.DataFrame(datos),hide_index=True,use_container_width=True)
+    st.caption('Cantidad nominal = kg de producto × concentración / 100. No aplica eficiencia, mineralización ni liberación. No es una recomendación de fertilización.')
+    st.divider()
+    st.subheader('Criterios de suelo para cacao (referencia externa)')
+    st.caption('Estos criterios proceden de la tabla ranges para Cacao de la base aportada; se muestran para consulta y NO reemplazan los umbrales existentes del diagnóstico.')
+    st.dataframe(pd.DataFrame(CRITERIOS_CACAO_REFERENCIA),hide_index=True,use_container_width=True)
+
 st.divider()
-st.caption('SIFERT CACAO DIGITAL V3.7 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
+st.caption('SIFERT CACAO DIGITAL V3.9 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
