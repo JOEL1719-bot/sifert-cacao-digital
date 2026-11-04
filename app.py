@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V5.0 · RESPALDO DE AVANCE · Análisis de suelo y manejo nutricional del cacao')
+st.caption('V5.0 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -330,8 +330,10 @@ with secciones[1]:
                 st.info(f'**Selección preliminar según la lámina:** {enmienda}. La relación Ca/Mg sola no determina la necesidad ni la dosis de encalado.')
             st.caption('Referencia de encalado: manual técnico INIA 2025 para café y cacao, capítulo 9. Objetivo de saturación de Al del ejemplo: 20 %. El método y sus factores para aplicación localizada deben contrastarse con el manual antes de prescribir dosis.')
             c_cal, c_dolo = st.columns(2)
-            prnt_cal = c_cal.number_input('PRNT cal agrícola (%)', min_value=1.0, max_value=250.0, value=135.0, step=1.0, key='prnt_cal')
-            prnt_dolo = c_dolo.number_input('PRNT dolomita (%) — referencial', min_value=1.0, max_value=250.0, value=94.0, step=1.0, key='prnt_dolo')
+            prnt_cal, prnt_dolo = 135.0, 94.0
+            c_cal.metric('PRNT cal agrícola · fijo', '135 %')
+            c_dolo.metric('PRNT dolomita · fijo', '94 %')
+            st.caption('PRNT fijados por decisión de configuración. Verificar que correspondan a los productos utilizados; 94 % de dolomita es referencial hasta confirmar ficha.')
             plantas_encalado = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
             area_planta = 3.141592653589793 * 0.5**2
             area_tratada = area_planta * plantas_encalado
@@ -385,36 +387,74 @@ with secciones[1]:
             st.markdown('**¿Cuánto aporta el suelo durante el año?** Todavía no se puede determinar con confiabilidad a partir de estos resultados únicamente. Se requiere una relación calibrada entre los métodos de suelo, la dinámica del suelo y la absorción del cacao.')
             st.info('El déficit de fertilización no se calcula aún: también faltan la demanda completa del cultivo, las cáscaras retiradas y la eficiencia de los fertilizantes. No se deben restar directamente los kg/ha analíticos de la extracción del grano.')
 
-            st.subheader('6. Compost: aporte nutricional y recomendación de aplicación')
-            st.caption('Composición referencial editable. Verifique los porcentajes y la base seca o húmeda del análisis de su compost; no constituye una dosis recomendada.')
-            # Porcentajes de nutrientes totales estimados, expresados en forma de fertilizante.
-            # No se conoce la base húmeda/seca ni la fracción liberada el primer año.
-            col_n, col_p, col_k, col_saco = st.columns(4)
-            compost_pct = {
-                'N': col_n.number_input('N del compost (%)', min_value=0.0, max_value=100.0, value=0.90, step=0.05, key='compost_n'),
-                'P₂O₅': col_p.number_input('P₂O₅ del compost (%)', min_value=0.0, max_value=100.0, value=1.26, step=0.05, key='compost_p'),
-                'K₂O': col_k.number_input('K₂O del compost (%)', min_value=0.0, max_value=100.0, value=0.78, step=0.05, key='compost_k'),
-            }
-            peso_saco = col_saco.number_input('Peso del saco (kg)', min_value=1.0, value=50.0, step=1.0, key='compost_saco')
-            cantidad_compost = st.number_input('Cantidad de compost para simulación (kg/ha)', min_value=0.0, value=1000.0, step=100.0, key='compost_cantidad')
+            st.subheader('6. Compost: manejo de materia orgánica')
+            mo_val = datos.get('mo')
+            if mo_val is None:
+                st.info('Ingrese el porcentaje de materia orgánica para evaluar el manejo del compost.')
+            else:
+                st.metric('Materia orgánica del suelo', f'{mo_val:.2f} %')
+                st.caption(f'Clasificación orientativa: {clasificar("mo", mo_val)}. Los umbrales requieren validación local.')
+            st.info('Compost: una aplicación anual para mejorar la materia orgánica. En el balance mineral se computan 0 kg/ha de N, P₂O₅, K₂O, CaO, MgO y S, por decisión metodológica. Esto NO significa que el compost carezca de nutrientes.')
             plantas_compost = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
-            st.caption(f'Equivalencias: {cantidad_compost / plantas_compost:.2f} kg/planta · {cantidad_compost / peso_saco:.2f} sacos/ha. Es una simulación de cantidad ingresada, NO una dosis calculada por el sistema.')
-            tabla_compost = []
-            for nutriente, porcentaje in compost_pct.items():
-                tabla_compost.append({
-                    'Nutriente': nutriente,
-                    'Contenido de referencia (%)': round(porcentaje, 3),
-                    'Cantidad potencial por saco (kg)': round(peso_saco * porcentaje / 100, 3),
-                    'Aporte total en simulación (kg/ha)': round(cantidad_compost * porcentaje / 100, 3),
-                    'Aporte disponible el primer año': 'No determinado',
-                })
-            st.dataframe(pd.DataFrame(tabla_compost), hide_index=True, use_container_width=True)
-            st.warning('Los aportes son contenidos totales teóricos, NO nutrientes disponibles en el primer año. Confirme la composición y si está expresada en base seca o húmeda; no se calcula una dosis agronómica.')
-            st.markdown('**¿Qué falta para recomendar una dosis?** Validar la oferta anual de nutrientes del suelo según el método de suelo, los requerimientos completos del cultivo, la recuperación de fertilizantes, la liberación del compost y el aporte o retiro de las cáscaras.')
+            st.caption('Intervalo bibliográfico orientativo de compost para cultivos permanentes: 2–5 kg/planta. No existe aquí una ecuación validada que transforme automáticamente un porcentaje de M.O. en una dosis única.')
+            st.dataframe(pd.DataFrame([{'Dosis de referencia': f'{d} kg/planta', 'kg/ha': d*plantas_compost, 'Sacos de 50 kg/ha': round(d*plantas_compost/50, 2)} for d in (2,3,4,5)]), hide_index=True, use_container_width=True)
 
-            st.subheader('7. ¿Cuánto compost y fertilizante debo aplicar?')
-            st.info('Todavía no se puede calcular una dosis confiable únicamente con estos resultados. Falta validar la oferta anual del suelo, la recuperación de fertilizantes y la liberación del compost. SIFERT no inventará una receta.')
-            st.caption('El análisis de suelo expresa concentraciones y reservas analíticas, no necesariamente suministro anual para el cacao. Si no se midió azufre, no se diagnostica su suficiencia.')
+            st.subheader('7. Balance NPK · simulación técnica preliminar')
+            st.warning('Cálculos exploratorios basados en los coeficientes del ejemplo INIA 2025 discutidos durante el desarrollo. NO constituyen una recomendación agronómica validada. Verificar método de extracción de P, calibración local y demanda por edad y manejo de cáscaras antes de aplicar.')
+            n_total, p_ppm, k_cmol, dap = datos.get('n'), datos.get('p'), datos.get('k_cmol'), datos.get('dap')
+            if any(v is None for v in (n_total,p_ppm,k_cmol,dap)) or dap <= 0:
+                st.info('Para simular NPK ingrese N total (%), P disponible (ppm), K intercambiable (cmol(+)/kg) y densidad aparente positiva.')
+            else:
+                masa = 2_000_000 * dap
+                # Coeficientes del ejemplo INIA, provisionales; P y K convertidos a óxidos.
+                oferta = {
+                    'N': masa*n_total/100*0.03*0.40,
+                    'P₂O₅': masa*p_ppm/1_000_000*2.291*0.25,
+                    'K₂O': masa*k_cmol*391/1_000_000*1.205*0.40,
+                }
+                demanda = {'N': 70*rendimiento/1000, 'P₂O₅': 16*rendimiento/1000, 'K₂O': 90*rendimiento/1000}
+                eficiencia = {'N':0.60,'P₂O₅':0.25,'K₂O':0.70}
+                dosis = {nut:max(0,demanda[nut]-oferta[nut])/eficiencia[nut] for nut in demanda}
+                st.dataframe(pd.DataFrame([{'Nutriente':nut, 'Demanda kg/ha':round(demanda[nut],2), 'Oferta estimada kg/ha':round(oferta[nut],2), 'Eficiencia fertilizante %':int(eficiencia[nut]*100), 'Necesidad mineral kg/ha':round(dosis[nut],2)} for nut in demanda]), hide_index=True, use_container_width=True)
+                st.caption('La estimación de oferta del suelo no es una medición de absorción anual. El modelo de demanda escala linealmente con rendimiento y no incorpora aún una calibración independiente por edad ni cáscaras.')
+
+                st.subheader('8. Selección comercial y auditoría de tres abonamientos')
+                fuente = st.selectbox('Fuente de potasio para la simulación', ['KCl (60 % K₂O)', 'SOP (50 % K₂O, 18 % S)'], key='fuente_k_sim')
+                sop = fuente.startswith('SOP')
+                k_frac = 0.50 if sop else 0.60
+                map_kg = dosis['P₂O₅']/0.52
+                n_map = map_kg*0.11
+                urea_kg = max(0,dosis['N']-n_map)/0.46
+                k_kg = dosis['K₂O']/k_frac
+                aportes = {'N':n_map+urea_kg*0.46,'P₂O₅':map_kg*0.52,'K₂O':k_kg*k_frac}
+                plantas = plantas_compost
+                fertilizantes = [('MAP 11-52-0',map_kg),('Urea 46-0-0',urea_kg),(('SOP 0-0-50' if sop else 'KCl 0-0-60'),k_kg)]
+                st.dataframe(pd.DataFrame([{'Fertilizante':nombre,'kg/ha':round(kg,2),'g/planta':round(kg*1000/plantas,2),'Sacos de 50 kg/ha':round(kg/50,2)} for nombre,kg in fertilizantes]),hide_index=True,use_container_width=True)
+                if sop:
+                    st.caption(f'Azufre total aportado por SOP: {k_kg*0.18:.2f} kg S/ha; no implica que exista una deficiencia de azufre.')
+                if n_map > dosis['N']:
+                    st.error('El MAP aporta más N que el objetivo; se requiere otra combinación de fuentes para equilibrar el nitrógeno.')
+                st.dataframe(pd.DataFrame([{'Nutriente':nut,'Objetivo kg/ha':round(dosis[nut],3),'Aporte de fertilizantes kg/ha':round(aportes[nut],3),'Diferencia kg/ha':round(aportes[nut]-dosis[nut],5)} for nut in demanda]),hide_index=True,use_container_width=True)
+                # El P se aplica primero; el N del MAP se descuenta del N objetivo de la primera etapa.
+                n_etapas = [dosis['N']/3,dosis['N']/3,dosis['N']-2*dosis['N']/3]
+                k_etapas = [dosis['K₂O']/3,dosis['K₂O']/3,dosis['K₂O']-2*dosis['K₂O']/3]
+                urea_etapas = [max(0,(n_etapas[i]-(n_map if i==0 else 0))/0.46) for i in range(3)]
+                n_exceso = max(0,n_map-n_etapas[0])
+                if n_exceso > 0.00001:
+                    st.warning(f'No se pueden cumplir tercios iguales de N con todo el MAP en la primera aplicación: exceso de N de MAP = {n_exceso:.2f} kg/ha. Se muestra la solución sin urea negativa, pero debe ajustarse la fuente de P.')
+                filas = []
+                for i in range(3):
+                    m = map_kg if i==0 else 0.0
+                    u = urea_etapas[i]
+                    kp = k_etapas[i]/k_frac
+                    filas.append({'Aplicación':f'{i+1}.ª', 'MAP kg/ha':round(m,2),'Urea kg/ha':round(u,2),('SOP kg/ha' if sop else 'KCl kg/ha'):round(kp,2),'N aportado kg/ha':round(m*0.11+u*0.46,2),'P₂O₅ aportado kg/ha':round(m*0.52,2),'K₂O aportado kg/ha':round(kp*k_frac,2)})
+                st.dataframe(pd.DataFrame(filas),hide_index=True,use_container_width=True)
+                st.caption('Etapas orientativas: inicio de floración, fructificación y maduración. N y K en tercios; P en la primera. Ajustar a fenología, lluvias y compatibilidad de fuentes. Ca, Mg y S todavía no tienen prescripción calculada.')
+                if abs(sum(urea_etapas)-urea_kg) < 0.0001 and all(abs(aportes[n]-dosis[n])<0.0001 for n in demanda):
+                    st.success('Auditoría matemática de NPK: balance anual y sumas de aplicaciones coherentes (antes del redondeo).')
+                else:
+                    st.warning('La combinación no satisface exactamente el reparto previsto; revisar selección de fuentes.')
+            st.caption('Encalado: la dosis permanece pendiente de validar el método INIA para aplicación localizada. CaO y MgO de las enmiendas se incorporarán solo con fichas técnicas verificadas.')
         except ValueError as e:
             st.session_state.pop('evaluacion_pendiente', None)
             st.error(str(e))
