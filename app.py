@@ -31,7 +31,18 @@ CAMPOS = [
 # Biblioteca inicial recuperada de SIFERT V6 (26 entradas) + MOLIMAX 20-20-20.
 # Valores porcentuales son los almacenados en V6; comprobar etiqueta antes de prescribir.
 # Ca y Mg de V6 no se convierten automáticamente a CaO/MgO.
-BIBLIOTECA_V6 = [('Urea', 'N', 46, 0, 0, 0, 0, 0), ('Sulfato de amonio', 'N', 21, 0, 0, 0, 0, 24), ('Nitrato de amonio', 'N', 33, 0, 0, 0, 0, 0), ('DAP 18-46-0', 'P', 18, 46, 0, 0, 0, 0), ('MAP 11-52-0', 'P', 11, 52, 0, 0, 0, 0), ('Superfosfato triple 0-46-0', 'P', 0, 46, 0, 14, 0, 0), ('NPK 20-20-20 (soluble)', 'P', 20, 20, 20, 0, 0, 0), ('NPK 15-15-15', 'P', 15, 15, 15, 0, 0, 0), ('KCl 0-0-60 (cloruro)', 'K', 0, 0, 60, 0, 0, 0), ('Sulfato de potasio 0-0-50', 'K', 0, 0, 50, 0, 0, 18), ('Nitrato de potasio 13-0-46', 'K', 13, 0, 46, 0, 0, 0), ('Nitrato de calcio', 'Ca', 15.5, 0, 0, 19, 0, 0), ('Sulfato de magnesio', 'Mg', 0, 0, 0, 0, 9.6, 13), ('Dolomita', 'Enm', 0, 0, 0, 21, 12, 0), ('Cal agrícola', 'Enm', 0, 0, 0, 38, 0, 0), ('Yeso agrícola', 'Otro', 0, 0, 0, 23, 0, 18), ('Guano de isla (verificar garantía)', 'Org', 10, 10, 2, 0, 0, 0), ('Compost', 'Org', 2, 1, 1.5, 0, 0, 0), ('Gallinaza compostada', 'Org', 2.5, 2.5, 2, 0, 0, 0), ('Humus de lombriz', 'Org', 1.5, 1, 1, 0, 0, 0), ('Roca fosfórica (baja reactividad)', 'Org', 0, 28, 0, 30, 0, 0), ('Harina de hueso', 'Org', 4, 20, 0, 25, 0, 0), ('Ceniza vegetal', 'Org', 0, 1.5, 5, 20, 0, 0), ('Sulfato de K y Mg (K-Mag)', 'K', 0, 0, 22, 0, 11, 22), ('Biol (ingrese su análisis)', 'Org', 0, 0, 0, 0, 0, 0), ('Hydran (completar ficha real)', 'Otro', 0, 0, 0, 0, 0, 0), ('MOLIMAX 20-20-20 (Molinos & Cía.)', 'P', 20, 20, 20, 0, 0, 0)]
+BIBLIOTECA_V6 = [('Urea', 'N', 46, 0, 0, 0, 0, 0), ('Sulfato de amonio', 'N', 21, 0, 0, 0, 0, 24), ('Nitrato de amonio', 'N', 33, 0, 0, 0, 0, 0), ('DAP 18-46-0', 'P', 18, 46, 0, 0, 0, 0), ('MAP 11-52-0', 'P', 11, 52, 0, 0, 0, 0), ('Superfosfato triple 0-46-0', 'P', 0, 46, 0, 14, 0, 0), ('NPK 20-20-20 (soluble)', 'P', 20, 20, 20, 0, 0, 0), ('NPK 15-15-15', 'P', 15, 15, 15, 0, 0, 0), ('KCl 0-0-60 (cloruro)', 'K', 0, 0, 60, 0, 0, 0), ('Sulfato de potasio 0-0-50', 'K', 0, 0, 50, 0, 0, 18), ('Nitrato de potasio 13-0-46', 'K', 13, 0, 46, 0, 0, 0), ('Nitrato de calcio', 'Ca', 15.5, 0, 0, 19, 0, 0), ('Sulfato de magnesio', 'Mg', 0, 0, 0, 0, 9.6, 13), ('Dolomita', 'Enm', 0, 0, 0, 21, 12, 0), ('Dolomita ODINSU (cal agrícola local; CaO 28-32 %, MgO 20-23 %)', 'Enm', 0, 0, 0, 0, 0, 0), ('Cal agrícola', 'Enm', 0, 0, 0, 38, 0, 0), ('Yeso agrícola', 'Otro', 0, 0, 0, 23, 0, 18), ('Guano de isla (verificar garantía)', 'Org', 10, 10, 2, 0, 0, 0), ('Compost', 'Org', 2, 1, 1.5, 0, 0, 0), ('Gallinaza compostada', 'Org', 2.5, 2.5, 2, 0, 0, 0), ('Humus de lombriz', 'Org', 1.5, 1, 1, 0, 0, 0), ('Roca fosfórica (baja reactividad)', 'Org', 0, 28, 0, 30, 0, 0), ('Harina de hueso', 'Org', 4, 20, 0, 25, 0, 0), ('Ceniza vegetal', 'Org', 0, 1.5, 5, 20, 0, 0), ('Sulfato de K y Mg (K-Mag)', 'K', 0, 0, 22, 0, 11, 22), ('Biol (ingrese su análisis)', 'Org', 0, 0, 0, 0, 0, 0), ('Hydran (completar ficha real)', 'Otro', 0, 0, 0, 0, 0, 0), ('MOLIMAX 20-20-20 (Molinos & Cía.)', 'P', 20, 20, 20, 0, 0, 0)]
+
+# Ficha comercial ODINSU: los porcentajes de CaO/MgO y carbonatos son
+# declaraciones en formas químicas distintas; no sumarlos. PRNT no acreditado.
+FICHAS_ENMIENDAS = {
+    'Dolomita ODINSU (cal agrícola local; CaO 28-32 %, MgO 20-23 %)': {
+        'CaO_pct_rango': (28, 32), 'MgO_pct_rango': (20, 23),
+        'CaCO3_pct_rango': (50, 56), 'MgCO3_pct_rango': (44, 48),
+        'PRNT': None, 'fuente': 'Ficha comercial ODINSU identificada por el usuario',
+        'observacion': 'PRNT sin verificar; no calcular dosis de encalado automáticamente.'
+    }
+}
 
 def catalogo_v6():
     return {nombre: {'tipo':tipo, 'N':n/100, 'P₂O₅':p/100, 'K₂O':k/100,
@@ -417,9 +428,10 @@ with secciones[1]:
             st.caption('Referencia de encalado: manual técnico INIA 2025 para café y cacao, capítulo 9. Objetivo de saturación de Al del ejemplo: 20 %. El método y sus factores para aplicación localizada deben contrastarse con el manual antes de prescribir dosis.')
             c_cal, c_dolo = st.columns(2)
             prnt_cal, prnt_dolo = 135.0, 94.0
-            c_cal.metric('PRNT cal agrícola · fijo', '135 %')
-            c_dolo.metric('PRNT dolomita · fijo', '94 %')
-            st.caption('PRNT fijados por decisión de configuración. Verificar que correspondan a los productos utilizados; 94 % de dolomita es referencial hasta confirmar ficha.')
+            c_cal.metric('PRNT cal agrícola genérica · referencial', '135 %')
+            c_dolo.metric('PRNT dolomita genérica · referencial', '94 %')
+            st.warning('La cal agrícola local identificada como dolomita ODINSU tiene PRNT NO VERIFICADO. Los valores 135 % y 94 % corresponden a referencias anteriores y NO se aplican a ODINSU ni se usan para calcular su dosis.')
+            st.caption('Dolomita ODINSU: CaO 28–32 %, MgO 20–23 %, CaCO₃ 50–56 % y MgCO₃ 44–48 % (según ficha comercial). No sumar porcentajes de óxidos y carbonatos.')
             plantas_encalado = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
             area_planta = 3.141592653589793 * (1.20**2 - 0.80**2)
             area_tratada = area_planta * plantas_encalado
