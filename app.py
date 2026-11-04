@@ -7,7 +7,7 @@ import streamlit as st
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 2.1 · edición de análisis y simulador nutricional en validación')
+st.caption('Registro y seguimiento de fertilidad del suelo en cacao · Versión 3.4 · diagnóstico preliminar de fertilidad y simulador nutricional en validación')
 
 # Configure DATABASE_URL in Streamlit secrets for persistent PostgreSQL storage.
 try:
@@ -297,7 +297,7 @@ with tabs[4]:
     st.info('La exportación CSV es un respaldo manual. Para persistencia real en Streamlit Cloud configure una base PostgreSQL externa.')
 
 with tabs[5]:
-    st.subheader('Motor nutricional · V3 (estimación configurable)')
+    st.subheader('Motor nutricional · V3.4 (diagnóstico preliminar y estimación configurable)')
     st.warning('SIMULACIÓN NO VALIDADA: los requerimientos se estiman desde rendimiento y coeficientes aportados por el técnico; la oferta del suelo y las eficiencias requieren calibración. No utilizar como prescripción de campo sin calibración local.')
     pid=selector(p,'sel_nutrition')
     if pid is not None:
@@ -313,6 +313,70 @@ with tabs[5]:
             'Resultado':[soil.get(k) for k in ['ph','mo','n','p','k2o','k_cmol','ca','mg','sat_al','cice']]}
             st.dataframe(pd.DataFrame(diag),hide_index=True,use_container_width=True)
             st.caption('K₂O reportado y K intercambiable son indicadores distintos: no se suman. La CICe no se sustituye por CIC a pH 7.')
+            st.markdown('#### Diagnóstico automático de fertilidad (criterios provisionales)')
+            st.warning('CLASIFICACIÓN ORIENTATIVA, NO VALIDADA LOCALMENTE. Los límites son referencias de trabajo y deben contrastarse con el método analítico específico de UNAS y calibraciones para cacao en Leoncio Prado. No utilizar estas categorías para prescribir dosis.')
+
+            def categoria_fertilidad(campo, bajo, alto):
+                dato = soil.get(campo)
+                if pd.isna(dato) or float(dato) <= 0:
+                    return 'ND / verificar dato'
+                valor = float(dato)
+                if valor < bajo:
+                    return 'Bajo'
+                if valor <= alto:
+                    return 'Medio'
+                return 'Alto'
+
+            def categoria_ph():
+                v = soil.get('ph')
+                if pd.isna(v) or float(v) <= 0:
+                    return 'ND / verificar dato'
+                v = float(v)
+                if v < 4.5: return 'Extremadamente ácido (referencia provisional)'
+                if v < 5.5: return 'Fuertemente ácido'
+                if v < 6.5: return 'Moderadamente ácido'
+                if v <= 7.3: return 'Neutro a casi neutro'
+                return 'Alcalino (revisar pH)'
+
+            def categoria_al():
+                v = soil.get('sat_al')
+                if pd.isna(v) or float(v) < 0 or float(v) > 100:
+                    return 'ND / verificar dato'
+                v = float(v)
+                if v < 10: return 'Riesgo bajo (orientativo)'
+                if v < 20: return 'Riesgo moderado (orientativo)'
+                return 'Riesgo elevado (orientativo)'
+
+            criterios = [
+                ('pH', 'ph', None, None),
+                ('Materia orgánica (%)', 'mo', 2.0, 4.0),
+                ('N total (%)', 'n', 0.10, 0.20),
+                ('P disponible (ppm)', 'p', 7.0, 14.0),
+                ('K intercambiable (cmol(+)/kg)', 'k_cmol', 0.20, 0.40),
+                ('Ca intercambiable (cmol(+)/kg)', 'ca', 3.0, 6.0),
+                ('Mg intercambiable (cmol(+)/kg)', 'mg', 0.50, 1.00),
+                ('Saturación de Al (%)', 'sat_al', None, None),
+                ('CE (dS/m)', 'ce', None, None),
+            ]
+            diagnostico = []
+            for nombre, campo, bajo, alto in criterios:
+                valor = soil.get(campo)
+                if campo == 'ph':
+                    evaluacion = categoria_ph()
+                elif campo == 'sat_al':
+                    evaluacion = categoria_al()
+                elif campo == 'ce':
+                    evaluacion = 'ND / no evaluable' if pd.isna(valor) else 'Registrada; sin clasificación automática'
+                else:
+                    evaluacion = categoria_fertilidad(campo, bajo, alto)
+                diagnostico.append({
+                    'Indicador': nombre,
+                    'Resultado UNAS': 'ND' if pd.isna(valor) else round(float(valor), 3),
+                    'Evaluación preliminar': evaluacion,
+                })
+            st.dataframe(pd.DataFrame(diagnostico), hide_index=True, use_container_width=True)
+            st.caption('Umbrales de trabajo: M.O. 2–4 %; N 0.10–0.20 %; P 7–14 ppm; K 0.20–0.40; Ca 3–6; Mg 0.50–1.00 cmol(+)/kg. No se clasifica K₂O reportado hasta confirmar el método. Un valor 0 en indicadores de nutrientes se señala para verificación porque los formularios comienzan en cero.')
+            st.info('Para validar la clasificación de P y K₂O es necesario confirmar el extractante y las unidades del laboratorio. La CE no determinada se mantiene como ND, no como 0.')
             st.markdown('#### Enmienda: evaluación automática orientativa')
             # Los ceros iniciales de la ficha de registro no equivalen a un resultado medido.
             def lectura_positiva(campo):
@@ -376,7 +440,7 @@ with tabs[5]:
                         'Coeficiente preliminar máximo (kg/1,000 kg)':None,
                         'Extracción mínima (kg/ha/año)':None,'Extracción máxima (kg/ha/año)':None,
                         'Punto medio ilustrativo (kg/ha/año)':None})
-            st.dataframe(pd.DataFrame(extracciones),hide_index=True,use_container_width=True)
+            st.dataframe(pd.DataFrame(extracciones).astype(object).where(pd.notna(pd.DataFrame(extracciones)), 'ND'),hide_index=True,use_container_width=True)
             st.caption('Para S no se dispone de coeficiente preliminar verificado: se muestra sin cálculo. El punto medio es una referencia aritmética, no un valor calibrado. No se considera manejo de cáscaras.')
             st.markdown('##### Parámetros técnicos para simular fertilización (opcionales)')
             st.info('La oferta del suelo NO se deduce automáticamente de ppm UNAS. Para evitar dosis engañosas, la simulación requiere habilitación explícita y valores de oferta y eficiencia sustentados para cada nutriente.')
@@ -432,4 +496,4 @@ with tabs[5]:
             st.caption(f'Orientación de enmienda: {tipo_enmienda}. No se emiten cantidades de cal o dolomita. No es una prescripción validada.')
 
 st.divider()
-st.caption('SIFERT CACAO DIGITAL V3.2 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
+st.caption('SIFERT CACAO DIGITAL V3.4 · Prototipo técnico. Acceso libre: no registrar DNI ni información confidencial.')
