@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V4.3 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V4.5 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V4.3 · Evaluación sencilla del análisis de suelo para cacao · Alto Huallaga')
+st.caption('V4.5 · Evaluación sencilla del análisis de suelo para cacao · Alto Huallaga')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -39,12 +39,35 @@ def leer_numero(texto, nombre):
         raise ValueError(f'{nombre}: el valor debe ser no negativo y finito.')
     return n
 
+def textura_usda(arena, limo, arcilla):
+    """Triángulo textural USDA; porcentajes en masa que suman aproximadamente 100."""
+    if any(x is None for x in (arena, limo, arcilla)):
+        return None
+    if abs(arena + limo + arcilla - 100) > 2:
+        return None
+    # Normalizar desviaciones pequeñas de redondeo.
+    total = arena + limo + arcilla
+    arena, limo, arcilla = [100 * x / total for x in (arena, limo, arcilla)]
+    if limo + 1.5 * arcilla < 15: return 'Arenoso'
+    if limo + 1.5 * arcilla >= 15 and limo + 2 * arcilla < 30: return 'Arenoso franco'
+    if (7 <= arcilla < 20 and arena > 52 and limo + 2 * arcilla >= 30) or (arcilla < 7 and limo < 50 and arena > 43): return 'Franco arenoso'
+    if 7 <= arcilla < 27 and 28 <= limo < 50 and arena <= 52: return 'Franco'
+    if limo >= 50 and 12 <= arcilla < 27 or (50 <= limo < 80 and arcilla < 12): return 'Franco limoso'
+    if limo >= 80 and arcilla < 12: return 'Limoso'
+    if 20 <= arcilla < 35 and limo < 28 and arena > 45: return 'Franco arcillo arenoso'
+    if 27 <= arcilla < 40 and arena > 20 and arena <= 45: return 'Franco arcilloso'
+    if 27 <= arcilla < 40 and arena <= 20: return 'Franco arcillo limoso'
+    if arcilla >= 35 and arena > 45: return 'Arcillo arenoso'
+    if arcilla >= 40 and limo >= 40: return 'Arcillo limoso'
+    if arcilla >= 40: return 'Arcilloso'
+    return 'Franco (verificar clasificación textural)'
+
 def clasificar(k, v):
     if v is None:
         return 'No determinado'
     if k == 'ph':
         if not 0 < v <= 14: return 'Revisar resultado'
-        if v < 4.5: return 'Extremadamente ácido'
+        if v < 4.5: return 'Suelo ácido (técnicamente: extremadamente ácido)'
         if v < 5.5: return 'Fuertemente ácido'
         if v < 6.5: return 'Moderadamente ácido'
         if v <= 7.3: return 'Cercano a neutro'
@@ -88,10 +111,27 @@ if calcular:
         st.divider()
         st.subheader('3. Resultado de su evaluación')
         tabla = []
+        # Mostrar solo indicadores con interpretación agronómica orientativa.
+        # Los demás resultados permanecen en datos para verificaciones internas.
+        indicadores_visibles = {'ph', 'mo', 'n', 'p', 'k_cmol', 'ca', 'mg', 'sat_al'}
         for clave, nombre, unidad in CAMPOS:
+            if clave not in indicadores_visibles or datos[clave] is None:
+                continue
             tabla.append({'Indicador':nombre, 'Resultado': datos[clave] if datos[clave] is not None else 'No medido',
                           'Unidad':unidad, 'Interpretación orientativa':clasificar(clave, datos[clave])})
-        st.dataframe(pd.DataFrame(tabla), hide_index=True, use_container_width=True)
+        textura = textura_usda(datos['arena'], datos['limo'], datos['arcilla'])
+        if textura:
+            tabla.append({'Indicador': 'Textura del suelo',
+                          'Resultado': textura, 'Unidad': '',
+                          'Interpretación orientativa': 'Clase textural USDA'})
+        if tabla:
+            st.dataframe(pd.DataFrame(tabla), hide_index=True, use_container_width=True)
+        else:
+            st.info('Ingrese resultados de suelo para mostrar el diagnóstico.')
+        if datos['al'] is not None and datos['cice'] is not None and datos['cice'] > 0:
+            sat_calculada = datos['al'] / datos['cice'] * 100
+            if datos['sat_al'] is not None and abs(sat_calculada - datos['sat_al']) > 0.5:
+                st.warning(f'Compruebe la saturación de aluminio: Al/CICe × 100 = {sat_calculada:.2f} %, frente al {datos["sat_al"]:.2f} % ingresado. Verifique la metodología del laboratorio.')
         st.caption('Los umbrales son provisionales y requieren contrastarse con el método analítico del laboratorio y la calibración para cacao local.')
         ph, al, mg = datos['ph'], datos['sat_al'], datos['mg']
         if ph is not None and (ph < 5.5 or (al is not None and al >= 20)):
@@ -100,8 +140,8 @@ if calcular:
             st.warning('Saturación de aluminio elevada: solicite evaluación técnica de acidez.')
         if mg is not None and 0 < mg < 0.5:
             st.info('Magnesio intercambiable bajo según criterio provisional. Verificar antes de seleccionar una enmienda.')
-        st.subheader('4. Nutrientes que saldrían en el grano seco')
-        st.caption('Cálculo automático a partir de la producción esperada; NO indica cuánto fertilizante aplicar.')
+        st.subheader('4. Nutrientes extraídos por la cosecha de cacao')
+        st.caption('Estimación de nutrientes que salen de la parcela al cosechar y vender el grano seco. No equivale a cuánto fertilizante debe aplicar; tampoco incluye las cáscaras retiradas.')
         extraccion = pd.DataFrame([{'Macronutriente': nutriente,
                                     'Exportación estimada en grano (kg/ha/año)': round(rendimiento*coef/1000, 2)}
                                    for nutriente, coef in EXTRACCION_GRANO_KG_T.items()])
