@@ -7,7 +7,7 @@ import math
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V6.6 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
+st.caption('V6.7 · Balance integrado de suelo, compost y enmiendas · Simulación técnica')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -482,6 +482,11 @@ with secciones[1]:
                     sacos = math.ceil(kg_parcela / 50)
                     st.dataframe(pd.DataFrame([{'Producto':producto_enc, 'Ca/Mg':round(relacion,2), 'Exceso Al (cmol(+)/kg)':round(exceso_al,3), 'kg/ha':round(kg_ha,2), 'kg/parcela':round(kg_parcela,2), 'g/planta':round(g_planta,1), 'Sacos de 50 kg':sacos}]), hide_index=True, use_container_width=True)
                     st.caption(f'Área tratada: {area_ha:,.1f} m²/ha. Masa de suelo: {masa_suelo:,.0f} kg/ha. Equivalente CaCO₃: {kg_equiv:,.1f} kg/ha. Ajuste por PRNT supuesto: {prnt:.2f}.')
+                    if producto_enc.startswith('Dolomita'):
+                        st.caption(f'Aporte químico teórico de la dolomita (sin estimar disponibilidad): CaO {kg_ha*0.30:.2f} kg/ha; MgO {kg_ha*0.215:.2f} kg/ha. Porcentajes centrales de la ficha ODINSU (CaO 28–32 %, MgO 20–23 %).')
+                    else:
+                        st.caption('La cal agrícola aporta principalmente calcio; para cuantificar CaO y MgO se requiere su composición real. No se presupone que carezca de magnesio.')
+                    st.caption('Estos aportes de Ca y Mg solo serían efectivos si se aplicara la enmienda. No equivalen a nutrientes inmediatamente disponibles ni a una dosis aprobada.')
                     st.warning('RESULTADO SOLO DE SIMULACIÓN: neutralización estequiométrica de exceso de Al, no una recomendación de aplicación de campo validada por INIA. La neutralización real depende de acidez de reserva, reactividad, incorporación superficial, condiciones de suelo y calidad de la enmienda. No comprar ni aplicar basándose únicamente en esta cifra.')
             st.subheader('4. Extracción de nutrientes')
             st.caption('Extracción estimada por grano seco. El efecto de las cáscaras se registra, pero aún no se cuantifica sin un coeficiente de biomasa validado.')
@@ -526,7 +531,7 @@ with secciones[1]:
                     st.caption(f'K₂O reportado directamente por de suelo: {masa * k2o_ppm / 1e6:.2f} kg/ha de la fracción analizada (vía alternativa). No se suma al K intercambiable ni se multiplica nuevamente por 1.205.')
                 st.caption('Los valores en kg/ha son conversiones del resultado analítico para 0–20 cm; no son reservas totales de P, K, Ca o Mg ni dosis de fertilizante. El azufre no se estima porque no se ingresó un análisis de S.')
             st.caption('Aporte NPK estimado con coeficientes del ejemplo INIA: N = N total × 3 % de mineralización × 40 % de disponibilidad; P₂O₅ = P extraíble convertido × 25 %; K₂O = K intercambiable convertido × 40 %. Son estimaciones orientativas, no mediciones de absorción. Para Ca, Mg y S no se asigna un coeficiente anual sin respaldo.')
-            st.info('El déficit de fertilización no se calcula aún: también faltan la demanda completa del cultivo, las cáscaras retiradas y la eficiencia de los fertilizantes. No se deben restar directamente los kg/ha analíticos de la extracción del grano.')
+            st.info('El balance de fertilización de las secciones siguientes es orientativo: la demanda completa del cultivo, las cáscaras retiradas y las eficiencias requieren calibración local. No se resta directamente el inventario analítico del suelo de la extracción del grano.')
 
             st.subheader('6. Compost y poda: proyección de materia orgánica')
             st.caption('El agricultor elige cuánto compost aplicará. SIFERT estima por separado el aporte del compost y el de los residuos de poda que permanecen en el anillo.')
@@ -622,7 +627,7 @@ with secciones[1]:
                 eficiencia = {'N':0.60,'P₂O₅':0.25,'K₂O':0.70}
                 dosis = {nut:max(0,demanda[nut]-oferta[nut])/eficiencia[nut] for nut in demanda}
                 st.dataframe(pd.DataFrame([{'Nutriente':nut, 'Requerimiento de nutrientes (kg/ha)':round(demanda[nut],2), 'Nutrientes del análisis de suelo (kg/ha)':round(oferta[nut],2), 'Déficit nutricional (kg/ha)':round(max(0,demanda[nut]-oferta[nut]),2)} for nut in demanda]), hide_index=True, use_container_width=True)
-                st.caption('La eficiencia de los fertilizantes se aplica en el cálculo de productos de la sección 8, no en este balance.')
+                st.caption('El cuadro inicial muestra la necesidad antes de descontar compost. La sección 8 descuenta el compost y calcula el aporte aprovechable de cada fertilizante.')
                 st.caption('La estimación de oferta del suelo no es una medición de absorción anual. El modelo de demanda escala linealmente con rendimiento y no incorpora aún una calibración independiente por edad ni cáscaras.')
 
                 # Las dosis complementarias son referenciales y se presentan en la tabla
@@ -633,7 +638,7 @@ with secciones[1]:
                              ('Sulfato de manganeso (0-0-0; Mn)', 1., 0., 0.),
                              ('Ulexita (0-0-0; 10–13% B)', 30., 20., 0.)]
                 st.subheader('8. Fertilización NPK y microelementos en tres abonamientos')
-                st.caption('Los objetivos NPK ya están ajustados por eficiencia (N 60 %, P₂O₅ 25 %, K₂O 70 %). No se vuelve a aplicar ese factor al convertir nutrientes a productos.')
+                st.caption('El balance compara nutrientes aprovechables: suelo + compost + fertilizantes. Las eficiencias minerales se aplican una sola vez a su aporte; los orgánicos utilizan sus factores propios de disponibilidad.')
                 area_real = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
                 plantas = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
                 total_plantas = area_real * plantas
@@ -673,10 +678,11 @@ with secciones[1]:
                     org_p=co_p.number_input('Disponibilidad anual P₂O₅ orgánico (%)',0,100,30,5,key='org_dispon_p')/100
                     org_k=co_k.number_input('Disponibilidad anual K₂O orgánico (%)',0,100,70,5,key='org_dispon_k')/100
                     st.markdown('**Compost registrado en el módulo de materia orgánica**')
+                    st.caption('Etiqueta del compost: N 0.3–1.5 %, P 0.1–1.0 % y K 0.3–1.0 % (elementales). Valores iniciales dentro de esos rangos; edítelos según el análisis del lote. No son porcentajes garantizados de disponibilidad.')
                     c1,c2,c3=st.columns(3)
-                    comp_n=c1.number_input('N total del compost (%)',0.0,20.0,2.0,0.1,key='compost_n_v66')/100
-                    comp_p=c2.number_input('P₂O₅ total del compost (%)',0.0,20.0,1.0,0.1,key='compost_p_v66')/100
-                    comp_k=c3.number_input('K₂O total del compost (%)',0.0,20.0,1.5,0.1,key='compost_k_v66')/100
+                    comp_n=c1.number_input('N elemental del compost (%)',0.0,20.0,0.9,0.1,key='compost_n_v67')/100
+                    comp_p=c2.number_input('P elemental del compost (%)',0.0,20.0,0.55,0.05,key='compost_p_v67')/100*2.291
+                    comp_k=c3.number_input('K elemental del compost (%)',0.0,20.0,0.65,0.05,key='compost_k_v67')/100*1.205
                 minerales_efectivos={x:dict(v) for x,v in minerales.items()}
                 for x in organicos:
                     for nutriente,factor in [('N',org_n),('P₂O₅',org_p),('K₂O',org_k)]:
@@ -694,7 +700,18 @@ with secciones[1]:
                 compost_total={ 'N':compost_kg_ha*comp_n, 'P₂O₅':compost_kg_ha*comp_p, 'K₂O':compost_kg_ha*comp_k }
                 compost_aprovechable={k:compost_total[k]*f for k,f in [('N',org_n),('P₂O₅',org_p),('K₂O',org_k)]}
                 st.caption(f'Compost del módulo anterior: {compost_kg_ha:,.2f} kg/ha/año. Aporte estimado disponible: N {compost_aprovechable["N"]:.2f}, P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}, K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha/año.')
-                st.caption('Los valores del compost son referenciales y editables; el aporte anual real depende de su análisis, mineralización y manejo.')
+                st.caption('Compost: el aporte aprovechable se descuenta una sola vez del requerimiento del cultivo. La etiqueta declara N, P y K elementales; P y K se convierten a P₂O₅ y K₂O para compararlos con los fertilizantes. Valores referenciales sujetos a análisis, humedad y mineralización.')
+                st.markdown('**Descuento automático de nutrientes del compost**')
+                resumen_descuento=[]
+                for nutr in ('N','P₂O₅','K₂O'):
+                    necesidad_antes=max(0.,demanda[nutr]-oferta[nutr])
+                    resumen_descuento.append({'Nutriente':nutr,
+                        'Demanda del cultivo (kg/ha)':round(demanda[nutr],2),
+                        'Aporte estimado del suelo (kg/ha)':round(oferta[nutr],2),
+                        'Aporte aprovechable compost (kg/ha)':round(compost_aprovechable[nutr],2),
+                        'Necesidad restante (kg/ha)':round(max(0.,necesidad_antes-compost_aprovechable[nutr]),2)})
+                st.dataframe(pd.DataFrame(resumen_descuento),hide_index=True,use_container_width=True)
+                st.caption('Si suelo y compost cubren la demanda estimada, la necesidad restante es cero. No significa que el compost tenga disponibilidad inmediata ni que pueda reemplazar por sí solo una recomendación de campo.')
                 st.markdown('**Fertilizantes seleccionados y balance nutricional**')
                 st.caption('Edite kg/saco y sacos por producto. El compost se añade automáticamente, sin sacos editables en esta tabla.')
                 # st.data_editor mantiene los valores por producto entre cambios de selección.
@@ -717,13 +734,13 @@ with secciones[1]:
                 else:
                     st.info('Seleccione al menos un fertilizante. El aporte del compost se mostrará en el balance aun sin productos seleccionados.')
                 usados=[x for x in fuentes if plan.get(x,0)>0]
-                aporte_fert={k:sum(plan[x]*minerales_efectivos[x][k] for x in usados)/area_real for k in ('N','P₂O₅','K₂O')}
+                aporte_fert={k:sum(plan[x]*minerales_efectivos[x][k]*(1.0 if minerales[x]['tipo']=='Org' else eficiencia[k]) for x in usados)/area_real for k in ('N','P₂O₅','K₂O')}
                 # Comparación en unidades de nutrientes aprovechables: primero descontar suelo y compost,
                 # luego aplicar eficiencia al fertilizante mineral. Orgánicos con factor de disponibilidad propio.
                 filas_balance=[]
                 for k in ('N','P₂O₅','K₂O'):
                     deficit=max(0.,demanda[k]-oferta[k])
-                    objetivo_comercial=max(0.,deficit-compost_aprovechable[k])/eficiencia[k]
+                    objetivo_comercial=max(0.,deficit-compost_aprovechable[k])
                     aporte=aporte_fert[k]
                     diferencia=aporte-objetivo_comercial
                     tolerancia=max(0.1,objetivo_comercial*0.01)
@@ -739,7 +756,7 @@ with secciones[1]:
                         'Necesidad (kg/ha)':None,'Aporte (kg/ha)':None,'Diferencia (kg/ha)':None,'Estado':''})
                 filas_unificadas.append({'Fertilizante / nutriente':'Compost aplicado (automático)',
                     'Presentación (kg/saco)':None,'Sacos':None,'Total (kg)':round(compost_kg_ha*area_real,2),
-                    'Necesidad (kg/ha)':None,'Aporte (kg/ha)':None,'Diferencia (kg/ha)':None,'Estado':'Aporte incluido en balance'})
+                    'Necesidad (kg/ha)':None,'Aporte (kg/ha)':None,'Diferencia (kg/ha)':None,'Estado':f'N {compost_aprovechable["N"]:.2f}; P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}; K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha aprovechables'})
                 for r in filas_balance:
                     filas_unificadas.append({'Fertilizante / nutriente':'BALANCE '+r['Nutriente'],
                         'Presentación (kg/saco)':None,'Sacos':None,'Total (kg)':None,
@@ -747,7 +764,7 @@ with secciones[1]:
                         'Aporte (kg/ha)':r['Aporte del fertilizante (kg/ha)'],
                         'Diferencia (kg/ha)':r['Diferencia (kg/ha)'],'Estado':r['Estado']})
                 st.dataframe(pd.DataFrame(filas_unificadas),hide_index=True,use_container_width=True)
-                st.caption('La tabla editable está arriba y el resumen unificado debajo. Diferencia = aporte − necesidad. La necesidad ya descuenta suelo y compost; la eficiencia se aplica una sola vez.')
+                st.caption('Diferencia = aporte aprovechable del fertilizante − necesidad restante tras descontar suelo y compost. Las eficiencias minerales se aplican una sola vez al aporte; los orgánicos emplean disponibilidad anual estimada.')
                 # Mantener distribución en tres abonamientos y microelementos referenciales.
                 filas_detalle=[]
                 for x in usados:
@@ -786,7 +803,7 @@ with secciones[1]:
                     pd.DataFrame(filas_compra).to_csv(index=False).encode('utf-8-sig'),
                     file_name='sifert_fertilizantes_tres_abonamientos.csv',mime='text/csv',key='descarga_abonamientos')
                 st.warning('Simulación técnica preliminar. No aplicar sin validar análisis de suelo, composición de productos y recomendaciones locales.')
-            st.caption('Encalado: la dosis permanece pendiente de validar el método INIA para aplicación localizada. CaO y MgO de las enmiendas se incorporarán solo con fichas técnicas verificadas.')
+            st.caption('Encalado: cal y dolomita aportan Ca y/o Mg, no NPK. Sus aportes se muestran por separado, únicamente como estimaciones del producto seleccionado y con dosis simulada; no se descuentan del balance NPK.')
         except ValueError as e:
             st.session_state.pop('evaluacion_pendiente', None)
             st.error(str(e))
