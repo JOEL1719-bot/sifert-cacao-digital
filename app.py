@@ -726,24 +726,24 @@ with secciones[1]:
                 st.dataframe(pd.DataFrame(resumen_descuento),hide_index=True,use_container_width=True)
                 st.caption('Si suelo y compost cubren la demanda estimada, la necesidad restante es cero. No significa que el compost tenga disponibilidad inmediata ni que pueda reemplazar por sí solo una recomendación de campo.')
                 st.markdown('**Fertilizantes seleccionados y balance nutricional**')
-                st.caption('Edite kg/saco y sacos por producto. El compost se añade automáticamente, sin sacos editables en esta tabla.')
-                # st.data_editor mantiene los valores por producto entre cambios de selección.
-                registros=[]
-                for x in fuentes:
-                    registros.append({'Fertilizante':x,'Presentación (kg/saco)':float(st.session_state.get('presentacion_v66_'+x,50.0)),
-                        'Sacos':float(st.session_state.get('cantidad_v66_'+x,0.0))})
+                st.caption('Ingrese la presentación y el número de sacos directamente en cada fila. El compost se incorpora automáticamente al balance.')
+                # Entradas nativas: cada fertilizante conserva sus propios valores en session_state.
+                # Evita que st.data_editor reinicie ediciones al reconstruir el DataFrame.
                 plan={}
                 presentaciones={}
-                if registros:
-                    tabla_edicion=st.data_editor(pd.DataFrame(registros),hide_index=True,use_container_width=True,
-                        disabled=['Fertilizante'],num_rows='fixed',key='tabla_sacos_v68',on_change=guardar_edicion_sacos,args=(tuple(fuentes),),
-                        column_config={
-                            'Presentación (kg/saco)':st.column_config.NumberColumn('Presentación (kg/saco)',min_value=0.1,step=1.0,format='%.2f',required=True),
-                            'Sacos':st.column_config.NumberColumn('Sacos',min_value=0.0,step=0.5,format='%.2f',required=True)})
-                    for _,r in tabla_edicion.iterrows():
-                        x=r['Fertilizante']; peso=max(0.1,float(r['Presentación (kg/saco)'])); sacos=max(0.,float(r['Sacos']))
+                if fuentes:
+                    cab=st.columns([4,2,2,2])
+                    for col,titulo in zip(cab,['**Fertilizante**','**Presentación (kg/saco)**','**Sacos (editar)**','**Total (kg)**']):
+                        col.markdown(titulo)
+                    for indice,x in enumerate(fuentes):
+                        c_nombre,c_peso,c_sacos,c_total=st.columns([4,2,2,2],vertical_alignment='center')
+                        c_nombre.write(x)
+                        peso=c_peso.number_input('Presentación de '+x,min_value=0.1,value=50.0,step=1.0,format='%.2f',key='peso_v69_'+x,label_visibility='collapsed')
+                        sacos=c_sacos.number_input('Sacos de '+x,min_value=0.0,value=0.0,step=0.5,format='%.2f',key='sacos_v69_'+x,label_visibility='collapsed')
                         presentaciones[x]=peso
                         plan[x]=peso*sacos
+                        c_total.write(f'{plan[x]:,.2f}')
+                    st.markdown(f'**TOTAL DE FERTILIZANTES: {sum(plan.values()):,.2f} kg**')
                 else:
                     st.info('Seleccione al menos un fertilizante. El aporte del compost se mostrará en el balance aun sin productos seleccionados.')
                 usados=[x for x in fuentes if plan.get(x,0)>0]
@@ -763,10 +763,6 @@ with secciones[1]:
                 # Vista unificada: filas de productos y filas NPK en un solo cuadro, manteniendo
                 # explícita la diferencia entre fertilizante (kg) y nutriente (kg/ha).
                 filas_unificadas=[]
-                for x in fuentes:
-                    filas_unificadas.append({'Fertilizante / nutriente':x,'Presentación (kg/saco)':presentaciones.get(x,50.),
-                        'Sacos':round(plan.get(x,0)/presentaciones.get(x,50.),2), 'Total (kg)':round(plan.get(x,0),2),
-                        'Necesidad (kg/ha)':None,'Aporte (kg/ha)':None,'Diferencia (kg/ha)':None,'Estado':''})
                 filas_unificadas.append({'Fertilizante / nutriente':'Compost aplicado (automático)',
                     'Presentación (kg/saco)':None,'Sacos':None,'Total (kg)':round(compost_kg_ha*area_real,2),
                     'Necesidad (kg/ha)':None,'Aporte (kg/ha)':None,'Diferencia (kg/ha)':None,'Estado':f'N {compost_aprovechable["N"]:.2f}; P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}; K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha aprovechables'})
