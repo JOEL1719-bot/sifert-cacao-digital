@@ -5,9 +5,63 @@ import streamlit as st
 import pandas as pd
 import math
 
+def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra, gramos):
+    """Genera la ficha final de fertilización en PDF, sin alterar los cálculos."""
+    from io import BytesIO
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.units import mm
+    from xml.sax.saxutils import escape
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=15*mm,
+                            rightMargin=15*mm, topMargin=14*mm, bottomMargin=14*mm)
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='CeldaSifert', parent=styles['Normal'], fontSize=7.4, leading=9.5))
+    styles.add(ParagraphStyle(name='CabSifert', parent=styles['CeldaSifert'], textColor=colors.white))
+    styles.add(ParagraphStyle(name='TitSifert', parent=styles['Heading1'], fontSize=16, leading=19, spaceAfter=10))
+    contenido = [Paragraph('SIFERT CACAO DIGITAL | Ficha de fertilización', styles['TitSifert'])]
+    contenido.append(Paragraph(f'<b>Productor:</b> {escape(str(productor))}   |   '
+                               f'<b>Fecha del análisis:</b> {escape(str(fecha_analisis))}   |   '
+                               f'<b>Área:</b> {area_ha:,.2f} ha   |   '
+                               f'<b>Plantas:</b> {int(plantas):,}', styles['Normal']))
+    contenido.append(Spacer(1, 8*mm))
+
+    def agregar_tabla(titulo, df, anchos=None):
+        contenido.append(Paragraph(escape(titulo), styles['Heading2']))
+        columnas = list(df.columns)
+        filas = [[Paragraph(escape(str(c)), styles['CabSifert']) for c in columnas]]
+        for _, fila in df.iterrows():
+            filas.append([Paragraph(escape('—' if pd.isna(v) else str(v)), styles['CeldaSifert']) for v in fila])
+        ancho = landscape(A4)[0] - 30*mm
+        tabla = Table(filas, colWidths=anchos or [ancho/len(columnas)]*len(columnas), repeatRows=1, hAlign='LEFT')
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#1C5646')),
+            ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#F0F5F3')]),
+            ('GRID',(0,0),(-1,-1),0.3,colors.HexColor('#CBD5D1')),
+            ('VALIGN',(0,0),(-1,-1),'TOP'),
+            ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
+            ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6),
+        ]))
+        contenido.append(tabla)
+        contenido.append(Spacer(1, 6*mm))
+
+    agregar_tabla('Balance nutricional NPK', pd.DataFrame(balance))
+    agregar_tabla('Fertilizantes y distribución en tres abonamientos', pd.DataFrame(compra))
+    agregar_tabla('Dosis total por planta', pd.DataFrame(gramos))
+    contenido.append(Paragraph('Simulación técnica preliminar. Validar los resultados del análisis, la composición '
+                               'de los productos y las recomendaciones agronómicas locales antes de aplicar.',
+                               styles['Normal']))
+    doc.build(contenido)
+    return buf.getvalue()
+
+
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V7.6 · Balance NPK, Ca y Mg · Enmiendas aplicadas y aportes integrados · Simulación técnica')
+st.caption('V8.0 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -296,7 +350,7 @@ def elegir_participante(df, key, permitir_ninguno=False):
     return opciones[st.selectbox('Participante', list(opciones), key=key)]
 
 secciones = st.tabs(['🏠 Inicio', '🌱 Evaluar suelo', '💾 Análisis guardados',
-                     '📈 Comparación histórica', '🌿 Aplicaciones', '📥 Exportar / importar'])
+                     '📈 Comparación histórica', '📥 Exportar / importar'])
 
 with secciones[0]:
     st.subheader('1. Registrar participante y datos de la parcela')
@@ -589,7 +643,7 @@ with secciones[1]:
                         st.caption('Estos beneficios son posibles, no aumentos cuantificados ni garantizados. SIFERT no modifica automáticamente CIC, N, P, K, pH ni saturación de Al; se requieren nuevos análisis para comprobar cambios.')
             st.info('El compost registrado se considera una sola vez en el balance NPK, utilizando composición y disponibilidad anuales estimadas y editables en la sección de fertilización.')
 
-            st.subheader('6. Balance nutricional NPK, calcio y magnesio · simulación técnica preliminar')
+            st.subheader('6. Balance nutricional NPK · simulación técnica preliminar')
             st.warning('Cálculos exploratorios basados en los coeficientes del ejemplo INIA 2025 discutidos durante el desarrollo. NO constituyen una recomendación agronómica validada. Verificar método de extracción de P, calibración local y demanda por edad y manejo de cáscaras antes de aplicar.')
             n_total, p_ppm, k_cmol, dap = datos.get('n'), datos.get('p'), datos.get('k_cmol'), datos.get('dap')
             if any(v is None for v in (n_total,p_ppm,k_cmol,dap)) or dap <= 0:
@@ -605,29 +659,17 @@ with secciones[1]:
                 demanda = {'N': 70*rendimiento/1000, 'P₂O₅': 16*rendimiento/1000, 'K₂O': 90*rendimiento/1000}
                 eficiencia = {'N':0.60,'P₂O₅':0.25,'K₂O':0.70}
                 dosis = {nut:max(0,demanda[nut]-oferta[nut])/eficiencia[nut] for nut in demanda}
-                # Balance único: NPK = demanda anual menos oferta estimada;
-                # Ca/Mg = brecha del inventario intercambiable frente a metas del suelo.
-                # Las brechas de Ca/Mg NO son dosis de enmienda ni déficits anuales.
+                # Balance inicial exclusivo de N, P₂O₅ y K₂O.
                 filas_balance_suelo = [
-                    {'Nutriente':nut,
-                     'Requerimiento / objetivo (kg/ha)':round(demanda[nut],2),
-                     'Resultado del suelo (kg/ha)':round(oferta[nut],2),
-                     'Déficit / diferencia (kg/ha)':round(max(0,demanda[nut]-oferta[nut]),2)}
+                    {'Nutriente': nut,
+                     'Requerimiento / objetivo (kg/ha)': round(demanda[nut], 2),
+                     'Resultado del suelo (kg/ha)': round(oferta[nut], 2),
+                     'Déficit / diferencia (kg/ha)': round(max(0, demanda[nut] - oferta[nut]), 2)}
                     for nut in demanda
                 ]
-                for nut, equivalente, meta_cmol in (
-                    ('Ca',200.39,4.50), ('Mg',121.53,1.25)):
-                    valor = datos.get(nut.lower())
-                    inventario = valor*equivalente*masa/1_000_000 if valor is not None and valor >= 0 else None
-                    objetivo = meta_cmol*equivalente*masa/1_000_000
-                    filas_balance_suelo.append({
-                        'Nutriente':nut,
-                        'Requerimiento / objetivo (kg/ha)':round(objetivo,2),
-                        'Resultado del suelo (kg/ha)':round(inventario,2) if inventario is not None else 'Sin análisis',
-                        'Déficit / diferencia (kg/ha)':round(max(0,objetivo-inventario),2) if inventario is not None else 'No calculable'})
                 st.dataframe(pd.DataFrame(filas_balance_suelo), hide_index=True, use_container_width=True)
-                st.caption('NPK: requerimiento y aporte anual estimados. Ca y Mg: objetivo del contenido intercambiable en suelo (Ca 4.5 y Mg 1.25 cmol(+)/kg), convertido a kg/ha para 0–20 cm según densidad aparente. La diferencia de Ca/Mg NO equivale a déficit anual del cacao ni a dosis de cal o dolomita.')
-                st.caption('El cuadro inicial muestra la necesidad antes de descontar compost. La sección 7 descuenta el compost y la enmienda aplicada y calcula el aporte aprovechable de cada fertilizante.')
+                st.caption('NPK: requerimiento y aporte anual estimados. El calcio y el magnesio se evalúan por separado en el módulo de encalado.')
+                st.caption('El cuadro inicial muestra la necesidad antes de descontar compost. La sección 7 descuenta el compost y calcula el aporte aprovechable de cada fertilizante.')
                 st.caption('La estimación de oferta del suelo no es una medición de absorción anual. El modelo de demanda escala linealmente con rendimiento y no incorpora aún una calibración independiente por edad ni cáscaras.')
 
                 # Las dosis complementarias son referenciales y se presentan en la tabla
@@ -829,9 +871,15 @@ with secciones[1]:
                     '3.º (g/planta)':round(sum(r[4] for r in filas_detalle)*1000/total_plantas,2)}]
                 st.dataframe(pd.DataFrame(filas_gramos),hide_index=True,use_container_width=True)
                 st.caption('Distribución referencial: productos fosfatados en el primer abonamiento y otros en tres partes. Validar según fenología y compatibilidad.')
-                st.download_button('📥 Descargar ficha de fertilización (CSV)',
-                    pd.DataFrame(filas_compra).to_csv(index=False).encode('utf-8-sig'),
-                    file_name='sifert_fertilizantes_tres_abonamientos.csv',mime='text/csv',key='descarga_abonamientos')
+                productor_pdf = str(fila_parcela['nombre']) if fila_parcela is not None else 'Sin participante seleccionado'
+                try:
+                    ficha_pdf = crear_ficha_pdf(productor_pdf, fecha_guardar, area_real,
+                                               total_plantas, filas_balance, filas_compra, filas_gramos)
+                    st.download_button('📄 Descargar ficha final de fertilización (PDF)',
+                        data=ficha_pdf, file_name='SIFERT_CACAO_FICHA_FERTILIZACION.pdf',
+                        mime='application/pdf', key='descarga_abonamientos_pdf')
+                except ImportError:
+                    st.error('Para descargar PDF, agregue reportlab a requirements.txt en GitHub.')
                 st.warning('Simulación técnica preliminar. No aplicar sin validar análisis de suelo, composición de productos y recomendaciones locales.')
             st.caption('Encalado: la enmienda declarada como realmente aplicada se contabiliza una sola vez en el balance complementario Ca/Mg; no modifica el balance NPK. La dosis solo simulada en la sección de encalado no se contabiliza.')
         except ValueError as e:
@@ -927,33 +975,8 @@ with secciones[3]:
             st.caption('Las diferencias no demuestran por sí solas el efecto de una fertilización.')
 
 with secciones[4]:
-    st.subheader('Registro de aplicaciones reales')
-    pid=elegir_participante(participantes(),'p_aplicaciones')
-    if pid is not None:
-        with st.form('aplicacion'):
-            c1,c2,c3=st.columns(3)
-            fecha=c1.date_input('Fecha de aplicación',value=date.today())
-            tipo=c2.selectbox('Tipo',['Compost','Mineral','Enmienda','Otro'])
-            producto=c3.text_input('Producto')
-            numero=c1.number_input('N.º aplicación',min_value=1,value=1)
-            unidad=c2.selectbox('Unidad',['g/planta','kg/planta','kg/ha'])
-            dosis_real=c3.number_input('Dosis aplicada',min_value=0.0,value=0.0)
-            area=c1.number_input('Área tratada (ha)',min_value=0.0,value=1.0)
-            obs=st.text_area('Observaciones')
-            guardar=st.form_submit_button('Guardar aplicación')
-        if guardar:
-            if not producto.strip():
-                st.error('Indique el producto aplicado.')
-            else:
-                execute('INSERT INTO aplicaciones(participante_id,fecha,producto,tipo,numero,dosis_real,unidad,area_ha,observaciones) VALUES (?,?,?,?,?,?,?,?,?)',
-                        (pid,fecha.isoformat(),producto,tipo,numero,dosis_real,unidad,area,obs))
-                st.success('Aplicación guardada.')
-                st.rerun()
-    st.dataframe(execute('SELECT * FROM aplicaciones ORDER BY fecha DESC,id DESC',fetch=True),hide_index=True,use_container_width=True)
-
-with secciones[5]:
     st.subheader('Exportar respaldos')
-    for nombre in ['participantes','analisis','aplicaciones']:
+    for nombre in ['participantes','analisis']:
         df=execute(f'SELECT * FROM {nombre}',fetch=True)
         st.download_button(f'Descargar {nombre} (CSV)',df.to_csv(index=False).encode('utf-8-sig'),
                            file_name=f'sifert_{nombre}.csv',mime='text/csv',key='csv_'+nombre)
