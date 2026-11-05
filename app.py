@@ -725,7 +725,7 @@ with secciones[1]:
                 # La enmienda se descuenta solo cuando se confirma aplicación y se especifica su composición.
                 masa_suelo=masa
                 resumen_descuento=[]
-                for nutr in ('N','P₂O₅','K₂O','Ca','Mg'):
+                for nutr in ('N','P₂O₅','K₂O'):
                     if nutr in ('N','P₂O₅','K₂O'):
                         objetivo_nutr=float(demanda[nutr])
                         suelo_nutr=float(oferta[nutr])
@@ -749,7 +749,7 @@ with secciones[1]:
                         'Aporte cal/dolomita (kg/ha)':round(enmienda_nutr,2),
                         'Necesidad restante / diferencia (kg/ha)':round(restante,2) if restante is not None else 'No calculable'})
                 st.dataframe(pd.DataFrame(resumen_descuento),hide_index=True,use_container_width=True)
-                st.caption('NPK: balance anual estimado. Ca/Mg: diferencia respecto al objetivo de concentración intercambiable del suelo (Ca 4.50 y Mg 1.25 cmol(+)/kg); NO es una dosis de enmienda ni un déficit anual de absorción. El aporte químico teórico de una enmienda aplicada se muestra aparte, sin descontarlo de Ca/Mg intercambiables por falta de coeficiente validado. Compost Ca/Mg: sin análisis de composición, no se descuenta. La dosis de encalado por acidez se calcula por separado.')
+                st.caption('Balance anual estimado de N, P₂O₅ y K₂O. El aporte aprovechable del compost se descuenta una sola vez. El cálculo de encalado y los aportes teóricos de Ca/Mg se presentan por separado.')
                 st.markdown('**Fertilizantes seleccionados y balance nutricional**')
                 st.caption('Ingrese la presentación y el número de sacos directamente en cada fila. El compost se incorpora automáticamente al balance.')
                 # Entradas nativas: cada fertilizante conserva sus propios valores en session_state.
