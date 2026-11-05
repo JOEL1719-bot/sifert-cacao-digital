@@ -7,13 +7,13 @@ import math
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V7.2 · Balance NPK, Ca, Mg y S · Enmiendas aplicadas y aportes integrados · Simulación técnica')
+st.caption('V7.6 · Balance NPK, Ca y Mg · Enmiendas aplicadas y aportes integrados · Simulación técnica')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
 # ni equivalentes a demanda total o dosis de fertilización.
 EXTRACCION_GRANO_KG_T = {'N': 22.0, 'P₂O₅': 6.87, 'K₂O': 10.8,
-                          'CaO': 1.3, 'MgO': 5.3, 'S': 0.9}
+                          'CaO': 1.3, 'MgO': 5.3}
 # Umbrales provisionales del archivo original, sujetos a método de laboratorio.
 UMBRALES = {'mo': (2.0, 4.0), 'n': (0.10, 0.20), 'p': (7.0, 14.0),
             'k_cmol': (0.20, 0.40), 'ca': (3.0, 6.0), 'mg': (0.50, 1.00)}
@@ -503,11 +503,11 @@ with secciones[1]:
                     st.warning('RESULTADO SOLO DE SIMULACIÓN: neutralización estequiométrica de exceso de Al, no una recomendación de aplicación de campo validada por INIA. La neutralización real depende de acidez de reserva, reactividad, incorporación superficial, condiciones de suelo y calidad de la enmienda. No comprar ni aplicar basándose únicamente en esta cifra.')
             st.subheader('4. Extracción de nutrientes')
             st.caption('Extracción estimada por grano seco. El efecto de las cáscaras se registra, pero aún no se cuantifica sin un coeficiente de biomasa validado.')
-            extraccion = pd.DataFrame([{'Nutrientes': {'N':'Nitrógeno (N)','P₂O₅':'Fósforo (P₂O₅)','K₂O':'Potasio (K₂O)','CaO':'Calcio (CaO)','MgO':'Magnesio (MgO)','S':'Azufre (S)'}.get(nutriente,nutriente),
+            extraccion = pd.DataFrame([{'Nutrientes': {'N':'Nitrógeno (N)','P₂O₅':'Fósforo (P₂O₅)','K₂O':'Potasio (K₂O)','CaO':'Calcio (CaO)','MgO':'Magnesio (MgO)'}.get(nutriente,nutriente),
                                         'Extracción de nutrientes (kg/ha/año)': round(rendimiento*coef/1000, 2)}
                                        for nutriente, coef in EXTRACCION_GRANO_KG_T.items()])
             st.dataframe(extraccion, hide_index=True, use_container_width=True)
-            st.caption('Coeficientes bibliográficos orientativos de V4.2 (N 22; P₂O₅ 6.87; K₂O 10.8; CaO 1.3; MgO 5.3; S 0.9 kg/t). No validados localmente. Las cáscaras retiradas exportan nutrientes adicionales que aquí no se cuantifican.')
+            st.caption('Coeficientes bibliográficos orientativos de V4.2 (N 22; P₂O₅ 6.87; K₂O 10.8; CaO 1.3; MgO 5.3 kg/t). No validados localmente. Las cáscaras retiradas exportan nutrientes adicionales que aquí no se cuantifican.')
             if fila_parcela is not None:
                 st.info(f"Manejo de cáscaras registrado: {fila_parcela['manejo_cascaras'] or 'No definido'}. La extracción adicional por cáscaras y el crecimiento vegetativo aún están pendientes de validación; no se asignan dosis.")
             st.subheader('5. Compost y poda: proyección de materia orgánica')
@@ -623,12 +623,8 @@ with secciones[1]:
                         'Requerimiento / objetivo (kg/ha)':round(objetivo,2),
                         'Resultado del suelo (kg/ha)':round(inventario,2) if inventario is not None else 'Sin análisis',
                         'Déficit / diferencia (kg/ha)':round(max(0,objetivo-inventario),2) if inventario is not None else 'No calculable'})
-                filas_balance_suelo.append({
-                    'Nutriente':'S', 'Requerimiento / objetivo (kg/ha)':'No determinado',
-                    'Resultado del suelo (kg/ha)':'Sin análisis',
-                    'Déficit / diferencia (kg/ha)':'No calculable'})
                 st.dataframe(pd.DataFrame(filas_balance_suelo), hide_index=True, use_container_width=True)
-                st.caption('NPK: requerimiento y aporte anual estimados. Ca y Mg: objetivo del contenido intercambiable en suelo (Ca 4.5 y Mg 1.25 cmol(+)/kg), convertido a kg/ha para 0–20 cm según densidad aparente. La diferencia de Ca/Mg NO equivale a déficit anual del cacao ni a dosis de cal o dolomita. Azufre: sin análisis.')
+                st.caption('NPK: requerimiento y aporte anual estimados. Ca y Mg: objetivo del contenido intercambiable en suelo (Ca 4.5 y Mg 1.25 cmol(+)/kg), convertido a kg/ha para 0–20 cm según densidad aparente. La diferencia de Ca/Mg NO equivale a déficit anual del cacao ni a dosis de cal o dolomita.')
                 st.caption('El cuadro inicial muestra la necesidad antes de descontar compost. La sección 7 descuenta el compost y la enmienda aplicada y calcula el aporte aprovechable de cada fertilizante.')
                 st.caption('La estimación de oferta del suelo no es una medición de absorción anual. El modelo de demanda escala linealmente con rendimiento y no incorpora aún una calibración independiente por edad ni cáscaras.')
 
@@ -650,8 +646,7 @@ with secciones[1]:
                 with st.expander('📚 Consultar biblioteca de fertilizantes', expanded=False):
                     st.dataframe(pd.DataFrame([{'Producto':nombre,'Origen':clasificar_origen_producto(nombre, v['tipo']), 'N %':round(v['N']*100,2),
                         'P₂O₅ %':round(v['P₂O₅']*100,2),'K₂O %':round(v['K₂O']*100,2),
-                        'Ca % (referencial)':v['Ca_reportado'],'Mg % (referencial)':v['Mg_reportado'],
-                        'S % (referencial)':v['S_reportado']} for nombre,v in catalogo.items()]),
+                        'Ca % (referencial)':v['Ca_reportado'],'Mg % (referencial)':v['Mg_reportado']} for nombre,v in catalogo.items()]),
                         hide_index=True,use_container_width=True)
                     st.caption('Los sulfatos y roca fosfórica se muestran junto a orgánicos por conveniencia, pero son sales o minerales, no materia orgánica. Verificar ficha y disponibilidad real.')
                 with st.expander('➕ Registrar composición de un fertilizante comercial (simulación)'):
@@ -859,7 +854,7 @@ with secciones[1]:
                     st.error(f'No se pudo guardar el análisis: {e}')
 
     with st.expander('Información técnica y fuentes de referencia'):
-        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- S: Malavolta et al. (1984), 0.9 g/kg de grano seco.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- No se presupone densidad aparente ni se convierte directamente inventario analítico en dosis.\n\n**Para guardar un análisis, evalúelo y pulse «Guardar análisis de suelo» después de seleccionar un participante. Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
+        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- No se presupone densidad aparente ni se convierte directamente inventario analítico en dosis.\n\n**Para guardar un análisis, evalúelo y pulse «Guardar análisis de suelo» después de seleccionar un participante. Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
 
 
 with secciones[2]:
