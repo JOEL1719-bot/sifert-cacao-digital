@@ -37,7 +37,7 @@ BIBLIOTECA_V6 = [('Urea (46-0-0)', 'N', 46, 0, 0, 0, 0, 0), ('Nitrato de amonio 
 # Ficha comercial ODINSU: los porcentajes de CaO/MgO y carbonatos son
 # declaraciones en formas químicas distintas; no sumarlos. PRNT no acreditado.
 FICHAS_ENMIENDAS = {
-    'Dolomita ODINSU (cal agrícola local; CaO 28-32 %, MgO 20-23 %)': {
+    'Dolomita (cal agrícola local; CaO 28-32 %, MgO 20-23 %)': {
         'CaO_pct_rango': (28, 32), 'MgO_pct_rango': (20, 23),
         'CaCO3_pct_rango': (50, 56), 'MgCO3_pct_rango': (44, 48),
         'PRNT': None, 'fuente': 'Ficha comercial ODINSU identificada por el usuario',
@@ -450,7 +450,7 @@ with secciones[1]:
                 if ca_val is None or mg_val is None:
                     st.info('Faltan Ca y/o Mg para orientar el tipo de enmienda.')
                 elif mg_val < 0.5 and (ca_val >= 3 or (relacion is not None and relacion > 4)):
-                    st.info('**Producto orientativo: dolomita ODINSU**, por Mg bajo. Confirmar necesidad y aporte de Mg con análisis y ficha.')
+                    st.info('**Producto orientativo: dolomita**, por Mg bajo. Confirmar necesidad y aporte de Mg con análisis y ficha.')
                 elif mg_val >= 1.0 and ca_val < 3:
                     st.info('**Producto orientativo: cal agrícola con bajo Mg**, si la ficha demuestra bajo aporte de Mg. La cal de Tarapoto también contiene Mg: verificar su composición.')
                 else:
@@ -460,7 +460,7 @@ with secciones[1]:
             else:
                 st.info('Faltan pH y/o saturación de aluminio para descartar necesidad de encalado.')
             st.caption('Referencia: enfoque de neutralización de Al intercambiable. Esta simulación estequiométrica NO equivale a una dosis de campo validada por INIA; verificar método y respuesta local antes de aplicar.')
-            st.caption('Dolomita ODINSU: PRNT supuesto 108 %. Cal agrícola: PRNT supuesto 135 %. Valores elegidos para simulación, NO certificados de los lotes.')
+            st.caption('Dolomita: PRNT supuesto 108 %. Cal agrícola: PRNT supuesto 135 %. Valores elegidos para simulación, NO certificados de los lotes.')
             plantas_encalado = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
             area_encalado = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
             import math
@@ -470,7 +470,8 @@ with secciones[1]:
             radio_ext = ec2.number_input('Radio exterior encalado (m)', min_value=0.05, value=1.20, step=0.05, key='encalado_radio_ext')
             prof_enc = ec3.number_input('Profundidad de suelo considerada (cm)', min_value=1.0, max_value=40.0, value=20.0, step=1.0, key='encalado_prof')
             e1, e2 = st.columns(2)
-            producto_enc = e1.selectbox('Enmienda para simular', ['Dolomita ODINSU (PRNT 108 % supuesto)', 'Cal agrícola (PRNT 135 % supuesto)'], key='encalado_producto')
+            kg_ha_encalado_calculado = None
+            producto_enc = e1.selectbox('Enmienda para simular', ['Dolomita (PRNT 108 % supuesto)', 'Cal agrícola (PRNT 135 % supuesto)'], key='encalado_producto')
             sat_meta = e2.number_input('Meta ilustrativa de saturación de Al (%)', min_value=0.0, max_value=40.0, value=20.0, step=1.0, key='encalado_meta_al')
             prnt = 1.08 if producto_enc.startswith('Dolomita') else 1.35
             if relacion is not None:
@@ -490,6 +491,7 @@ with secciones[1]:
                     # 1 cmol(+) de carga por kg requiere 0.5 g CaCO3/kg (peso equivalente 50 g/eq).
                     kg_equiv = exceso_al * 0.5 * masa_suelo / 1000
                     kg_ha = kg_equiv / prnt
+                    kg_ha_encalado_calculado = kg_ha
                     kg_parcela = kg_ha * area_encalado
                     g_planta = kg_ha * 1000 / plantas_encalado
                     sacos = math.ceil(kg_parcela / 50)
@@ -701,19 +703,24 @@ with secciones[1]:
                 st.markdown('**Descuento automático de nutrientes del compost y enmiendas**')
                 st.markdown('**Enmienda realmente aplicada (Ca y Mg)**')
                 st.caption('Solo se contabiliza una enmienda cuando se confirma su aplicación. No se descuenta por una dosis meramente simulada o recomendada.')
-                enm_aplicada=st.checkbox('Sí, se aplicó cal agrícola o dolomita', value=False, key='enm_aplicada_v72')
+                enm_aplicada=st.checkbox('Sí aplicó (cal o dolomita)', value=False, key='enm_aplicada_v72')
                 enm_ca_kg_ha=0.0
                 enm_mg_kg_ha=0.0
                 if enm_aplicada:
-                    eca, edosis, epca, epmg, edisp = st.columns(5)
-                    tipo_enm=eca.selectbox('Enmienda aplicada',['Dolomita ODINSU','Cal agrícola'],key='tipo_enm_aplicada_v72')
-                    dosis_enm=edosis.number_input('Dosis aplicada (kg/ha)',min_value=0.0,value=0.0,step=25.0,key='dosis_enm_aplicada_v72')
-                    ca_o_pct=epca.number_input('CaO (%)',min_value=0.0,max_value=100.0,value=30.0 if tipo_enm.startswith('Dolomita') else 0.0,step=0.5,key='cao_enm_v72',help='Introducir porcentaje de la ficha del lote; para cal agrícola se inicia en cero porque no consta su composición.')
-                    mg_o_pct=epmg.number_input('MgO (%)',min_value=0.0,max_value=100.0,value=21.5 if tipo_enm.startswith('Dolomita') else 0.0,step=0.5,key='mgo_enm_v72')
-                    disp_enm=edisp.number_input('Disponibilidad estimada (%)',min_value=0.0,max_value=100.0,value=50.0,step=5.0,key='disp_enm_v72',help='Supuesto editable; no confundir con PRNT ni con el factor de capacitación del suelo.')
-                    enm_ca_kg_ha=dosis_enm*ca_o_pct/100*(40.078/56.077)*disp_enm/100
-                    enm_mg_kg_ha=dosis_enm*mg_o_pct/100*(24.305/40.304)*disp_enm/100
-                    st.caption(f'Aporte estimado de enmienda aplicada: Ca {enm_ca_kg_ha:.2f} kg/ha; Mg {enm_mg_kg_ha:.2f} kg/ha (elementales). Se contabiliza una sola vez. Los porcentajes y la disponibilidad deben verificarse.')
+                    if kg_ha_encalado_calculado is None:
+                        st.warning('No se pudo calcular la dosis de encalado. Revise los datos de suelo del módulo anterior.')
+                    else:
+                        tipo_enm='Dolomita' if producto_enc.startswith('Dolomita') else 'Cal agrícola'
+                        st.write(f'**Enmienda declarada como aplicada:** {tipo_enm} · **Dosis calculada:** {kg_ha_encalado_calculado:,.2f} kg/ha')
+                        if tipo_enm == 'Dolomita':
+                            ca_teorico=kg_ha_encalado_calculado*0.30*(40.078/56.077)
+                            mg_teorico=kg_ha_encalado_calculado*0.215*(24.305/40.304)
+                            st.caption(f'Aporte químico teórico: Ca {ca_teorico:.2f} kg/ha; Mg {mg_teorico:.2f} kg/ha (sin coeficiente de disponibilidad). Composición referencial: CaO 30 %, MgO 21.5 %.')
+                        else:
+                            st.caption('Para la cal agrícola no se cuantifica Ca/Mg sin análisis de composición del producto.')
+                        st.info('El aporte teórico no se descuenta del balance de Ca/Mg: falta un coeficiente sustentado de incorporación a la fracción intercambiable. La casilla confirma aplicación, no disponibilidad.')
+                # El aporte teórico no se equipara con un incremento de Ca/Mg intercambiables.
+                # Por ello, hasta contar con un coeficiente validado, no se descuenta Ca/Mg.
                 # Ca/Mg: objetivo de concentración intercambiable del suelo, no extracción anual.
                 # La enmienda se descuenta solo cuando se confirma aplicación y se especifica su composición.
                 masa_suelo=masa
@@ -742,7 +749,7 @@ with secciones[1]:
                         'Aporte cal/dolomita (kg/ha)':round(enmienda_nutr,2),
                         'Necesidad restante / diferencia (kg/ha)':round(restante,2) if restante is not None else 'No calculable'})
                 st.dataframe(pd.DataFrame(resumen_descuento),hide_index=True,use_container_width=True)
-                st.caption('NPK: balance anual estimado. Ca/Mg: diferencia respecto al objetivo de concentración intercambiable del suelo (Ca 4.50 y Mg 1.25 cmol(+)/kg); NO es una dosis de enmienda ni un déficit anual de absorción. Solo se resta el aporte estimado de una enmienda declarada como aplicada. Compost Ca/Mg: sin análisis de composición, no se descuenta. La dosis de encalado por acidez se calcula por separado.')
+                st.caption('NPK: balance anual estimado. Ca/Mg: diferencia respecto al objetivo de concentración intercambiable del suelo (Ca 4.50 y Mg 1.25 cmol(+)/kg); NO es una dosis de enmienda ni un déficit anual de absorción. El aporte químico teórico de una enmienda aplicada se muestra aparte, sin descontarlo de Ca/Mg intercambiables por falta de coeficiente validado. Compost Ca/Mg: sin análisis de composición, no se descuenta. La dosis de encalado por acidez se calcula por separado.')
                 st.markdown('**Fertilizantes seleccionados y balance nutricional**')
                 st.caption('Ingrese la presentación y el número de sacos directamente en cada fila. El compost se incorpora automáticamente al balance.')
                 # Entradas nativas: cada fertilizante conserva sus propios valores en session_state.
