@@ -603,36 +603,33 @@ with secciones[1]:
                 demanda = {'N': 70*rendimiento/1000, 'P₂O₅': 16*rendimiento/1000, 'K₂O': 90*rendimiento/1000}
                 eficiencia = {'N':0.60,'P₂O₅':0.25,'K₂O':0.70}
                 dosis = {nut:max(0,demanda[nut]-oferta[nut])/eficiencia[nut] for nut in demanda}
-                # Tabla única: NPK con déficit estimado; Ca/Mg con inventario de suelo
-                # y factores de capacitación, sin confundir inventario con oferta anual.
-                factor_capacitacion = st.checkbox(
-                    'Aplicar factores referenciales de capacitación a Ca y Mg',
-                    value=True, key='factores_capacitacion_ca_mg',
-                    help='Ca ×1.4 ×70 %; Mg ×1.67 ×28 %. No representan disponibilidad anual validada.')
+                # Balance único: NPK = demanda anual menos oferta estimada;
+                # Ca/Mg = brecha del inventario intercambiable frente a metas del suelo.
+                # Las brechas de Ca/Mg NO son dosis de enmienda ni déficits anuales.
                 filas_balance_suelo = [
                     {'Nutriente':nut,
-                     'Requerimiento (kg/ha)':round(demanda[nut],2),
+                     'Requerimiento / objetivo (kg/ha)':round(demanda[nut],2),
                      'Resultado del suelo (kg/ha)':round(oferta[nut],2),
-                     'Déficit estimado (kg/ha)':round(max(0,demanda[nut]-oferta[nut]),2)}
+                     'Déficit / diferencia (kg/ha)':round(max(0,demanda[nut]-oferta[nut]),2)}
                     for nut in demanda
                 ]
-                for nut, equivalente, fc, fraccion in (
-                    ('Ca',200.39,1.4,0.70),('Mg',121.53,1.67,0.28)):
-                    valor=datos.get(nut.lower())
-                    inventario=valor*equivalente*masa/1_000_000 if valor is not None and valor >= 0 else None
-                    estimacion=(inventario*fc*fraccion if factor_capacitacion else inventario) if inventario is not None else None
+                for nut, equivalente, meta_cmol in (
+                    ('Ca',200.39,4.50), ('Mg',121.53,1.25)):
+                    valor = datos.get(nut.lower())
+                    inventario = valor*equivalente*masa/1_000_000 if valor is not None and valor >= 0 else None
+                    objetivo = meta_cmol*equivalente*masa/1_000_000
                     filas_balance_suelo.append({
                         'Nutriente':nut,
-                        'Requerimiento (kg/ha)':'Por definir',
-                        'Resultado del suelo (kg/ha)':round(estimacion,2) if estimacion is not None else 'Sin análisis',
-                        'Déficit estimado (kg/ha)':'No calculable'})
+                        'Requerimiento / objetivo (kg/ha)':round(objetivo,2),
+                        'Resultado del suelo (kg/ha)':round(inventario,2) if inventario is not None else 'Sin análisis',
+                        'Déficit / diferencia (kg/ha)':round(max(0,objetivo-inventario),2) if inventario is not None else 'No calculable'})
                 filas_balance_suelo.append({
-                    'Nutriente':'S','Requerimiento (kg/ha)':'Por definir',
+                    'Nutriente':'S', 'Requerimiento / objetivo (kg/ha)':'No determinado',
                     'Resultado del suelo (kg/ha)':'Sin análisis',
-                    'Déficit estimado (kg/ha)':'No calculable'})
+                    'Déficit / diferencia (kg/ha)':'No calculable'})
                 st.dataframe(pd.DataFrame(filas_balance_suelo), hide_index=True, use_container_width=True)
-                st.caption('NPK: aporte anual estimado. Ca y Mg: contenido intercambiable convertido a kg/ha y, si está activado, ajustado con factores de capacitación (Ca ×1.4 ×70 %; Mg ×1.67 ×28 %). Estas cifras NO son suministro anual validado ni se restan de un requerimiento para calcular déficit. El azufre no tiene análisis.')
-                st.caption('El cuadro inicial muestra la necesidad antes de descontar compost. La sección 7 descuenta el compost y calcula el aporte aprovechable de cada fertilizante.')
+                st.caption('NPK: requerimiento y aporte anual estimados. Ca y Mg: objetivo del contenido intercambiable en suelo (Ca 4.5 y Mg 1.25 cmol(+)/kg), convertido a kg/ha para 0–20 cm según densidad aparente. La diferencia de Ca/Mg NO equivale a déficit anual del cacao ni a dosis de cal o dolomita. Azufre: sin análisis.')
+                st.caption('El cuadro inicial muestra la necesidad antes de descontar compost. La sección 7 descuenta el compost y la enmienda aplicada y calcula el aporte aprovechable de cada fertilizante.')
                 st.caption('La estimación de oferta del suelo no es una medición de absorción anual. El modelo de demanda escala linealmente con rendimiento y no incorpora aún una calibración independiente por edad ni cáscaras.')
 
                 # Las dosis complementarias son referenciales y se presentan en la tabla
@@ -706,17 +703,7 @@ with secciones[1]:
                 compost_aprovechable={k:compost_total[k]*f for k,f in [('N',org_n),('P₂O₅',org_p),('K₂O',org_k)]}
                 st.caption(f'Compost del módulo anterior: {compost_kg_ha:,.2f} kg/ha/año. Aporte estimado disponible: N {compost_aprovechable["N"]:.2f}, P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}, K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha/año.')
                 st.caption('Compost: el aporte aprovechable se descuenta una sola vez del requerimiento del cultivo. La etiqueta declara N, P y K elementales; P y K se convierten a P₂O₅ y K₂O para compararlos con los fertilizantes. Valores referenciales sujetos a análisis, humedad y mineralización.')
-                st.markdown('**Descuento automático de nutrientes del compost**')
-                resumen_descuento=[]
-                for nutr in ('N','P₂O₅','K₂O'):
-                    necesidad_antes=max(0.,demanda[nutr]-oferta[nutr])
-                    resumen_descuento.append({'Nutriente':nutr,
-                        'Demanda del cultivo (kg/ha)':round(demanda[nutr],2),
-                        'Aporte estimado del suelo (kg/ha)':round(oferta[nutr],2),
-                        'Aporte aprovechable compost (kg/ha)':round(compost_aprovechable[nutr],2),
-                        'Necesidad restante (kg/ha)':round(max(0.,necesidad_antes-compost_aprovechable[nutr]),2)})
-                st.dataframe(pd.DataFrame(resumen_descuento),hide_index=True,use_container_width=True)
-                st.caption('Si suelo y compost cubren la demanda estimada, la necesidad restante es cero. No significa que el compost tenga disponibilidad inmediata ni que pueda reemplazar por sí solo una recomendación de campo.')
+                st.markdown('**Descuento automático de nutrientes del compost y enmiendas**')
                 st.markdown('**Enmienda realmente aplicada (Ca y Mg)**')
                 st.caption('Solo se contabiliza una enmienda cuando se confirma su aplicación. No se descuenta por una dosis meramente simulada o recomendada.')
                 enm_aplicada=st.checkbox('Sí, se aplicó cal agrícola o dolomita', value=False, key='enm_aplicada_v72')
@@ -732,6 +719,35 @@ with secciones[1]:
                     enm_ca_kg_ha=dosis_enm*ca_o_pct/100*(40.078/56.077)*disp_enm/100
                     enm_mg_kg_ha=dosis_enm*mg_o_pct/100*(24.305/40.304)*disp_enm/100
                     st.caption(f'Aporte estimado de enmienda aplicada: Ca {enm_ca_kg_ha:.2f} kg/ha; Mg {enm_mg_kg_ha:.2f} kg/ha (elementales). Se contabiliza una sola vez. Los porcentajes y la disponibilidad deben verificarse.')
+                # Ca/Mg: objetivo de concentración intercambiable del suelo, no extracción anual.
+                # La enmienda se descuenta solo cuando se confirma aplicación y se especifica su composición.
+                masa_suelo=masa
+                resumen_descuento=[]
+                for nutr in ('N','P₂O₅','K₂O','Ca','Mg'):
+                    if nutr in ('N','P₂O₅','K₂O'):
+                        objetivo_nutr=float(demanda[nutr])
+                        suelo_nutr=float(oferta[nutr])
+                        compost_nutr=float(compost_aprovechable[nutr])
+                        enmienda_nutr=0.0
+                    else:
+                        conversion=200.39 if nutr=='Ca' else 121.53
+                        meta=4.5 if nutr=='Ca' else 1.25
+                        objetivo_nutr=meta*conversion*masa_suelo/1_000_000
+                        analisis=datos.get(nutr.lower())
+                        suelo_nutr=(float(analisis)*conversion*masa_suelo/1_000_000) if analisis is not None else None
+                        compost_nutr=0.0  # Sin análisis de Ca/Mg del compost, no se inventa su aporte.
+                        enmienda_nutr=enm_ca_kg_ha if nutr=='Ca' else enm_mg_kg_ha
+                    restante=(max(0.,objetivo_nutr-suelo_nutr-compost_nutr-enmienda_nutr)
+                              if suelo_nutr is not None else None)
+                    resumen_descuento.append({
+                        'Nutriente':nutr,
+                        'Requerimiento / objetivo (kg/ha)':round(objetivo_nutr,2),
+                        'Resultado del suelo (kg/ha)':round(suelo_nutr,2) if suelo_nutr is not None else 'Sin análisis',
+                        'Aporte compost (kg/ha)':round(compost_nutr,2) if nutr in ('N','P₂O₅','K₂O') else 'Sin análisis',
+                        'Aporte cal/dolomita (kg/ha)':round(enmienda_nutr,2),
+                        'Necesidad restante / diferencia (kg/ha)':round(restante,2) if restante is not None else 'No calculable'})
+                st.dataframe(pd.DataFrame(resumen_descuento),hide_index=True,use_container_width=True)
+                st.caption('NPK: balance anual estimado. Ca/Mg: diferencia respecto al objetivo de concentración intercambiable del suelo (Ca 4.50 y Mg 1.25 cmol(+)/kg); NO es una dosis de enmienda ni un déficit anual de absorción. Solo se resta el aporte estimado de una enmienda declarada como aplicada. Compost Ca/Mg: sin análisis de composición, no se descuenta. La dosis de encalado por acidez se calcula por separado.')
                 st.markdown('**Fertilizantes seleccionados y balance nutricional**')
                 st.caption('Ingrese la presentación y el número de sacos directamente en cada fila. El compost se incorpora automáticamente al balance.')
                 # Entradas nativas: cada fertilizante conserva sus propios valores en session_state.
@@ -767,34 +783,6 @@ with secciones[1]:
                     estado='Equilibrado' if abs(diferencia)<=tolerancia else ('Exceso' if diferencia>0 else 'Déficit')
                     filas_balance.append({'Nutriente':k,'Necesidad de nutrientes (kg/ha)':round(objetivo_comercial,2),
                         'Aporte del fertilizante (kg/ha)':round(aporte,2),'Diferencia (kg/ha)':round(diferencia,2),'Estado':estado})
-                # Balance informativo Ca/Mg/S: suelo + enmienda aplicada + fertilizantes.
-                # No hay requerimiento anual validado; no se calcula déficit numérico.
-                factores_suelo={'Ca':(1.4,0.70,200.39),'Mg':(1.67,0.28,121.53)}
-                filas_complementarias=[]
-                for elemento in ('Ca','Mg','S'):
-                    suelo_elemento=None
-                    if elemento in ('Ca','Mg') and datos.get(elemento.lower()) is not None:
-                        fc,fa,conv=factores_suelo[elemento]
-                        suelo_elemento=datos[elemento.lower()]*conv*masa/1_000_000
-                        if factor_capacitacion:
-                            suelo_elemento*=fc*fa
-                    aporte_enmienda={'Ca':enm_ca_kg_ha,'Mg':enm_mg_kg_ha,'S':0.0}[elemento]
-                    aporte_productos=sum(plan[x]*float(catalogo[x].get(elemento+'_reportado',0))/100/area_real
-                                         for x in usados)
-                    # Los microelementos añadidos automáticamente también aportan Mg y S.
-                    for nombre,aa,bb,cc in micro_ref:
-                        if nombre not in usados and nombre in catalogo:
-                            aporte_productos+=(aa+bb+cc)*float(catalogo[nombre].get(elemento+'_reportado',0))/100
-                    filas_complementarias.append({
-                        'Nutriente':elemento,
-                        'Suelo estimado (kg/ha)':round(suelo_elemento,2) if suelo_elemento is not None else 'No determinado',
-                        'Enmienda aplicada (kg/ha)':round(aporte_enmienda,2),
-                        'Fertilizantes (kg/ha, teórico)':round(aporte_productos,2),
-                        'Total informativo (kg/ha)':round(suelo_elemento+aporte_enmienda+aporte_productos,2) if suelo_elemento is not None else 'No determinado',
-                        'Requerimiento / déficit':'No determinado'})
-                st.markdown('**Balance complementario: Ca, Mg y S**')
-                st.dataframe(pd.DataFrame(filas_complementarias),hide_index=True,use_container_width=True)
-                st.caption('Ca/Mg del suelo: estimaciones con factores de capacitación, NO suministro anual validado. Enmienda: solo dosis declarada como aplicada, convertida de óxidos a elementos y ajustada por disponibilidad editable. Fertilizantes: aporte químico teórico, sin eficiencia. Compost: Ca/Mg/S no contabilizados por falta de composición. No se calculan déficits de Ca, Mg o S sin requerimientos calibrados.')
                 # Vista unificada: filas de productos y filas NPK en un solo cuadro, manteniendo
                 # explícita la diferencia entre fertilizante (kg) y nutriente (kg/ha).
                 filas_unificadas=[]
