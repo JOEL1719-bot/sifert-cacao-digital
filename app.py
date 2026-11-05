@@ -7,7 +7,7 @@ import math
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V6.7 · Balance integrado de suelo, compost y enmiendas · Simulación técnica')
+st.caption('V6.8 · Balance integrado de suelo, compost y enmiendas · Simulación técnica')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -44,6 +44,19 @@ FICHAS_ENMIENDAS = {
         'observacion': 'PRNT sin verificar; no calcular dosis de encalado automáticamente.'
     }
 }
+
+def guardar_edicion_sacos(fuentes):
+    """Conserva las ediciones del usuario antes de que Streamlit reconstruya la tabla."""
+    cambios = st.session_state.get('tabla_sacos_v68', {}).get('edited_rows', {})
+    for indice, columnas in cambios.items():
+        i = int(indice)
+        if 0 <= i < len(fuentes):
+            producto = fuentes[i]
+            if 'Presentación (kg/saco)' in columnas:
+                st.session_state['presentacion_v66_'+producto] = float(columnas['Presentación (kg/saco)'])
+            if 'Sacos' in columnas:
+                st.session_state['cantidad_v66_'+producto] = float(columnas['Sacos'])
+
 
 def clasificar_origen_producto(nombre, tipo):
     if tipo in ('Org', 'Natural', 'Micro'):
@@ -723,7 +736,7 @@ with secciones[1]:
                 presentaciones={}
                 if registros:
                     tabla_edicion=st.data_editor(pd.DataFrame(registros),hide_index=True,use_container_width=True,
-                        disabled=['Fertilizante'],num_rows='fixed',key='tabla_sacos_v66',
+                        disabled=['Fertilizante'],num_rows='fixed',key='tabla_sacos_v68',on_change=guardar_edicion_sacos,args=(tuple(fuentes),),
                         column_config={
                             'Presentación (kg/saco)':st.column_config.NumberColumn('Presentación (kg/saco)',min_value=0.1,step=1.0,format='%.2f',required=True),
                             'Sacos':st.column_config.NumberColumn('Sacos',min_value=0.0,step=0.5,format='%.2f',required=True)})
