@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V6.2 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
+st.caption('V6.4 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -620,19 +620,18 @@ with secciones[1]:
                 demanda = {'N': 70*rendimiento/1000, 'P₂O₅': 16*rendimiento/1000, 'K₂O': 90*rendimiento/1000}
                 eficiencia = {'N':0.60,'P₂O₅':0.25,'K₂O':0.70}
                 dosis = {nut:max(0,demanda[nut]-oferta[nut])/eficiencia[nut] for nut in demanda}
-                st.dataframe(pd.DataFrame([{'Nutriente':nut, 'Demanda kg/ha':round(demanda[nut],2), 'Oferta estimada kg/ha':round(oferta[nut],2), 'Eficiencia fertilizante %':int(eficiencia[nut]*100), 'Necesidad mineral kg/ha':round(dosis[nut],2)} for nut in demanda]), hide_index=True, use_container_width=True)
+                st.dataframe(pd.DataFrame([{'Nutriente':nut, 'Requerimiento de nutrientes (kg/ha)':round(demanda[nut],2), 'Nutrientes del análisis de suelo (kg/ha)':round(oferta[nut],2), 'Déficit nutricional (kg/ha)':round(max(0,demanda[nut]-oferta[nut]),2)} for nut in demanda]), hide_index=True, use_container_width=True)
+                st.caption('La eficiencia de los fertilizantes se aplica en el cálculo de productos de la sección 8, no en este balance.')
                 st.caption('La estimación de oferta del suelo no es una medición de absorción anual. El modelo de demanda escala linealmente con rendimiento y no incorpora aún una calibración independiente por edad ni cáscaras.')
 
-                st.subheader('7A. Esquema DEVIDA: primer y segundo abonamiento')
-                st.caption('Cantidades de referencia por hectárea, no deducidas del análisis de suelo. No son prescripción universal; revisar necesidad de B, Cu, Zn, Mg y Mn antes de aplicar.')
+                # Las dosis complementarias son referenciales y se presentan en la tabla
+                # de fertilizantes, nunca como una segunda prescripción independiente.
                 micro_ref = [('Sulfato de cobre (0-0-0; CuSO4·5H2O)', 2., 0., 0.),
                              ('Sulfato de zinc (0-0-0; Zn)', 3., 0., 0.),
                              ('Sulfato de magnesio (0-0-0 + 9.6% Mg + 13% S)', 5., 0., 0.),
                              ('Sulfato de manganeso (0-0-0; Mn)', 1., 0., 0.),
                              ('Ulexita (0-0-0; 10–13% B)', 30., 20., 0.)]
-                st.dataframe(pd.DataFrame([{'Producto':x,'1.º kg/ha':a,'2.º kg/ha':b,'3.º kg/ha':c,'Total kg/ha':a+b+c} for x,a,b,c in micro_ref]),hide_index=True,use_container_width=True)
-                st.warning('El esquema DEVIDA se presenta como referencia separada del optimizador NPK. Especial precaución con cobre y boro: confirmar diagnóstico y concentración del producto antes de recomendar su aplicación.')
-                st.subheader('8. Fertilización comercial y tres abonamientos')
+                st.subheader('8. Fertilización NPK y microelementos en tres abonamientos')
                 st.caption('Los objetivos NPK ya están ajustados por eficiencia (N 60 %, P₂O₅ 25 %, K₂O 70 %). No se vuelve a aplicar ese factor al convertir nutrientes a productos.')
                 area_real = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
                 plantas = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
@@ -661,8 +660,9 @@ with secciones[1]:
                             st.success('Producto disponible en esta sesión. Verifique su ficha técnica antes de usarlo.')
                 catalogo.update(st.session_state.get('catalogo_sifert',{}))
                 modo = st.radio('Modalidad de fertilización',
-                    ['Selección automática de fertilizantes', 'El agricultor elige sus fertilizantes'],
-                    horizontal=True, key='modo_fertilizacion')
+                    ['Fertilización mixta (automática)', 'Fertilización química (automática)',
+                     'El agricultor elige sus fertilizantes'],
+                    horizontal=True, key='modo_fertilizacion_v64')
                 # Admitir orgánicos con NPK declarado; excluir enmiendas y productos sin análisis.
                 minerales = {x:v for x,v in catalogo.items()
                     if v['tipo'] not in ('Enm','Otro','Ca','Mg','Micro')
@@ -682,10 +682,22 @@ with secciones[1]:
                     for nutriente, factor in [('N',org_n), ('P₂O₅',org_p), ('K₂O',org_k)]:
                         minerales_efectivos[x][nutriente] *= factor
                 objetivo = {k:dosis[k]*area_real for k in ('N','P₂O₅','K₂O')}
-                if modo.startswith('Selección automática'):
+                if modo.startswith('Fertilización mixta'):
+                    st.caption('Modalidad mixta: puede incorporar una fuente orgánica con dosis declarada y completar NPK con fuentes minerales. No se presupone disponibilidad inmediata del NPK orgánico.')
+                    fuente_org = st.selectbox('Fuente orgánica para la mezcla',
+                        ['Ninguna'] + [x for x in organicos], key='fuente_organica_mixta_v64')
+                    kg_org_ha = st.number_input('Dosis de la fuente orgánica (kg/ha/año)',
+                        min_value=0.0, value=0.0, step=50.0, key='kg_organico_mixto_v64')
                     predefinidos = ['Fosfato monoamónico (11-52-0)','Urea (46-0-0)','Cloruro de potasio (0-0-60)']
                     fuentes = [x for x in predefinidos if x in minerales]
-                    st.info('Modo automático: SIFERT selecciona MAP, urea y KCl como fuentes de referencia. Puede cambiar al modo agricultor para escoger otros productos.')
+                    if fuente_org != 'Ninguna' and kg_org_ha > 0:
+                        fuentes.append(fuente_org)
+                    else:
+                        st.info('Sin una dosis orgánica positiva, el cálculo automático utilizará únicamente las fuentes minerales. Si ya aplicó compost, no lo registre de nuevo.')
+                elif modo.startswith('Fertilización química'):
+                    predefinidos = ['Fosfato monoamónico (11-52-0)','Urea (46-0-0)','Cloruro de potasio (0-0-60)']
+                    fuentes = [x for x in predefinidos if x in minerales]
+                    st.info('Modo químico: MAP, urea y KCl como fuentes de referencia.')
                 else:
                     st.markdown('**Marque ✓ los fertilizantes que desea utilizar.** El resultado se actualiza automáticamente al marcar o desmarcar, sin pulsar Calcular.')
                     fuentes = []
@@ -717,6 +729,11 @@ with secciones[1]:
                         objetivo_pendiente = {k: max(0.0, objetivo[k] - sum(base[x]*minerales_efectivos[x][k] for x in fuentes)) for k in objetivo}
                         complemento, alerta = optimizar_fuentes(fuentes, minerales_efectivos, objetivo_pendiente)
                         plan = {x: base[x] + complemento[x] for x in fuentes}
+                    elif modo.startswith('Fertilización mixta') and fuente_org != 'Ninguna' and kg_org_ha > 0:
+                        base_org = kg_org_ha * area_real
+                        objetivo_pendiente = {k:max(0.0, objetivo[k] - base_org*minerales_efectivos[fuente_org][k]) for k in objetivo}
+                        complemento, alerta = optimizar_fuentes([x for x in fuentes if x != fuente_org], minerales_efectivos, objetivo_pendiente)
+                        plan = {**complemento, fuente_org:base_org}
                     else:
                         plan, alerta = optimizar_fuentes(fuentes, minerales_efectivos, objetivo)
                     if alerta:
@@ -731,14 +748,71 @@ with secciones[1]:
                             st.info('Se asignó una cantidad mínima a cada fertilizante marcado. La mezcla puede presentar excedentes de NPK; el mínimo no constituye una recomendación de campo.')
                         else:
                             st.caption('El cálculo cubre los objetivos NPK con los productos marcados, minimizando primero los excedentes relativos y luego la masa. No optimiza costo, compatibilidad ni respuesta agronómica.')
-                        st.markdown('**Productos seleccionados y cantidad calculada automáticamente**')
-                        filas_comerciales = [{'Producto':x,
-                            'Necesario kg/ha':round(plan[x]/area_real,2),
-                            'Necesario kg/parcela':round(plan[x],2),
-                            'Dosis g/planta/año':round(plan[x]*1000/total_plantas,1)} for x in usados]
-                        st.dataframe(pd.DataFrame(filas_comerciales), hide_index=True, use_container_width=True)
-                        st.caption('No se solicita inventario: el programa calcula directamente las cantidades a partir de las fuentes seleccionadas.')
+                        st.caption('Los kilogramos de producto se obtienen a partir del déficit nutricional y las eficiencias: N 60 %, P₂O₅ 25 %, K₂O 70 %.')
+                        st.caption('El aporte orgánico se calcula con factores provisionales editables; no registrar nuevamente el compost ya incluido en otro módulo.')
                         aporte_plan = {k:sum(plan[x]*minerales_efectivos[x][k] for x in usados) for k in objetivo}
+                        st.markdown('**Balance de nutrientes de los fertilizantes seleccionados**')
+                        filas_balance = []
+                        for k in objetivo:
+                            diferencia = aporte_plan[k]-objetivo[k]
+                            tolerancia = max(0.1, objetivo[k]*0.01)
+                            estado = 'Equilibrado' if abs(diferencia)<=tolerancia else ('Exceso' if diferencia>0 else 'Déficit')
+                            filas_balance.append({'Nutriente':k, 'Necesidad de nutrientes (kg/ha)':round(objetivo[k]/area_real,2),
+                                'Aporte del fertilizante (kg/ha)':round(aporte_plan[k]/area_real,2),
+                                'Diferencia (kg/ha)':round(diferencia/area_real,2), 'Estado':estado})
+                        st.dataframe(pd.DataFrame(filas_balance), hide_index=True, use_container_width=True)
+                        st.caption('Diferencia = aporte − necesidad; equilibrio matemático con tolerancia del 1 % (mínimo 0.1 kg por parcela).')
+                        st.checkbox('Incluir microelementos y sulfato de magnesio de referencia en las tablas',
+                            value=False, key='incluir_micro_v64', help='Son dosis referenciales, no calculadas por análisis; confirmar deficiencias y fichas antes de aplicar.')
+                        filas_detalle = []
+                        # Los fosfatos se asignan al primer abonamiento, el resto se divide en tercios.
+                        etapas_plan = [{x:0.0 for x in usados} for _ in range(3)]
+                        for x in usados:
+                            if minerales_efectivos[x]['P₂O₅']>0:
+                                etapas_plan[0][x] = plan[x]
+                            else:
+                                for etapa in etapas_plan:
+                                    etapa[x] = plan[x]/3
+                        for x in usados:
+                            a,b,c = [etapa[x] for etapa in etapas_plan]
+                            filas_detalle.append((x, plan[x],a,b,c))
+                        if st.session_state.get('incluir_micro_v64', False):
+                            for nombre, a,b,c in micro_ref:
+                                if nombre in usados:
+                                    st.warning(f'{nombre}: ya está incluido en el plan; no se añade nuevamente.')
+                                    continue
+                                filas_detalle.append((nombre, (a+b+c)*area_real, a*area_real,b*area_real,c*area_real))
+                            st.warning('Microelementos y sulfato de magnesio: dosis referenciales, NO deducidas del análisis. No aplicar sin verificar necesidad y concentración comercial, especialmente Cu y B.')
+                        st.markdown('**Fertilizantes requeridos y distribución en tres abonamientos**')
+                        presentacion_saco = st.number_input('Presentación de saco para el cálculo de compra (kg)',
+                            min_value=1.0, value=50.0, step=1.0, key='saco_fertilizantes_v64')
+                        import math
+                        filas_compra=[]
+                        for x,total,a,b,c in filas_detalle:
+                            filas_compra.append({'Fertilizante':x,'Comprar (kg)':round(total,2),
+                                'Sacos a comprar':math.ceil(total/presentacion_saco) if total>0 else 0,
+                                '1.º abonamiento (kg)':round(a,2),'2.º abonamiento (kg)':round(b,2),
+                                '3.º abonamiento (kg)':round(c,2)})
+                        filas_compra.append({'Fertilizante':'TOTAL',
+                            'Comprar (kg)':round(sum(x[1] for x in filas_detalle),2),
+                            'Sacos a comprar':'—',
+                            '1.º abonamiento (kg)':round(sum(x[2] for x in filas_detalle),2),
+                            '2.º abonamiento (kg)':round(sum(x[3] for x in filas_detalle),2),
+                            '3.º abonamiento (kg)':round(sum(x[4] for x in filas_detalle),2)})
+                        st.dataframe(pd.DataFrame(filas_compra),hide_index=True,use_container_width=True)
+                        st.caption('Los sacos se redondean hacia arriba por producto. La presentación se debe verificar en cada etiqueta; el total de sacos no se suma porque puede variar entre productos.')
+                        st.markdown('**Dosis en gramos por planta y abonamiento**')
+                        filas_gramos=[]
+                        for x,total,a,b,c in filas_detalle:
+                            filas_gramos.append({'Fertilizante':x,'1.º (g/planta)':round(a*1000/total_plantas,2),
+                                '2.º (g/planta)':round(b*1000/total_plantas,2),
+                                '3.º (g/planta)':round(c*1000/total_plantas,2)})
+                        filas_gramos.append({'Fertilizante':'TOTAL',
+                            '1.º (g/planta)':round(sum(x[2] for x in filas_detalle)*1000/total_plantas,2),
+                            '2.º (g/planta)':round(sum(x[3] for x in filas_detalle)*1000/total_plantas,2),
+                            '3.º (g/planta)':round(sum(x[4] for x in filas_detalle)*1000/total_plantas,2)})
+                        st.dataframe(pd.DataFrame(filas_gramos),hide_index=True,use_container_width=True)
+                        st.caption('Las dosis por planta dependen del número de plantas de la parcela. Distribución ilustrativa: las fuentes fosfatadas se colocan en el primer abonamiento; las restantes se dividen en tres partes. Validar con fenología y compatibilidad.')
                         if any(x in organicos for x in usados):
                             st.warning('El aporte disponible de los fertilizantes orgánicos es hipotético y puede diferir del real. Si también se aplica compost en el módulo 6, evite contar dos veces el mismo producto.')
                             st.dataframe(pd.DataFrame([
@@ -750,20 +824,6 @@ with secciones[1]:
                                  'K₂O total declarado (kg)':round(plan[x]*minerales[x]['K₂O'],2),
                                  'K₂O disponible supuesto (kg)':round(plan[x]*minerales_efectivos[x]['K₂O'],2)}
                                 for x in usados if x in organicos]), hide_index=True, use_container_width=True)
-                        st.markdown('**Auditoría NPK para la parcela**')
-                        st.dataframe(pd.DataFrame([{'Nutriente':k,
-                            'Objetivo kg':round(objetivo[k],3),
-                            'Aporte calculado kg':round(aporte_plan[k],3),
-                            'Diferencia kg':round(aporte_plan[k]-objetivo[k],4)}
-                            for k in objetivo]), hide_index=True, use_container_width=True)
-                        st.markdown('**Tres abonamientos: dosis TOTAL por planta**')
-                        filas_aplicacion, etapas = distribuir_abonamientos(
-                            {x:plan[x] for x in usados}, minerales_efectivos, objetivo, total_plantas)
-                        st.dataframe(pd.DataFrame(filas_aplicacion), hide_index=True, use_container_width=True)
-                        st.caption('Los fertilizantes con P₂O₅ se asignan al primer abonamiento; las demás fuentes se distribuyen en tercios. Esto conserva el total anual, pero no garantiza tercios exactos de N y K. Ajustar según fenología y compatibilidad de mezclas.')
-                        n_primero = sum(kg*minerales_efectivos[x]['N'] for x,kg in etapas[0].items())
-                        if n_primero > objetivo['N']/3 + 0.01:
-                            st.warning('El primer abonamiento supera un tercio del N anual por los fertilizantes compuestos. Revisar la distribución antes de aplicar.')
                         if any(aporte_plan[k] > objetivo[k] * 1.20 + 0.01 for k in objetivo if objetivo[k] > 0):
                             st.error('Atención: al menos un nutriente supera en más del 20 % su objetivo. Esta simulación NO debe interpretarse como dosis de aplicación; ajuste el mínimo o cambie la combinación.')
                         if all(abs(aporte_plan[k]-objetivo[k]) < 0.01 for k in objetivo):
@@ -773,8 +833,8 @@ with secciones[1]:
                             if excesos:
                                 st.warning('La combinación cubre los objetivos, pero presenta excedentes: ' + '; '.join(excesos) + '. Revisar antes de aplicar.')
                         st.download_button('📥 Descargar ficha de fertilización (CSV)',
-                            pd.DataFrame(filas_aplicacion).to_csv(index=False).encode('utf-8-sig'),
-                            file_name='sifert_tres_abonamientos.csv', mime='text/csv',
+                            pd.DataFrame(filas_compra).to_csv(index=False).encode('utf-8-sig'),
+                            file_name='sifert_fertilizantes_tres_abonamientos.csv', mime='text/csv',
                             key='descarga_abonamientos')
                         st.warning('Simulación técnica preliminar: no aplicar dosis sin validar los análisis, etiquetas, calibración local y compatibilidad física de productos.')
             st.caption('Encalado: la dosis permanece pendiente de validar el método INIA para aplicación localizada. CaO y MgO de las enmiendas se incorporarán solo con fichas técnicas verificadas.')
