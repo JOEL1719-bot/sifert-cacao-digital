@@ -5,7 +5,7 @@ import streamlit as st
 import pandas as pd
 import math
 
-def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra, gramos):
+def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra, gramos, ficha=None):
     """Genera la ficha final de fertilización en PDF, sin alterar los cálculos."""
     from io import BytesIO
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
@@ -16,6 +16,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     from reportlab.lib.units import mm
     from xml.sax.saxutils import escape
 
+    ficha = ficha or {}
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=15*mm,
                             rightMargin=15*mm, topMargin=14*mm, bottomMargin=14*mm)
@@ -29,6 +30,45 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                                f'<b>Área:</b> {area_ha:,.2f} ha   |   '
                                f'<b>Plantas:</b> {int(plantas):,}', styles['Normal']))
     contenido.append(Spacer(1, 8*mm))
+    def ficha_valor(clave):
+        valor = ficha.get(clave, '')
+        if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+            return 'No registrado'
+        return str(valor).strip() or 'No registrado'
+
+    def agregar_datos(titulo, campos):
+        contenido.append(Paragraph(escape(titulo), styles['Heading2']))
+        filas = []
+        for i in range(0, len(campos), 2):
+            fila = []
+            for etiqueta, clave in campos[i:i+2]:
+                fila.extend([Paragraph('<b>'+escape(etiqueta)+'</b>', styles['CeldaSifert']),
+                             Paragraph(escape(ficha_valor(clave)), styles['CeldaSifert'])])
+            while len(fila) < 4:
+                fila.append('')
+            filas.append(fila)
+        ancho = landscape(A4)[0] - 30*mm
+        tabla = Table(filas, colWidths=[ancho*.16, ancho*.34, ancho*.16, ancho*.34], hAlign='LEFT')
+        tabla.setStyle(TableStyle([('GRID',(0,0),(-1,-1),.25,colors.HexColor('#CBD5D1')),
+                                   ('VALIGN',(0,0),(-1,-1),'TOP'),('BACKGROUND',(0,0),(0,-1),colors.HexColor('#F0F5F3')),
+                                   ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#F0F5F3')),
+                                   ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
+        contenido.append(tabla)
+        contenido.append(Spacer(1, 4*mm))
+
+    agregar_datos('1. Identificación del productor y parcela', [
+        ('Código', 'codigo'), ('DNI', 'dni'), ('Caserío', 'caserio'), ('Distrito', 'distrito'),
+        ('Provincia', 'provincia'), ('Parcela', 'parcela'), ('Edad del cacao (años)', 'edad'),
+        ('Etapa del cultivo', 'etapa'), ('Plantas por hectárea', 'densidad'),
+        ('Meta de producción (kg/ha/año)', 'meta'), ('Manejo de cáscaras', 'cascaras')])
+    agregar_datos('2. Análisis de suelo', [('Laboratorio', 'laboratorio'), ('Fecha de muestreo/análisis', 'fecha_suelo'),
+        ('pH', 'ph'), ('Materia orgánica (%)', 'mo'), ('Fósforo (P)', 'p'), ('Potasio (K)', 'k'),
+        ('Calcio intercambiable', 'ca'), ('Magnesio intercambiable', 'mg'),
+        ('Saturación de aluminio (%)', 'sat_al')])
+    agregar_datos('3. Enmienda y compost', [('Enmienda simulada', 'enmienda'),
+        ('Dosis calculada (kg/ha)', 'enmienda_kg_ha'), ('Cantidad por parcela (kg)', 'enmienda_kg_parcela'),
+        ('Sacos de 50 kg', 'enmienda_sacos'), ('¿Confirmó aplicación?', 'enmienda_aplicada'),
+        ('Compost (kg/ha)', 'compost_kg_ha')])
 
     def agregar_tabla(titulo, df, anchos=None):
         contenido.append(Paragraph(escape(titulo), styles['Heading2']))
@@ -55,13 +95,21 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     contenido.append(Paragraph('Simulación técnica preliminar. Validar los resultados del análisis, la composición '
                                'de los productos y las recomendaciones agronómicas locales antes de aplicar.',
                                styles['Normal']))
+    contenido.append(Spacer(1, 10*mm))
+    contenido.append(Paragraph('4. Responsable técnico', styles['Heading2']))
+    contenido.append(Paragraph('<b>Ingeniero agrónomo:</b> '+escape(ficha_valor('ingeniero'))+
+        '   |   <b>Colegiatura CIP:</b> '+escape(ficha_valor('cip'))+
+        '   |   <b>Fecha de emisión:</b> '+escape(ficha_valor('fecha_emision')), styles['Normal']))
+    contenido.append(Spacer(1, 17*mm))
+    contenido.append(Paragraph('________________________________________', styles['Normal']))
+    contenido.append(Paragraph('Firma y sello del ingeniero responsable', styles['Normal']))
     doc.build(contenido)
     return buf.getvalue()
 
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V8.0 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V8.2 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -872,9 +920,42 @@ with secciones[1]:
                 st.dataframe(pd.DataFrame(filas_gramos),hide_index=True,use_container_width=True)
                 st.caption('Distribución referencial: productos fosfatados en el primer abonamiento y otros en tres partes. Validar según fenología y compatibilidad.')
                 productor_pdf = str(fila_parcela['nombre']) if fila_parcela is not None else 'Sin participante seleccionado'
+                with st.expander('📄 Datos complementarios para la ficha PDF', expanded=False):
+                    f1, f2, f3 = st.columns(3)
+                    pdf_dni = f1.text_input('DNI del productor', key='pdf_dni')
+                    pdf_distrito = f2.text_input('Distrito', key='pdf_distrito')
+                    pdf_provincia = f3.text_input('Provincia', value='Leoncio Prado', key='pdf_provincia')
+                    f4, f5, f6 = st.columns(3)
+                    pdf_parcela = f4.text_input('Nombre o código de parcela', key='pdf_parcela')
+                    pdf_etapa = f5.selectbox('Etapa del cultivo', ['No especificada', 'Crecimiento', 'Producción'], key='pdf_etapa')
+                    pdf_laboratorio = f6.text_input('Laboratorio', key='pdf_laboratorio')
+                    f7, f8 = st.columns(2)
+                    pdf_ingeniero = f7.text_input('Ingeniero agrónomo responsable', key='pdf_ingeniero')
+                    pdf_cip = f8.text_input('N.º de colegiatura CIP', key='pdf_cip')
+                def valor_pdf_parcela(campo):
+                    if fila_parcela is None:
+                        return ''
+                    valor = fila_parcela.get(campo, '')
+                    return '' if pd.isna(valor) else valor
+                ficha_datos = {
+                    'codigo': valor_pdf_parcela('codigo'), 'dni': pdf_dni, 'caserio': valor_pdf_parcela('caserio'),
+                    'distrito': pdf_distrito, 'provincia': pdf_provincia, 'parcela': pdf_parcela,
+                    'edad': valor_pdf_parcela('edad_anios'), 'etapa': pdf_etapa,
+                    'densidad': plantas, 'meta': rendimiento, 'cascaras': valor_pdf_parcela('manejo_cascaras'),
+                    'laboratorio': pdf_laboratorio, 'fecha_suelo': fecha_guardar,
+                    'ingeniero': pdf_ingeniero, 'cip': pdf_cip, 'fecha_emision': date.today().isoformat(),
+                    'enmienda': 'Dolomita' if producto_enc.startswith('Dolomita') else 'Cal agrícola',
+                    'enmienda_kg_ha': f'{kg_ha_encalado_calculado:.2f}' if kg_ha_encalado_calculado is not None else 'No calculada',
+                    'enmienda_kg_parcela': f'{kg_ha_encalado_calculado*area_real:.2f}' if kg_ha_encalado_calculado is not None else 'No calculada',
+                    'enmienda_sacos': math.ceil(kg_ha_encalado_calculado*area_real/50) if kg_ha_encalado_calculado is not None else 'No calculada',
+                    'enmienda_aplicada': 'Sí, declarado por el usuario' if enm_aplicada else 'No confirmada',
+                    'compost_kg_ha': f'{compost_kg_ha:.2f}',
+                }
+                for clave in ('ph','mo','p','k','ca','mg','sat_al'):
+                    ficha_datos[clave] = datos.get(clave)
                 try:
                     ficha_pdf = crear_ficha_pdf(productor_pdf, fecha_guardar, area_real,
-                                               total_plantas, filas_balance, filas_compra, filas_gramos)
+                                               total_plantas, filas_balance, filas_compra, filas_gramos, ficha_datos)
                     st.download_button('📄 Descargar ficha final de fertilización (PDF)',
                         data=ficha_pdf, file_name='SIFERT_CACAO_FICHA_FERTILIZACION.pdf',
                         mime='application/pdf', key='descarga_abonamientos_pdf')
