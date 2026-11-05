@@ -510,43 +510,7 @@ with secciones[1]:
             st.caption('Coeficientes bibliográficos orientativos de V4.2 (N 22; P₂O₅ 6.87; K₂O 10.8; CaO 1.3; MgO 5.3; S 0.9 kg/t). No validados localmente. Las cáscaras retiradas exportan nutrientes adicionales que aquí no se cuantifican.')
             if fila_parcela is not None:
                 st.info(f"Manejo de cáscaras registrado: {fila_parcela['manejo_cascaras'] or 'No definido'}. La extracción adicional por cáscaras y el crecimiento vegetativo aún están pendientes de validación; no se asignan dosis.")
-            st.subheader('5. Contenido de nutrientes del suelo y aporte anual')
-            st.caption('Se utilizan directamente los resultados de suelo ingresados arriba. El contenido analítico de la capa 0–20 cm no es equivalente al suministro anual aprovechable por las raíces.')
-            dap = datos.get('dap')
-            if dap is None or dap <= 0:
-                st.info('Para convertir las concentraciones a kg/ha, ingrese la densidad aparente (DAP) medida en el análisis de suelo. No se asigna una DAP supuesta.')
-            else:
-                masa = 10000 * 0.20 * dap * 1000
-                st.metric('Masa estimada de suelo, 0–20 cm (kg/ha)', f'{masa:,.0f}')
-                st.caption(f'10 000 m²/ha × 0.20 m × {dap:.3f} t/m³ × 1 000 = {masa:,.0f} kg/ha.')
-                # ppm = mg/kg. Los cationes se convierten por peso equivalente;
-                # P extraíble y bases intercambiables NO son nutrientes totales.
-                conversiones = [
-                    ('N total', 'n', 'N', lambda v: masa * v / 100, 'Reserva de N total; no es N disponible al año'),
-                    ('P extraíble', 'p', 'P₂O₅', lambda v: masa * v / 1e6 * 2.291, 'P extraíble expresado como P₂O₅; no es P total'),
-                    ('K intercambiable', 'k_cmol', 'K₂O', lambda v: masa * v * 391 / 1e6 * 1.205, 'K intercambiable expresado como K₂O'),
-                    ('Ca intercambiable', 'ca', 'CaO', lambda v: masa * v * 200.4 / 1e6 * 1.399, 'Ca intercambiable expresado como CaO'),
-                    ('Mg intercambiable', 'mg', 'MgO', lambda v: masa * v * 121.5 / 1e6 * 1.658, 'Mg intercambiable expresado como MgO'),
-                ]
-                filas_contenido = []
-                for nombre, clave, oxido, convertir, alcance in conversiones:
-                    v = datos.get(clave)
-                    filas_contenido.append({
-                        'Indicador de suelo': nombre,
-                        'Expresado como': oxido,
-                        'Contenido analítico (kg/ha)': round(convertir(v), 2) if v is not None else 'No medido',
-                        'Aporte anual aprovechable estimado (kg/ha/año)': (round(convertir(v) * {'n':0.03*0.40, 'p':0.25, 'k_cmol':0.40}[clave], 2) if v is not None and clave in ('n', 'p', 'k_cmol') else 'No determinado'),
-                        'Alcance': alcance,
-                    })
-                st.dataframe(pd.DataFrame(filas_contenido), hide_index=True, use_container_width=True)
-                k2o_ppm = datos.get('k2o')
-                if k2o_ppm is not None:
-                    st.caption(f'K₂O reportado directamente por de suelo: {masa * k2o_ppm / 1e6:.2f} kg/ha de la fracción analizada (vía alternativa). No se suma al K intercambiable ni se multiplica nuevamente por 1.205.')
-                st.caption('Los valores en kg/ha son conversiones del resultado analítico para 0–20 cm; no son reservas totales de P, K, Ca o Mg ni dosis de fertilizante. El azufre no se estima porque no se ingresó un análisis de S.')
-            st.caption('Aporte NPK estimado con coeficientes del ejemplo INIA: N = N total × 3 % de mineralización × 40 % de disponibilidad; P₂O₅ = P extraíble convertido × 25 %; K₂O = K intercambiable convertido × 40 %. Son estimaciones orientativas, no mediciones de absorción. Para Ca, Mg y S no se asigna un coeficiente anual sin respaldo.')
-            st.info('El balance de fertilización de las secciones siguientes es orientativo: la demanda completa del cultivo, las cáscaras retiradas y las eficiencias requieren calibración local. No se resta directamente el inventario analítico del suelo de la extracción del grano.')
-
-            st.subheader('6. Compost y poda: proyección de materia orgánica')
+            st.subheader('5. Compost y poda: proyección de materia orgánica')
             st.caption('El agricultor elige cuánto compost aplicará. SIFERT estima por separado el aporte del compost y el de los residuos de poda que permanecen en el anillo.')
             mo_val = datos.get('mo')
             if mo_val is None:
@@ -623,7 +587,7 @@ with secciones[1]:
                         st.caption('Estos beneficios son posibles, no aumentos cuantificados ni garantizados. SIFERT no modifica automáticamente CIC, N, P, K, pH ni saturación de Al; se requieren nuevos análisis para comprobar cambios.')
             st.info('El compost registrado se considera una sola vez en el balance NPK, utilizando composición y disponibilidad anuales estimadas y editables en la sección de fertilización.')
 
-            st.subheader('7. Balance NPK, calcio y magnesio · simulación técnica preliminar')
+            st.subheader('6. Balance nutricional NPK, calcio y magnesio · simulación técnica preliminar')
             st.warning('Cálculos exploratorios basados en los coeficientes del ejemplo INIA 2025 discutidos durante el desarrollo. NO constituyen una recomendación agronómica validada. Verificar método de extracción de P, calibración local y demanda por edad y manejo de cáscaras antes de aplicar.')
             n_total, p_ppm, k_cmol, dap = datos.get('n'), datos.get('p'), datos.get('k_cmol'), datos.get('dap')
             if any(v is None for v in (n_total,p_ppm,k_cmol,dap)) or dap <= 0:
@@ -639,32 +603,36 @@ with secciones[1]:
                 demanda = {'N': 70*rendimiento/1000, 'P₂O₅': 16*rendimiento/1000, 'K₂O': 90*rendimiento/1000}
                 eficiencia = {'N':0.60,'P₂O₅':0.25,'K₂O':0.70}
                 dosis = {nut:max(0,demanda[nut]-oferta[nut])/eficiencia[nut] for nut in demanda}
-                st.dataframe(pd.DataFrame([{'Nutriente':nut, 'Requerimiento de nutrientes (kg/ha)':round(demanda[nut],2), 'Nutrientes del análisis de suelo (kg/ha)':round(oferta[nut],2), 'Déficit nutricional (kg/ha)':round(max(0,demanda[nut]-oferta[nut]),2)} for nut in demanda]), hide_index=True, use_container_width=True)
-                # Ca/Mg/S no disponen aquí de requerimientos anuales validados.
-                # Se muestran en el mismo balance sin inferir déficit a partir del inventario.
-                st.dataframe(pd.DataFrame([
-                    {'Nutriente':n, 'Requerimiento de nutrientes (kg/ha)':'No determinado',
-                     'Nutrientes del análisis de suelo (kg/ha)':'Ver inventario Ca/Mg' if n != 'S' else 'Sin análisis',
-                     'Déficit nutricional (kg/ha)':'No determinado'}
-                    for n in ('Ca','Mg','S')]), hide_index=True, use_container_width=True)
-                # Conversión de Ca y Mg intercambiables a inventario de suelo (0–20 cm).
-                # Factores referenciales diferenciados: Ca ×1.4 ×70%; Mg ×1.67 ×28%.
-                ca_cmol, mg_cmol = datos.get('ca'), datos.get('mg')
-                st.markdown('**Calcio y magnesio: inventario estimado del suelo**')
-                factor_capacitacion = st.checkbox('Aplicar factores de capacitación: Ca (×1.4; 70 %) y Mg (×1.67; 28 %)', value=True, key='factores_capacitacion_ca_mg', help='Cálculo exploratorio; los factores no equivalen a una disponibilidad anual validada para cacao.')
-                filas_ca_mg = []
-                for nombre, valor, equivalencia in [('Ca', ca_cmol, 200.39), ('Mg', mg_cmol, 121.53)]:
-                    if valor is not None and valor >= 0:
-                        inventario = valor * equivalencia * masa / 1_000_000
-                        factor_correccion, fraccion_aprovechable = ((1.4, 0.70) if nombre == 'Ca' else (1.67, 0.28))
-                        ajustado = inventario * (factor_correccion if factor_capacitacion else 1.0)
-                        asimilable = ajustado * (fraccion_aprovechable if factor_capacitacion else 1.0)
-                        filas_ca_mg.append({'Nutriente':nombre, 'Análisis (cmol(+)/kg)':round(valor,3), 'Inventario intercambiable (kg/ha)':round(inventario,2), 'Estimación con factores (kg/ha)':round(asimilable,2) if factor_capacitacion else 'No aplicada'})
-                    else:
-                        filas_ca_mg.append({'Nutriente':nombre, 'Análisis (cmol(+)/kg)':'Sin dato', 'Inventario intercambiable (kg/ha)':'No determinado', 'Estimación con factores (kg/ha)':'No determinado'})
-                st.dataframe(pd.DataFrame(filas_ca_mg),hide_index=True,use_container_width=True)
-                st.caption('Factores de capacitación: Ca = inventario × 1.4 × 0.70; Mg = inventario × 1.67 × 0.28. Estos factores son referenciales, no validados como disponibilidad anual. El resultado NO representa absorción anual ni déficit nutricional. Para Ca y Mg, el diagnóstico y la enmienda siguen dependiendo de acidez, CICe, saturaciones y relación Ca/Mg. Azufre (S): no determinado sin análisis.')
-                st.caption('El cuadro inicial muestra la necesidad antes de descontar compost. La sección 8 descuenta el compost y calcula el aporte aprovechable de cada fertilizante.')
+                # Tabla única: NPK con déficit estimado; Ca/Mg con inventario de suelo
+                # y factores de capacitación, sin confundir inventario con oferta anual.
+                factor_capacitacion = st.checkbox(
+                    'Aplicar factores referenciales de capacitación a Ca y Mg',
+                    value=True, key='factores_capacitacion_ca_mg',
+                    help='Ca ×1.4 ×70 %; Mg ×1.67 ×28 %. No representan disponibilidad anual validada.')
+                filas_balance_suelo = [
+                    {'Nutriente':nut,
+                     'Requerimiento (kg/ha)':round(demanda[nut],2),
+                     'Resultado del suelo (kg/ha)':round(oferta[nut],2),
+                     'Déficit estimado (kg/ha)':round(max(0,demanda[nut]-oferta[nut]),2)}
+                    for nut in demanda
+                ]
+                for nut, equivalente, fc, fraccion in (
+                    ('Ca',200.39,1.4,0.70),('Mg',121.53,1.67,0.28)):
+                    valor=datos.get(nut.lower())
+                    inventario=valor*equivalente*masa/1_000_000 if valor is not None and valor >= 0 else None
+                    estimacion=(inventario*fc*fraccion if factor_capacitacion else inventario) if inventario is not None else None
+                    filas_balance_suelo.append({
+                        'Nutriente':nut,
+                        'Requerimiento (kg/ha)':'Por definir',
+                        'Resultado del suelo (kg/ha)':round(estimacion,2) if estimacion is not None else 'Sin análisis',
+                        'Déficit estimado (kg/ha)':'No calculable'})
+                filas_balance_suelo.append({
+                    'Nutriente':'S','Requerimiento (kg/ha)':'Por definir',
+                    'Resultado del suelo (kg/ha)':'Sin análisis',
+                    'Déficit estimado (kg/ha)':'No calculable'})
+                st.dataframe(pd.DataFrame(filas_balance_suelo), hide_index=True, use_container_width=True)
+                st.caption('NPK: aporte anual estimado. Ca y Mg: contenido intercambiable convertido a kg/ha y, si está activado, ajustado con factores de capacitación (Ca ×1.4 ×70 %; Mg ×1.67 ×28 %). Estas cifras NO son suministro anual validado ni se restan de un requerimiento para calcular déficit. El azufre no tiene análisis.')
+                st.caption('El cuadro inicial muestra la necesidad antes de descontar compost. La sección 7 descuenta el compost y calcula el aporte aprovechable de cada fertilizante.')
                 st.caption('La estimación de oferta del suelo no es una medición de absorción anual. El modelo de demanda escala linealmente con rendimiento y no incorpora aún una calibración independiente por edad ni cáscaras.')
 
                 # Las dosis complementarias son referenciales y se presentan en la tabla
@@ -674,7 +642,7 @@ with secciones[1]:
                              ('Sulfato de magnesio (0-0-0 + 9.6% Mg + 13% S)', 5., 0., 0.),
                              ('Sulfato de manganeso (0-0-0; Mn)', 1., 0., 0.),
                              ('Ulexita (0-0-0; 10–13% B)', 30., 20., 0.)]
-                st.subheader('8. Fertilización NPK y microelementos en tres abonamientos')
+                st.subheader('7. Fertilización NPK y microelementos en tres abonamientos')
                 st.caption('El balance compara nutrientes aprovechables: suelo + compost + fertilizantes. Las eficiencias minerales se aplican una sola vez a su aporte; los orgánicos utilizan sus factores propios de disponibilidad.')
                 area_real = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
                 plantas = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
