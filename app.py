@@ -445,16 +445,43 @@ with secciones[1]:
                 st.success('Los indicadores ingresados no activan el criterio preliminar de revisión por acidez; no se recomienda encalado automático.')
             else:
                 st.info('Faltan pH y/o saturación de aluminio para descartar necesidad de encalado.')
-            st.caption('Referencia metodológica: INIA, manual de encalado de suelos ácidos y manual técnico para cacao. Meta de saturación de aluminio del ejemplo: 20 %, no umbral universal.')
-            st.caption('Dolomita ODINSU (etiqueta): CaO 28–31 %, MgO 18–24 %, CaCO₃ 50–58 %, MgCO₃ 40–48 %, humedad 10–12 %. PRNT no acreditado. No sumar óxidos y carbonatos.')
-            st.caption('Cal agrícola: referencia de adquisición DEVIDA Tarapoto; falta ficha técnica específica y PRNT verificable.')
+            st.caption('Referencia: enfoque de neutralización de Al intercambiable. Esta simulación estequiométrica NO equivale a una dosis de campo validada por INIA; verificar método y respuesta local antes de aplicar.')
+            st.caption('Dolomita ODINSU: PRNT supuesto 108 %. Cal agrícola: PRNT supuesto 135 %. Valores elegidos para simulación, NO certificados de los lotes.')
             plantas_encalado = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
-            area_planta = 3.141592653589793 * (1.20**2 - 0.80**2)
-            st.caption(f'Zona de referencia: anillo 0.80–1.20 m, {area_planta:.3f} m²/planta; {plantas_encalado:,} plantas/ha; profundidad analítica 0–20 cm.')
-            if datos.get('al') is not None and datos.get('cice') is not None and datos['cice'] > 0:
-                exceso_al = max(0., datos['al'] - 0.20 * datos['cice'])
-                st.metric('Al intercambiable sobre meta ilustrativa de 20 %', f'{exceso_al:.3f} cmol(+)/kg')
-            st.warning('Dosis comercial (kg/ha y g/planta) pendiente: falta validar la ecuación INIA para aplicación localizada y el PRNT de los productos reales. No convertir este indicador preliminar en una dosis.')
+            area_encalado = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
+            import math
+            st.markdown('**Simulación de dosis de encalado (revisar antes de aplicar)**')
+            ec1, ec2, ec3 = st.columns(3)
+            radio_int = ec1.number_input('Radio interior encalado (m)', min_value=0.0, value=0.80, step=0.05, key='encalado_radio_int')
+            radio_ext = ec2.number_input('Radio exterior encalado (m)', min_value=0.05, value=1.20, step=0.05, key='encalado_radio_ext')
+            prof_enc = ec3.number_input('Profundidad de suelo considerada (cm)', min_value=1.0, max_value=40.0, value=20.0, step=1.0, key='encalado_prof')
+            e1, e2 = st.columns(2)
+            producto_enc = e1.selectbox('Enmienda para simular', ['Dolomita ODINSU (PRNT 108 % supuesto)', 'Cal agrícola (PRNT 135 % supuesto)'], key='encalado_producto')
+            sat_meta = e2.number_input('Meta ilustrativa de saturación de Al (%)', min_value=0.0, max_value=40.0, value=20.0, step=1.0, key='encalado_meta_al')
+            prnt = 1.08 if producto_enc.startswith('Dolomita') else 1.35
+            if relacion is not None:
+                st.info(f'Relación Ca/Mg obligatoria: {relacion:.2f}:1. La selección debe considerar también Mg absoluto, Ca absoluto y necesidad de encalado.')
+            if radio_ext <= radio_int:
+                st.error('El radio exterior debe superar el radio interior.')
+            elif any(datos.get(k) is None for k in ('al','cice','dap','ca','mg')) or datos['cice'] <= 0 or datos['dap'] <= 0 or relacion is None:
+                st.warning('Para calcular, ingrese Al intercambiable, CICe, densidad aparente, Ca y Mg.')
+            else:
+                exceso_al = max(0., datos['al'] - sat_meta / 100 * datos['cice'])
+                area_anillo = math.pi * (radio_ext**2 - radio_int**2)
+                area_ha = area_anillo * plantas_encalado
+                if area_ha > 10000:
+                    st.error('La suma de anillos supera una hectárea; revise los radios y la densidad de plantas.')
+                else:
+                    masa_suelo = area_ha * prof_enc / 100 * datos['dap'] * 1000
+                    # 1 cmol(+) de carga por kg requiere 0.5 g CaCO3/kg (peso equivalente 50 g/eq).
+                    kg_equiv = exceso_al * 0.5 * masa_suelo / 1000
+                    kg_ha = kg_equiv / prnt
+                    kg_parcela = kg_ha * area_encalado
+                    g_planta = kg_ha * 1000 / plantas_encalado
+                    sacos = math.ceil(kg_parcela / 50)
+                    st.dataframe(pd.DataFrame([{'Producto':producto_enc, 'Ca/Mg':round(relacion,2), 'Exceso Al (cmol(+)/kg)':round(exceso_al,3), 'kg/ha':round(kg_ha,2), 'kg/parcela':round(kg_parcela,2), 'g/planta':round(g_planta,1), 'Sacos de 50 kg':sacos}]), hide_index=True, use_container_width=True)
+                    st.caption(f'Área tratada: {area_ha:,.1f} m²/ha. Masa de suelo: {masa_suelo:,.0f} kg/ha. Equivalente CaCO₃: {kg_equiv:,.1f} kg/ha. Ajuste por PRNT supuesto: {prnt:.2f}.')
+                    st.warning('RESULTADO SOLO DE SIMULACIÓN: neutralización estequiométrica de exceso de Al, no una recomendación de aplicación de campo validada por INIA. La neutralización real depende de acidez de reserva, reactividad, incorporación superficial, condiciones de suelo y calidad de la enmienda. No comprar ni aplicar basándose únicamente en esta cifra.')
             st.subheader('4. Nutrientes extraídos por la cosecha de cacao')
             st.caption('Extracción estimada por grano seco. El efecto de las cáscaras se registra, pero aún no se cuantifica sin un coeficiente de biomasa validado.')
             extraccion = pd.DataFrame([{'Macronutriente': nutriente,
