@@ -6,7 +6,7 @@ import pandas as pd
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V6.1 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
+st.caption('V6.2 · AVANCE INTEGRADO · Diagnóstico y simulación de fertilización')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -31,7 +31,7 @@ CAMPOS = [
 # Biblioteca inicial recuperada de SIFERT V6 (26 entradas) + MOLIMAX 20-20-20.
 # Valores porcentuales son los almacenados en V6; comprobar etiqueta antes de prescribir.
 # Ca y Mg de V6 no se convierten automáticamente a CaO/MgO.
-BIBLIOTECA_V6 = [('Urea', 'N', 46, 0, 0, 0, 0, 0), ('Sulfato de amonio', 'N', 21, 0, 0, 0, 0, 24), ('Nitrato de amonio', 'N', 33, 0, 0, 0, 0, 0), ('DAP 18-46-0', 'P', 18, 46, 0, 0, 0, 0), ('MAP 11-52-0', 'P', 11, 52, 0, 0, 0, 0), ('Superfosfato triple 0-46-0', 'P', 0, 46, 0, 14, 0, 0), ('NPK 20-20-20 (soluble)', 'P', 20, 20, 20, 0, 0, 0), ('NPK 15-15-15', 'P', 15, 15, 15, 0, 0, 0), ('KCl 0-0-60 (cloruro)', 'K', 0, 0, 60, 0, 0, 0), ('Sulfato de potasio 0-0-50', 'K', 0, 0, 50, 0, 0, 18), ('Nitrato de potasio 13-0-46', 'K', 13, 0, 46, 0, 0, 0), ('Nitrato de calcio', 'Ca', 15.5, 0, 0, 19, 0, 0), ('Sulfato de magnesio', 'Mg', 0, 0, 0, 0, 9.6, 13), ('Dolomita', 'Enm', 0, 0, 0, 21, 12, 0), ('Dolomita ODINSU (cal agrícola local; CaO 28-32 %, MgO 20-23 %)', 'Enm', 0, 0, 0, 0, 0, 0), ('Cal agrícola', 'Enm', 0, 0, 0, 38, 0, 0), ('Yeso agrícola', 'Otro', 0, 0, 0, 23, 0, 18), ('Guano de isla (verificar garantía)', 'Org', 10, 10, 2, 0, 0, 0), ('Compost', 'Org', 2, 1, 1.5, 0, 0, 0), ('Gallinaza compostada', 'Org', 2.5, 2.5, 2, 0, 0, 0), ('Humus de lombriz', 'Org', 1.5, 1, 1, 0, 0, 0), ('Roca fosfórica (baja reactividad)', 'Org', 0, 28, 0, 30, 0, 0), ('Harina de hueso', 'Org', 4, 20, 0, 25, 0, 0), ('Ceniza vegetal', 'Org', 0, 1.5, 5, 20, 0, 0), ('Sulfato de K y Mg (K-Mag)', 'K', 0, 0, 22, 0, 11, 22), ('Biol (ingrese su análisis)', 'Org', 0, 0, 0, 0, 0, 0), ('Hydran (completar ficha real)', 'Otro', 0, 0, 0, 0, 0, 0), ('MOLIMAX 20-20-20 (Molinos & Cía.)', 'P', 20, 20, 20, 0, 0, 0)]
+BIBLIOTECA_V6 = [('Urea (46-0-0)', 'N', 46, 0, 0, 0, 0, 0), ('Nitrato de amonio (33-0-0)', 'N', 33, 0, 0, 0, 0, 0), ('Fosfato diamónico (18-46-0)', 'P', 18, 46, 0, 0, 0, 0), ('Fosfato monoamónico (11-52-0)', 'P', 11, 52, 0, 0, 0, 0), ('Superfosfato triple (0-46-0 + 14% Ca)', 'P', 0, 46, 0, 14, 0, 0), ('NPK soluble (20-20-20)', 'P', 20, 20, 20, 0, 0, 0), ('Cloruro de potasio (0-0-60)', 'K', 0, 0, 60, 0, 0, 0), ('Nitrato de potasio (13-0-46)', 'K', 13, 0, 46, 0, 0, 0), ('Guano de isla (10-10-2; referencial)', 'Org', 10, 10, 2, 0, 0, 0), ('Compost (2-1-1.5; referencial)', 'Org', 2, 1, 1.5, 0, 0, 0), ('Gallinaza compostada (2.5-2.5-2; referencial)', 'Org', 2.5, 2.5, 2, 0, 0, 0), ('Humus de lombriz (1.5-1-1; referencial)', 'Org', 1.5, 1, 1, 0, 0, 0), ('Roca fosfórica (0-28-0 + 30% Ca; referencial)', 'Natural', 0, 28, 0, 30, 0, 0), ('Sulfato de potasio (0-0-50 + 18% S)', 'Natural', 0, 0, 50, 0, 0, 18), ('Sulfato de magnesio (0-0-0 + 9.6% Mg + 13% S)', 'Natural', 0, 0, 0, 0, 9.6, 13), ('Sulfato de potasio y magnesio (0-0-22 + 11% Mg + 22% S)', 'Natural', 0, 0, 22, 0, 11, 22), ('Sulfato de cobre (0-0-0; CuSO4·5H2O)', 'Micro', 0, 0, 0, 0, 0, 0), ('Sulfato de zinc (0-0-0; Zn)', 'Micro', 0, 0, 0, 0, 0, 0), ('Sulfato de manganeso (0-0-0; Mn)', 'Micro', 0, 0, 0, 0, 0, 0), ('Ulexita (0-0-0; 10–13% B)', 'Micro', 0, 0, 0, 0, 0, 0)]
 
 # Ficha comercial ODINSU: los porcentajes de CaO/MgO y carbonatos son
 # declaraciones en formas químicas distintas; no sumarlos. PRNT no acreditado.
@@ -45,20 +45,9 @@ FICHAS_ENMIENDAS = {
 }
 
 def clasificar_origen_producto(nombre, tipo):
-    """Clasificación descriptiva para la biblioteca; no altera el optimizador NPK."""
-    if nombre.startswith('Roca fosfórica'):
-        return 'Mineral (fuente fosfatada)'
-    if nombre.startswith('Ceniza vegetal'):
-        return 'Orgánico (origen vegetal; enmienda mineral)'
-    if tipo == 'Org':
-        return 'Orgánico'
-    if tipo == 'Enm' or nombre == 'Yeso agrícola':
-        return 'Mineral (enmienda)'
-    if nombre.startswith('Hydran'):
-        return 'Por verificar (ficha técnica)'
-    if tipo in ('N', 'P', 'K', 'Ca', 'Mg'):
-        return 'Químico (mineral)'
-    return 'Por verificar (ficha técnica)'
+    if tipo in ('Org', 'Natural', 'Micro'):
+        return 'Orgánicos / minerales naturales' if tipo != 'Org' else 'Orgánico'
+    return 'Químico (mineral)'
 
 
 def catalogo_v6():
@@ -430,38 +419,42 @@ with secciones[1]:
                 st.warning('Saturación de aluminio elevada: solicite evaluación técnica de acidez.')
             if mg is not None and 0 < mg < 0.5:
                 st.info('Magnesio intercambiable bajo según criterio provisional. Verificar antes de seleccionar una enmienda.')
-            st.subheader('4. Evaluación preliminar de cal agrícola o dolomita')
-            st.caption('Selección orientativa basada en el esquema Ca/Mg proporcionado por el usuario. Sus rangos no están aún validados como criterio universal para cacao; la necesidad de encalar se evalúa aparte con el enfoque del INIA.')
+            st.subheader('4. Diagnóstico de encalado y relación Ca/Mg')
+            st.caption('Secuencia: primero necesidad de neutralizar acidez y aluminio; después Ca y Mg para orientar el tipo de enmienda. No usar rangos Ca/Mg como prescripción automática.')
             ca_val, mg_val = datos.get('ca'), datos.get('mg')
             relacion = ca_val / mg_val if ca_val is not None and mg_val is not None and mg_val > 0 else None
-            if relacion is None:
-                st.info('Para evaluar la relación Ca/Mg ingrese Ca y Mg intercambiables en las mismas unidades; Mg debe ser mayor que cero.')
+            sat_val = datos.get('sat_al')
+            ph_val = datos.get('ph')
+            requiere_revision = (ph_val is not None and ph_val < 5.5) or (sat_val is not None and sat_val >= 20)
+            if relacion is not None:
+                st.metric('Relación Ca/Mg (cmol(+)/kg)', f'{relacion:.2f}:1')
+                st.caption(f'Ca: {ca_val:g} cmol(+)/kg · Mg: {mg_val:g} cmol(+)/kg. Una relación por sí sola no determina el producto.')
             else:
-                st.metric('Relación Ca/Mg', f'{relacion:.2f}:1')
-                if 3 <= relacion < 4:
-                    enmienda = 'Cal agrícola (orientativa)'
-                elif 4 <= relacion <= 7:
-                    enmienda = 'Dolomita (orientativa)'
-                elif 7 < relacion <= 12:
-                    enmienda = 'Dolomita; revisar aporte adicional de Mg (orientativo)'
+                st.info('Para evaluar Ca/Mg ingrese calcio y magnesio intercambiables; Mg debe ser mayor que cero.')
+            if requiere_revision:
+                st.warning('La acidez o saturación de aluminio justifican evaluar encalado mediante el método del INIA.')
+                if ca_val is None or mg_val is None:
+                    st.info('Faltan Ca y/o Mg para orientar el tipo de enmienda.')
+                elif mg_val < 0.5 and (ca_val >= 3 or (relacion is not None and relacion > 4)):
+                    st.info('**Producto orientativo: dolomita ODINSU**, por Mg bajo. Confirmar necesidad y aporte de Mg con análisis y ficha.')
+                elif mg_val >= 1.0 and ca_val < 3:
+                    st.info('**Producto orientativo: cal agrícola con bajo Mg**, si la ficha demuestra bajo aporte de Mg. La cal de Tarapoto también contiene Mg: verificar su composición.')
                 else:
-                    enmienda = 'Fuera de los rangos de la lámina; requiere revisión técnica'
-                st.info(f'**Selección preliminar según la lámina:** {enmienda}. La relación Ca/Mg sola no determina la necesidad ni la dosis de encalado.')
-            st.caption('Referencia de encalado: manual técnico INIA 2025 para café y cacao, capítulo 9. Objetivo de saturación de Al del ejemplo: 20 %. El método y sus factores para aplicación localizada deben contrastarse con el manual antes de prescribir dosis.')
-            c_cal, c_dolo = st.columns(2)
-            prnt_cal, prnt_dolo = 135.0, 94.0
-            c_cal.metric('PRNT cal agrícola genérica · referencial', '135 %')
-            c_dolo.metric('PRNT dolomita genérica · referencial', '94 %')
-            st.warning('La cal agrícola local identificada como dolomita ODINSU tiene PRNT NO VERIFICADO. Los valores 135 % y 94 % corresponden a referencias anteriores y NO se aplican a ODINSU ni se usan para calcular su dosis.')
-            st.caption('Dolomita ODINSU: CaO 28–32 %, MgO 20–23 %, CaCO₃ 50–56 % y MgCO₃ 44–48 % (según ficha comercial). No sumar porcentajes de óxidos y carbonatos.')
+                    st.info('**Tipo de enmienda por confirmar:** evaluar concentraciones absolutas de Ca/Mg y composición real de ambas fuentes; no elegir por relación aislada.')
+            elif ph_val is not None and sat_val is not None:
+                st.success('Los indicadores ingresados no activan el criterio preliminar de revisión por acidez; no se recomienda encalado automático.')
+            else:
+                st.info('Faltan pH y/o saturación de aluminio para descartar necesidad de encalado.')
+            st.caption('Referencia metodológica: INIA, manual de encalado de suelos ácidos y manual técnico para cacao. Meta de saturación de aluminio del ejemplo: 20 %, no umbral universal.')
+            st.caption('Dolomita ODINSU (etiqueta): CaO 28–31 %, MgO 18–24 %, CaCO₃ 50–58 %, MgCO₃ 40–48 %, humedad 10–12 %. PRNT no acreditado. No sumar óxidos y carbonatos.')
+            st.caption('Cal agrícola: referencia de adquisición DEVIDA Tarapoto; falta ficha técnica específica y PRNT verificable.')
             plantas_encalado = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
             area_planta = 3.141592653589793 * (1.20**2 - 0.80**2)
-            area_tratada = area_planta * plantas_encalado
-            st.caption(f'Aplicación superficial en franja anular INIA (radio interior 0.80 m, exterior 1.20 m): {area_planta:.4f} m²/planta · {area_tratada:.2f} m²/ha · {area_tratada / 100:.2f} % de hectárea. Profundidad de referencia del análisis: 0–20 cm.')
+            st.caption(f'Zona de referencia: anillo 0.80–1.20 m, {area_planta:.3f} m²/planta; {plantas_encalado:,} plantas/ha; profundidad analítica 0–20 cm.')
             if datos.get('al') is not None and datos.get('cice') is not None and datos['cice'] > 0:
-                exceso_al = max(0.0, datos['al'] - 0.20 * datos['cice'])
-                st.caption(f'Exceso de Al sobre la meta teórica del 20 %: {exceso_al:.3f} cmol(+)/kg. No se traduce automáticamente en dosis comercial.')
-            st.warning('Dosis de enmienda en kg/ha, g/planta y sacos: PENDIENTE de verificar la ecuación completa del INIA y su aplicabilidad a la aplicación superficial localizada. No aplicar una dosis basada solo en este cálculo preliminar.')
+                exceso_al = max(0., datos['al'] - 0.20 * datos['cice'])
+                st.metric('Al intercambiable sobre meta ilustrativa de 20 %', f'{exceso_al:.3f} cmol(+)/kg')
+            st.warning('Dosis comercial (kg/ha y g/planta) pendiente: falta validar la ecuación INIA para aplicación localizada y el PRNT de los productos reales. No convertir este indicador preliminar en una dosis.')
             st.subheader('4. Nutrientes extraídos por la cosecha de cacao')
             st.caption('Extracción estimada por grano seco. El efecto de las cáscaras se registra, pero aún no se cuantifica sin un coeficiente de biomasa validado.')
             extraccion = pd.DataFrame([{'Macronutriente': nutriente,
@@ -604,21 +597,30 @@ with secciones[1]:
                 st.dataframe(pd.DataFrame([{'Nutriente':nut, 'Demanda kg/ha':round(demanda[nut],2), 'Oferta estimada kg/ha':round(oferta[nut],2), 'Eficiencia fertilizante %':int(eficiencia[nut]*100), 'Necesidad mineral kg/ha':round(dosis[nut],2)} for nut in demanda]), hide_index=True, use_container_width=True)
                 st.caption('La estimación de oferta del suelo no es una medición de absorción anual. El modelo de demanda escala linealmente con rendimiento y no incorpora aún una calibración independiente por edad ni cáscaras.')
 
-                st.subheader('8. Fertilización comercial, inventario y tres abonamientos')
+                st.subheader('7A. Esquema DEVIDA: primer y segundo abonamiento')
+                st.caption('Cantidades de referencia por hectárea, no deducidas del análisis de suelo. No son prescripción universal; revisar necesidad de B, Cu, Zn, Mg y Mn antes de aplicar.')
+                micro_ref = [('Sulfato de cobre (0-0-0; CuSO4·5H2O)', 2., 0., 0.),
+                             ('Sulfato de zinc (0-0-0; Zn)', 3., 0., 0.),
+                             ('Sulfato de magnesio (0-0-0 + 9.6% Mg + 13% S)', 5., 0., 0.),
+                             ('Sulfato de manganeso (0-0-0; Mn)', 1., 0., 0.),
+                             ('Ulexita (0-0-0; 10–13% B)', 30., 20., 0.)]
+                st.dataframe(pd.DataFrame([{'Producto':x,'1.º kg/ha':a,'2.º kg/ha':b,'3.º kg/ha':c,'Total kg/ha':a+b+c} for x,a,b,c in micro_ref]),hide_index=True,use_container_width=True)
+                st.warning('El esquema DEVIDA se presenta como referencia separada del optimizador NPK. Especial precaución con cobre y boro: confirmar diagnóstico y concentración del producto antes de recomendar su aplicación.')
+                st.subheader('8. Fertilización comercial y tres abonamientos')
                 st.caption('Los objetivos NPK ya están ajustados por eficiencia (N 60 %, P₂O₅ 25 %, K₂O 70 %). No se vuelve a aplicar ese factor al convertir nutrientes a productos.')
                 area_real = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
                 plantas = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
                 total_plantas = area_real * plantas
                 st.caption(f'Parcela: {area_real:g} ha · {plantas:,} plantas/ha · {total_plantas:,.0f} plantas estimadas.')
                 catalogo = catalogo_v6()
-                st.caption('Biblioteca de SIFERT V6: 26 productos + MOLIMAX 20-20-20. Composiciones originales orientativas; confirme las etiquetas. Los orgánicos y enmiendas no se incluyen automáticamente en el balance mineral NPK.')
-                with st.expander('📚 Consultar biblioteca completa de 27 productos', expanded=False):
+                st.caption('Biblioteca depurada: 20 productos; 8 químicos y 12 orgánicos/minerales naturales (incluidos micronutrientes). Las enmiendas se evalúan por separado.')
+                with st.expander('📚 Consultar biblioteca de 20 productos', expanded=False):
                     st.dataframe(pd.DataFrame([{'Producto':nombre,'Origen':clasificar_origen_producto(nombre, v['tipo']), 'N %':round(v['N']*100,2),
                         'P₂O₅ %':round(v['P₂O₅']*100,2),'K₂O %':round(v['K₂O']*100,2),
-                        'Ca (dato V6) %':v['Ca_reportado'],'Mg (dato V6) %':v['Mg_reportado'],
-                        'S (dato V6) %':v['S_reportado']} for nombre,v in catalogo.items()]),
+                        'Ca % (referencial)':v['Ca_reportado'],'Mg % (referencial)':v['Mg_reportado'],
+                        'S % (referencial)':v['S_reportado']} for nombre,v in catalogo.items()]),
                         hide_index=True,use_container_width=True)
-                    st.caption('Origen descriptivo: químico (mineral), orgánico o mineral (enmienda). Roca fosfórica y ceniza vegetal se identifican específicamente; Hydran requiere ficha técnica. Esta columna no modifica el cálculo NPK. Ca y Mg requieren confirmar su forma de expresión.')
+                    st.caption('Los sulfatos y roca fosfórica se muestran junto a orgánicos por conveniencia, pero son sales o minerales, no materia orgánica. Verificar ficha y disponibilidad real.')
                 with st.expander('➕ Registrar composición de un fertilizante comercial (simulación)'):
                     nom_nuevo = st.text_input('Nombre comercial exacto y fabricante', key='comercial_nuevo')
                     co1,co2,co3 = st.columns(3)
@@ -637,7 +639,7 @@ with secciones[1]:
                     horizontal=True, key='modo_fertilizacion')
                 # Admitir orgánicos con NPK declarado; excluir enmiendas y productos sin análisis.
                 minerales = {x:v for x,v in catalogo.items()
-                    if v['tipo'] not in ('Enm','Otro','Ca','Mg')
+                    if v['tipo'] not in ('Enm','Otro','Ca','Mg','Micro')
                     and any(v[k] > 0 for k in ('N','P₂O₅','K₂O'))}
                 organicos = [x for x,v in minerales.items() if v['tipo'] == 'Org']
                 st.caption('Los orgánicos con NPK declarado pueden seleccionarse. Sus nutrientes no son necesariamente disponibles de inmediato.')
@@ -655,31 +657,20 @@ with secciones[1]:
                         minerales_efectivos[x][nutriente] *= factor
                 objetivo = {k:dosis[k]*area_real for k in ('N','P₂O₅','K₂O')}
                 if modo.startswith('Selección automática'):
-                    predefinidos = ['MAP 11-52-0','Urea','KCl 0-0-60 (cloruro)']
+                    predefinidos = ['Fosfato monoamónico (11-52-0)','Urea (46-0-0)','Cloruro de potasio (0-0-60)']
                     fuentes = [x for x in predefinidos if x in minerales]
                     st.info('Modo automático: SIFERT selecciona MAP, urea y KCl como fuentes de referencia. Puede cambiar al modo agricultor para escoger otros productos.')
                 else:
                     st.markdown('**Marque ✓ los fertilizantes que desea utilizar.** El resultado se actualiza automáticamente al marcar o desmarcar, sin pulsar Calcular.')
-                    sugeridos = ['MOLIMAX 20-20-20 (Molinos & Cía.)', 'Urea', 'MAP 11-52-0', 'DAP 18-46-0', 'KCl 0-0-60 (cloruro)', 'Sulfato de potasio 0-0-50', 'NPK 15-15-15', 'Guano de isla (verificar garantía)']
-                    nombres_ordenados = [x for x in sugeridos if x in minerales] + [x for x in minerales if x not in sugeridos]
-                    st.caption('Fertilizantes minerales y orgánicos con NPK declarado. Despliegue la lista completa para ver los adicionales.')
                     fuentes = []
-                    frecuentes = [x for x in nombres_ordenados if x in sugeridos]
                     cols = st.columns(2)
-                    for i, producto in enumerate(frecuentes):
-                        composicion = minerales[producto]
-                        detalle = f"N {composicion['N']*100:g} % · P₂O₅ {composicion['P₂O₅']*100:g} % · K₂O {composicion['K₂O']*100:g} %"
-                        if cols[i % 2].checkbox(producto, value=producto in ['MOLIMAX 20-20-20 (Molinos & Cía.)', 'Urea', 'KCl 0-0-60 (cloruro)'], key=f'check_fuente_v54_{producto}', help=detalle):
-                            fuentes.append(producto)
-                    adicionales = [x for x in nombres_ordenados if x not in frecuentes]
-                    if adicionales:
-                        with st.expander('➕ Ver todos los demás fertilizantes NPK (minerales y orgánicos)', expanded=True):
-                            otras_cols = st.columns(2)
-                            for i, producto in enumerate(adicionales):
-                                composicion = minerales[producto]
-                                detalle = f"N {composicion['N']*100:g} % · P₂O₅ {composicion['P₂O₅']*100:g} % · K₂O {composicion['K₂O']*100:g} %"
-                                if otras_cols[i % 2].checkbox(producto, value=False, key=f'check_fuente_v54_{producto}', help=detalle):
-                                    fuentes.append(producto)
+                    for col, titulo, tipos in [(cols[0], 'QUÍMICOS', ('N','P','K')), (cols[1], 'ORGÁNICOS / MINERALES NATURALES', ('Org','Natural'))]:
+                        with col:
+                            st.markdown('**' + titulo + '**')
+                            for producto, comp in minerales.items():
+                                if comp['tipo'] in tipos:
+                                    if st.checkbox(producto, value=False, key=f'check_fuente_v62_{producto}'):
+                                        fuentes.append(producto)
                     st.caption(f'✓ {len(fuentes)} producto(s) marcado(s). El balance NPK se recalcula automáticamente.')
                     st.caption('Puede marcar productos simples o compuestos. La participación de todos depende de la modalidad elegida abajo. Los orgánicos se calculan con disponibilidad anual provisional editable; las enmiendas y los productos sin NPK declarado no entran en este balance.')
                 estrategia_manual = 'Permitir que SIFERT descarte los innecesarios'
@@ -690,12 +681,7 @@ with secciones[1]:
                         ['Utilizar todos los fertilizantes seleccionados', 'Permitir que SIFERT descarte los innecesarios'],
                         key='estrategia_manual_v61', horizontal=False)
                     if estrategia_manual.startswith('Utilizar todos'):
-                        minimo_kg_planta = st.number_input(
-                            'Cantidad mínima de cada producto seleccionado (kg/planta/año)',
-                            min_value=0.001, max_value=1.0, value=0.01, step=0.005,
-                            format='%.3f', key='minimo_manual_v61',
-                            help='Mínimo de simulación, no una dosis agronómica recomendada. Se aplica a cada producto marcado.')
-                        st.caption('SIFERT asigna primero ese mínimo a cada fuente y calcula el complemento para cubrir el NPK restante. Revise los excedentes antes de aplicar.')
+                        st.caption('SIFERT asigna un mínimo técnico provisional de 10 g/planta/año por producto para simular su participación. No es dosis validada; revise excedentes.')
                 if not fuentes:
                     st.warning('Seleccione al menos un fertilizante para calcular las cantidades.')
                 else:
@@ -720,32 +706,12 @@ with secciones[1]:
                         else:
                             st.caption('El cálculo cubre los objetivos NPK con los productos marcados, minimizando primero los excedentes relativos y luego la masa. No optimiza costo, compatibilidad ni respuesta agronómica.')
                         st.markdown('**Productos seleccionados y cantidad calculada automáticamente**')
-                        inventario = {}
-                        presentacion = {}
-                        for i, producto in enumerate(usados):
-                            a,b,c = st.columns([3,1,1])
-                            a.write(producto)
-                            inventario[producto] = b.number_input('En almacén (kg)', min_value=0.0,
-                                value=0.0, step=1.0, key=f'stock_v53_{producto}')
-                            presentacion[producto] = c.number_input('kg/saco', min_value=1.0,
-                                value=50.0, step=1.0, key=f'saco_v53_{producto}')
-                        from math import ceil
-                        filas_comerciales=[]
-                        for producto in usados:
-                            necesario = plan[producto]
-                            stock = inventario[producto]
-                            faltante = max(0., necesario-stock)
-                            sacos = ceil(max(0., faltante-1e-8)/presentacion[producto])
-                            filas_comerciales.append({'Producto':producto,
-                                'Necesario kg/ha':round(necesario/area_real,2),
-                                'Necesario kg/parcela':round(necesario,2),
-                                'En almacén kg':round(stock,2),
-                                'Usar del almacén kg':round(min(stock,necesario),2),
-                                'Faltante kg':round(faltante,2),
-                                'Sacos a comprar':sacos,
-                                'Sobrante estimado kg':round(stock+sacos*presentacion[producto]-necesario,2)})
+                        filas_comerciales = [{'Producto':x,
+                            'Necesario kg/ha':round(plan[x]/area_real,2),
+                            'Necesario kg/parcela':round(plan[x],2),
+                            'Dosis g/planta/año':round(plan[x]*1000/total_plantas,1)} for x in usados]
                         st.dataframe(pd.DataFrame(filas_comerciales), hide_index=True, use_container_width=True)
-                        st.caption('Los sacos se redondean hacia arriba, sin aumentar la dosis. El inventario se registra como dato de simulación y no se descuenta hasta la aplicación real.')
+                        st.caption('No se solicita inventario: el programa calcula directamente las cantidades a partir de las fuentes seleccionadas.')
                         aporte_plan = {k:sum(plan[x]*minerales_efectivos[x][k] for x in usados) for k in objetivo}
                         if any(x in organicos for x in usados):
                             st.warning('El aporte disponible de los fertilizantes orgánicos es hipotético y puede diferir del real. Si también se aplica compost en el módulo 6, evite contar dos veces el mismo producto.')
