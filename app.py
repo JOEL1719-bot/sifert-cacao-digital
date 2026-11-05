@@ -482,7 +482,7 @@ with secciones[1]:
                     st.dataframe(pd.DataFrame([{'Producto':producto_enc, 'Ca/Mg':round(relacion,2), 'Exceso Al (cmol(+)/kg)':round(exceso_al,3), 'kg/ha':round(kg_ha,2), 'kg/parcela':round(kg_parcela,2), 'g/planta':round(g_planta,1), 'Sacos de 50 kg':sacos}]), hide_index=True, use_container_width=True)
                     st.caption(f'Área tratada: {area_ha:,.1f} m²/ha. Masa de suelo: {masa_suelo:,.0f} kg/ha. Equivalente CaCO₃: {kg_equiv:,.1f} kg/ha. Ajuste por PRNT supuesto: {prnt:.2f}.')
                     st.warning('RESULTADO SOLO DE SIMULACIÓN: neutralización estequiométrica de exceso de Al, no una recomendación de aplicación de campo validada por INIA. La neutralización real depende de acidez de reserva, reactividad, incorporación superficial, condiciones de suelo y calidad de la enmienda. No comprar ni aplicar basándose únicamente en esta cifra.')
-            st.subheader('4. Nutrientes extraídos por la cosecha de cacao')
+            st.subheader('4. Extracción de nutrientes')
             st.caption('Extracción estimada por grano seco. El efecto de las cáscaras se registra, pero aún no se cuantifica sin un coeficiente de biomasa validado.')
             extraccion = pd.DataFrame([{'Macronutriente': nutriente,
                                         'Exportación estimada en grano (kg/ha/año)': round(rendimiento*coef/1000, 2)}
@@ -491,7 +491,7 @@ with secciones[1]:
             st.caption('Coeficientes bibliográficos orientativos de V4.2 (N 22; P₂O₅ 6.87; K₂O 10.8; CaO 1.3; MgO 5.3; S 0.9 kg/t). No validados localmente. Las cáscaras retiradas exportan nutrientes adicionales que aquí no se cuantifican.')
             if fila_parcela is not None:
                 st.info(f"Manejo de cáscaras registrado: {fila_parcela['manejo_cascaras'] or 'No definido'}. La extracción adicional por cáscaras y el crecimiento vegetativo aún están pendientes de validación; no se asignan dosis.")
-            st.subheader('5. Contenido analítico del suelo y aporte anual')
+            st.subheader('5. Contenido de nutrientes del suelo y aporte anual')
             st.caption('Se utilizan directamente los resultados de suelo ingresados arriba. El contenido analítico de la capa 0–20 cm no es equivalente al suministro anual aprovechable por las raíces.')
             dap = datos.get('dap')
             if dap is None or dap <= 0:
@@ -516,7 +516,7 @@ with secciones[1]:
                         'Indicador de suelo': nombre,
                         'Expresado como': oxido,
                         'Contenido analítico (kg/ha)': round(convertir(v), 2) if v is not None else 'No medido',
-                        'Aporte anual aprovechable (kg/ha/año)': 'No determinado',
+                        'Aporte anual aprovechable estimado (kg/ha/año)': (round(convertir(v) * {'n':0.03*0.40, 'p':0.25, 'k_cmol':0.40}[clave], 2) if v is not None and clave in ('n', 'p', 'k_cmol') else 'No determinado'),
                         'Alcance': alcance,
                     })
                 st.dataframe(pd.DataFrame(filas_contenido), hide_index=True, use_container_width=True)
@@ -524,7 +524,7 @@ with secciones[1]:
                 if k2o_ppm is not None:
                     st.caption(f'K₂O reportado directamente por de suelo: {masa * k2o_ppm / 1e6:.2f} kg/ha de la fracción analizada (vía alternativa). No se suma al K intercambiable ni se multiplica nuevamente por 1.205.')
                 st.caption('Los valores en kg/ha son conversiones del resultado analítico para 0–20 cm; no son reservas totales de P, K, Ca o Mg ni dosis de fertilizante. El azufre no se estima porque no se ingresó un análisis de S.')
-            st.markdown('**¿Cuánto aporta el suelo durante el año?** Todavía no se puede determinar con confiabilidad a partir de estos resultados únicamente. Se requiere una relación calibrada entre los métodos de suelo, la dinámica del suelo y la absorción del cacao.')
+            st.caption('Aporte NPK estimado con coeficientes del ejemplo INIA: N = N total × 3 % de mineralización × 40 % de disponibilidad; P₂O₅ = P extraíble convertido × 25 %; K₂O = K intercambiable convertido × 40 %. Son estimaciones orientativas, no mediciones de absorción. Para Ca, Mg y S no se asigna un coeficiente anual sin respaldo.')
             st.info('El déficit de fertilización no se calcula aún: también faltan la demanda completa del cultivo, las cáscaras retiradas y la eficiencia de los fertilizantes. No se deben restar directamente los kg/ha analíticos de la extracción del grano.')
 
             st.subheader('6. Compost y poda: proyección de materia orgánica')
@@ -559,10 +559,9 @@ with secciones[1]:
                     st.caption('La etiqueta comercial declara 20–40 % de M.O. y 15–35 % de humedad. Verificar base con el proveedor. Los coeficientes del 20 % son supuestos provisionales, no tasas medidas en Leoncio Prado.')
                 kg_compost_ha_anual = dosis_compost * plantas_compost
                 kg_compost_parcela_anual = kg_compost_ha_anual * area_compost
-                r1, r2, r3 = st.columns(3)
+                r1, r2 = st.columns(2)
                 r1.metric('Compost anual por hectárea', f'{kg_compost_ha_anual:,.0f} kg')
-                r2.metric('Compost anual por parcela', f'{kg_compost_parcela_anual:,.0f} kg')
-                r3.metric('Sacos de compost al año', f'{math.ceil(kg_compost_parcela_anual/saco_compost):,}')
+                r2.metric('Sacos de compost al año (parcela)', f'{math.ceil(kg_compost_parcela_anual/saco_compost):,}')
                 if dap_compost is None or dap_compost <= 0:
                     st.warning('Para proyectar el cambio porcentual de M.O., ingrese la densidad aparente medida en el análisis. La cantidad de compost y los sacos sí pueden calcularse sin ella.')
                 elif radio_out <= radio_in:
@@ -585,9 +584,9 @@ with secciones[1]:
                         mo_proyectada = mo_val + incremento_horizonte
                         st.caption(f'Anillos: {area_anillo_planta:.3f} m²/planta · {area_anillos_ha:,.1f} m²/ha de plantación · Profundidad 0–{profundidad:g} cm · DAP {dap_compost:g} g/cm³.')
                         st.dataframe(pd.DataFrame([
-                            {'Concepto':'Aporte estimado de compost por año','M.O. equivalente (kg/ha/año)':round(aporte_compost_anual,1),'Incremento teórico (puntos %/año)':round(100*aporte_compost_anual/masa_suelo_ha,4)},
-                            {'Concepto':'Aporte estimado de poda por año','M.O. equivalente (kg/ha/año)':round(aporte_poda_anual,1),'Incremento teórico (puntos %/año)':round(100*aporte_poda_anual/masa_suelo_ha,4)},
-                            {'Concepto':'TOTAL anual (compost + poda)','M.O. equivalente (kg/ha/año)':round(aporte_total_anual,1),'Incremento teórico (puntos %/año)':round(incremento_anual,4)},
+                            {'Concepto':'Aporte estimado de compost por año','Aporte de M.O. (kg/ha/año)':round(aporte_compost_anual,1),'Aumento estimado de M.O. (puntos %/año)':f'{100*aporte_compost_anual/masa_suelo_ha:.4f}'},
+                            {'Concepto':'Aporte estimado de poda por año','Aporte de M.O. (kg/ha/año)':round(aporte_poda_anual,1),'Aumento estimado de M.O. (puntos %/año)':f'{100*aporte_poda_anual/masa_suelo_ha:.4f}'},
+                            {'Concepto':'TOTAL anual (compost + poda)','Aporte de M.O. (kg/ha/año)':round(aporte_total_anual,1),'Aumento estimado de M.O. (puntos %/año)':f'{mo_val:.2f} + {incremento_anual:.4f} = {mo_val + incremento_anual:.2f} %'},
                         ]), hide_index=True, use_container_width=True)
                         a, b, c = st.columns(3)
                         a.metric('M.O. inicial', f'{mo_val:.3f} %')
