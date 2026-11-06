@@ -24,7 +24,69 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     styles.add(ParagraphStyle(name='CeldaSifert', parent=styles['Normal'], fontSize=7.4, leading=9.5))
     styles.add(ParagraphStyle(name='CabSifert', parent=styles['CeldaSifert'], textColor=colors.white))
     styles.add(ParagraphStyle(name='TitSifert', parent=styles['Heading1'], fontSize=16, leading=19, spaceAfter=10))
-    contenido = [Paragraph('SIFERT CACAO DIGITAL | Ficha de fertilización', styles['TitSifert'])]
+    from reportlab.platypus import PageBreak
+    from reportlab.lib.enums import TA_LEFT
+    styles.add(ParagraphStyle(name='EjecutivoTitulo', parent=styles['Heading1'], fontSize=20, leading=25,
+                              textColor=colors.HexColor('#14543B'), spaceAfter=12))
+    styles.add(ParagraphStyle(name='EjecutivoSub', parent=styles['Heading2'], fontSize=12, leading=15,
+                              textColor=colors.HexColor('#14543B'), spaceBefore=12, spaceAfter=6))
+    styles.add(ParagraphStyle(name='EjecutivoNota', parent=styles['Normal'], fontSize=9, leading=13))
+    contenido = [Paragraph('PLAN DE ABONAMIENTO DEL CACAO', styles['EjecutivoTitulo']),
+                 Paragraph('Resumen para el productor | SIFERT CACAO DIGITAL', styles['Normal']),
+                 Spacer(1, 5*mm),
+                 Paragraph('<b>Productor:</b> '+escape(str(productor))+'  |  <b>Área:</b> '+f'{area_ha:,.2f}'+
+                           ' ha  |  <b>Plantas:</b> '+str(int(plantas))+'  |  <b>Análisis:</b> '+escape(str(fecha_analisis)), styles['EjecutivoNota']),
+                 Spacer(1, 5*mm),
+                 Paragraph('1. ¿QUÉ FERTILIZANTES NECESITO COMPRAR?', styles['EjecutivoSub'])]
+    compras_limpias = [r for r in compra if str(r.get('Fertilizante','')).upper() != 'TOTAL']
+    resumen_compra = [['Fertilizante', 'Cantidad (kg)', 'Sacos a comprar']]
+    for r in compras_limpias:
+        resumen_compra.append([str(r.get('Fertilizante','')), str(r.get('Comprar (kg)','')),
+                               str(r.get('Sacos a comprar',''))])
+    total_compra = next((r for r in compra if str(r.get('Fertilizante','')).upper() == 'TOTAL'), None)
+    if total_compra:
+        resumen_compra.append(['TOTAL', str(total_compra.get('Comprar (kg)','')),
+                               str(total_compra.get('Sacos a comprar',''))])
+    def tabla_ejecutiva(filas, anchos):
+        t = Table([[Paragraph(escape(str(c)), styles['CeldaSifert']) for c in fila] for fila in filas],
+                  colWidths=anchos, repeatRows=1, hAlign='LEFT')
+        t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#D8EBDD')),
+                               ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#F5F9F4')]),
+                               ('LINEBELOW',(0,0),(-1,-1),.3,colors.HexColor('#CEDCD1')),
+                               ('VALIGN',(0,0),(-1,-1),'TOP'),
+                               ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6)]))
+        return t
+    ancho_util = landscape(A4)[0]-30*mm
+    contenido.append(tabla_ejecutiva(resumen_compra, [ancho_util*.62, ancho_util*.19, ancho_util*.19]))
+    contenido.append(Paragraph('2. ¿CÓMO DISTRIBUYO LOS TRES ABONAMIENTOS?', styles['EjecutivoSub']))
+    contenido.append(Paragraph('Distribución propuesta: <b>primera aplicación 50 %</b>, '
+                              '<b>segunda 30 %</b> y <b>tercera 20 %</b>. '
+                              'Las fechas deben definirse según las condiciones de la parcela.', styles['EjecutivoNota']))
+    filas_uso = [['Producto', '1.º (kg/parcela)', '2.º (kg/parcela)', '3.º (kg/parcela)']]
+    for r in compra:
+        filas_uso.append([str(r.get('Fertilizante','')), str(r.get('1.º abonamiento (kg)','')),
+                         str(r.get('2.º abonamiento (kg)','')), str(r.get('3.º abonamiento (kg)',''))])
+    contenido.append(Spacer(1, 3*mm))
+    contenido.append(tabla_ejecutiva(filas_uso, [ancho_util*.49, ancho_util*.17, ancho_util*.17, ancho_util*.17]))
+    if gramos:
+        r=gramos[-1]
+        contenido.append(Spacer(1, 4*mm))
+        contenido.append(Paragraph('<b>Dosis total orientativa por planta:</b> 1.º abonamiento: '+
+                                  escape(str(r.get('1.º (g/planta)',''))) + ' g; 2.º: '+
+                                  escape(str(r.get('2.º (g/planta)',''))) + ' g; 3.º: '+
+                                  escape(str(r.get('3.º (g/planta)',''))) + ' g.', styles['EjecutivoNota']))
+    contenido.append(Spacer(1, 5*mm))
+    contenido.append(Paragraph('<b>IMPORTANTE:</b> Este plan es una simulación técnica. Antes de comprar o aplicar, '
+                              'el responsable técnico debe validar las dosis, los productos, el análisis de suelo '
+                              'y la necesidad de micronutrientes. No mezcle ni aplique productos sin asesoría.',
+                              styles['EjecutivoNota']))
+    contenido.append(Spacer(1, 6*mm))
+    contenido.append(Paragraph('Responsable técnico: '+escape(str(ficha.get('ingeniero') or 'Por completar')),
+                              styles['EjecutivoNota']))
+    contenido.append(Spacer(1, 8*mm))
+    contenido.append(Paragraph('_______________________________  Firma del responsable técnico', styles['EjecutivoNota']))
+    contenido.append(PageBreak())
+    contenido.append(Paragraph('ANEXO TÉCNICO | Análisis y balance nutricional', styles['TitSifert']))
     contenido.append(Paragraph(f'<b>Productor:</b> {escape(str(productor))}   |   '
                                f'<b>Fecha del análisis:</b> {escape(str(fecha_analisis))}   |   '
                                f'<b>Área:</b> {area_ha:,.2f} ha   |   '
@@ -111,7 +173,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V8.9 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V9.0 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -464,8 +526,38 @@ with secciones[0]:
             'etapa': 'Etapa', 'ingeniero': 'Responsable técnico'
         }
         disponibles = [c for c in columnas_visibles if c in df_participantes.columns]
-        st.dataframe(df_participantes[disponibles].rename(columns=columnas_visibles),
-                     hide_index=True, use_container_width=True)
+        tabla_participantes = df_participantes[disponibles].rename(columns=columnas_visibles).copy()
+        for col in tabla_participantes.select_dtypes(include=['object']).columns:
+            tabla_participantes[col] = tabla_participantes[col].replace(['None', 'nan', 'NaN', ''], pd.NA).fillna('Por completar')
+        st.dataframe(tabla_participantes, hide_index=True, use_container_width=True)
+        st.caption('“Por completar” indica información no registrada en fichas anteriores. Puede actualizarla a continuación.')
+        with st.expander('✏️ Completar o corregir datos de un participante'):
+            opciones_editar = {f"{r['codigo']} · {r['nombre']}": int(r['id']) for _, r in df_participantes.iterrows()}
+            sel_editar = st.selectbox('Seleccione el participante', list(opciones_editar), key='sel_editar_part')
+            fila_editar = df_participantes[df_participantes['id'] == opciones_editar[sel_editar]].iloc[0]
+            def valor_existente(campo):
+                v = fila_editar.get(campo, '')
+                return '' if pd.isna(v) or str(v).strip().lower() in ('none', 'nan') else str(v)
+            with st.form('form_editar_participante'):
+                e1, e2, e3 = st.columns(3)
+                nuevo_nombre = e1.text_input('Productor', value=valor_existente('nombre'))
+                nuevo_caserio = e2.text_input('Caserío', value=valor_existente('caserio'))
+                nuevo_distrito = e3.text_input('Distrito', value=valor_existente('distrito'))
+                e4, e5, e6 = st.columns(3)
+                nueva_provincia = e4.text_input('Provincia', value=valor_existente('provincia'))
+                etapas = ['No especificada', 'Crecimiento', 'Producción']
+                etapa_actual = valor_existente('etapa')
+                nueva_etapa = e5.selectbox('Etapa del cultivo', etapas, index=etapas.index(etapa_actual) if etapa_actual in etapas else 0)
+                nuevo_ingeniero = e6.text_input('Responsable técnico', value=valor_existente('ingeniero'))
+                guardar_correccion = st.form_submit_button('Guardar correcciones')
+            if guardar_correccion:
+                if not nuevo_nombre.strip():
+                    st.error('El nombre del productor es obligatorio.')
+                else:
+                    execute('UPDATE participantes SET nombre=?, caserio=?, distrito=?, provincia=?, etapa=?, ingeniero=? WHERE id=?',
+                            (nuevo_nombre.strip(), nuevo_caserio.strip(), nuevo_distrito.strip(), nueva_provincia.strip(), nueva_etapa, nuevo_ingeniero.strip(), int(fila_editar['id'])))
+                    st.success('Datos del participante actualizados.')
+                    st.rerun()
 
         with st.expander('🗑️ Eliminar un participante registrado'):
             st.warning('Esta acción elimina definitivamente el participante. Si tiene análisis de suelo o aplicaciones vinculadas, primero debe eliminar esos registros desde sus módulos correspondientes.')
