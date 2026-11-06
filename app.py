@@ -422,20 +422,25 @@ with secciones[0]:
         distrito=c4.text_input('Distrito')
         provincia=c5.text_input('Provincia', value='Leoncio Prado')
         etapa=c6.selectbox('Etapa del cultivo', ['No especificada','Crecimiento','Producción'])
-        c9,c10=st.columns(2)
-        ingeniero=c9.text_input('Responsable técnico')
-        cip=c10.text_input('N.º de colegiatura CIP (opcional)')
+        ingeniero=st.text_input('Responsable técnico')
         crear=st.form_submit_button('Guardar participante')
     if crear:
         try:
             if not codigo.strip() or not nombre.strip():
                 raise ValueError('Código y nombre son obligatorios.')
-            execute('INSERT INTO participantes(codigo,nombre,caserio,area_ha,plantas_ha,edad_anios,manejo_cascaras,retiro_pct,meta_kg_ha,creado,dni,distrito,provincia,parcela,etapa,ingeniero,cip) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                    (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,meta,date.today().isoformat(),'',distrito.strip(),provincia.strip(),'',etapa,ingeniero.strip(),cip.strip()))
-            st.success('Participante guardado.')
+            existente = execute('SELECT id FROM participantes WHERE codigo=?', (codigo.strip(),), True)
+            if existente.empty:
+                execute('INSERT INTO participantes(codigo,nombre,caserio,area_ha,plantas_ha,edad_anios,manejo_cascaras,retiro_pct,meta_kg_ha,creado,dni,distrito,provincia,parcela,etapa,ingeniero,cip) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                        (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,meta,date.today().isoformat(),'',distrito.strip(),provincia.strip(),'',etapa,ingeniero.strip(),''))
+                st.success('Participante guardado.')
+            else:
+                execute('UPDATE participantes SET nombre=?, caserio=?, area_ha=?, plantas_ha=?, edad_anios=?, manejo_cascaras=?, retiro_pct=?, meta_kg_ha=?, distrito=?, provincia=?, etapa=?, ingeniero=? WHERE codigo=?',
+                        (nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,meta,distrito.strip(),provincia.strip(),etapa,ingeniero.strip(),codigo.strip()))
+                st.success('Datos del participante actualizados, incluida la meta de producción.')
             st.rerun()
         except Exception as e:
             st.error(str(e))
+    st.caption('Si el código ya existe, Guardar participante actualizará sus datos y su meta de producción, sin duplicarlo.')
     st.dataframe(participantes(), hide_index=True, use_container_width=True)
 
 
@@ -486,7 +491,7 @@ with secciones[1]:
         else:
             st.caption('Ingrese los resultados del primer análisis de este participante.')
     rendimiento = float(fila_parcela['meta_kg_ha']) if fila_parcela is not None and pd.notna(fila_parcela['meta_kg_ha']) else 1000.0
-    st.caption(f'Meta de producción tomada de Inicio: {rendimiento:,.0f} kg de cacao seco/ha/año.')
+    st.info(f'Meta de producción GUARDADA para el participante seleccionado: {rendimiento:,.0f} kg de cacao seco/ha/año. Si cambió la meta en Inicio, pulse Guardar participante usando el mismo código y vuelva a seleccionar al productor.')
     laboratorio_analisis = st.text_input('Laboratorio del análisis de suelo', key='laboratorio_evaluacion')
     with st.form('evaluacion'):
         st.subheader('1. Copie los valores de su análisis de suelo')
