@@ -90,6 +90,8 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         contenido.append(Spacer(1, 6*mm))
 
     agregar_tabla('Balance nutricional NPK', pd.DataFrame(balance))
+    contenido.append(Paragraph('Cáscaras de cacao: el reciclaje potencial de NPK se informa por separado; no se descuenta como disponibilidad anual sin validación.', styles['Normal']))
+    contenido.append(Spacer(1, 3*mm))
     agregar_tabla('Fertilizantes y distribución en tres abonamientos', pd.DataFrame(compra))
     agregar_tabla('Dosis total por planta', pd.DataFrame(gramos))
     contenido.append(Paragraph('Simulación técnica preliminar. Validar los resultados del análisis, la composición '
@@ -109,7 +111,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V8.2 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V8.3 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -127,7 +129,7 @@ CAMPOS = [
     ('al','Aluminio intercambiable','cmol(+)/kg'), ('h','Hidrógeno intercambiable','cmol(+)/kg'),
     ('na','Sodio intercambiable','cmol(+)/kg'), ('cice','CIC efectiva (CICe)','cmol(+)/kg'),
     ('sat_al','Saturación de aluminio','%'), ('ce','Conductividad eléctrica','dS/m'),
-    ('dap','Densidad aparente','g/cm³'), ('arena','Arena','%'),
+    ('arena','Arena','%'),
     ('limo','Limo','%'), ('arcilla','Arcilla','%')]
 
 
@@ -350,7 +352,7 @@ def init_db():
         cur = conn.cursor()
         cur.execute(f'''CREATE TABLE IF NOT EXISTS participantes (
             id {ident}, codigo TEXT UNIQUE NOT NULL, nombre TEXT NOT NULL,
-            caserio TEXT, area_ha REAL, plantas_ha INTEGER, edad_anios REAL, manejo_cascaras TEXT, retiro_pct REAL, meta_kg_ha REAL, creado TEXT)''')
+            caserio TEXT, area_ha REAL, plantas_ha INTEGER, edad_anios REAL, manejo_cascaras TEXT, retiro_pct REAL, meta_kg_ha REAL, creado TEXT, dni TEXT, distrito TEXT, provincia TEXT, parcela TEXT, etapa TEXT, ingeniero TEXT, cip TEXT)''')
         cur.execute(f'''CREATE TABLE IF NOT EXISTS analisis (
             id {ident}, participante_id INTEGER NOT NULL, fecha TEXT NOT NULL,
             ph REAL, mo REAL, n REAL, p REAL, k2o REAL, k_cmol REAL,
@@ -365,7 +367,7 @@ def init_db():
             area_ha REAL, observaciones TEXT,
             FOREIGN KEY(participante_id) REFERENCES participantes(id))''')
         # Migración no destructiva para participantes existentes.
-        nuevas = {'manejo_cascaras':'TEXT', 'retiro_pct':'REAL', 'meta_kg_ha':'REAL'}
+        nuevas = {'manejo_cascaras':'TEXT', 'retiro_pct':'REAL', 'meta_kg_ha':'REAL', 'dni':'TEXT', 'distrito':'TEXT', 'provincia':'TEXT', 'parcela':'TEXT', 'etapa':'TEXT', 'ingeniero':'TEXT', 'cip':'TEXT'}
         if IS_POSTGRES:
             for columna, tipo in nuevas.items():
                 cur.execute(f'ALTER TABLE participantes ADD COLUMN IF NOT EXISTS {columna} {tipo}')
@@ -414,13 +416,24 @@ with secciones[0]:
         meta=c1.number_input('Meta de cacao seco (kg/ha/año)', min_value=100.0, max_value=10000.0, value=1000.0, step=100.0)
         manejo=c2.selectbox('Manejo de cáscaras', ['Permanecen en la parcela','Se retiran completamente','Retiro parcial'])
         retiro=c3.number_input('Porcentaje retirado (%)', min_value=0.0, max_value=100.0, value=50.0, step=5.0) if manejo=='Retiro parcial' else (100.0 if manejo=='Se retiran completamente' else 0.0)
+        st.markdown('**Datos complementarios del productor y parcela para la ficha PDF**')
+        c4,c5,c6=st.columns(3)
+        dni=c4.text_input('DNI del productor')
+        distrito=c5.text_input('Distrito')
+        provincia=c6.text_input('Provincia', value='Leoncio Prado')
+        c7,c8=st.columns(2)
+        parcela=c7.text_input('Nombre o código de parcela')
+        etapa=c8.selectbox('Etapa del cultivo', ['No especificada','Crecimiento','Producción'])
+        c9,c10=st.columns(2)
+        ingeniero=c9.text_input('Ingeniero agrónomo responsable')
+        cip=c10.text_input('N.º de colegiatura CIP')
         crear=st.form_submit_button('Guardar participante')
     if crear:
         try:
             if not codigo.strip() or not nombre.strip():
                 raise ValueError('Código y nombre son obligatorios.')
-            execute('INSERT INTO participantes(codigo,nombre,caserio,area_ha,plantas_ha,edad_anios,manejo_cascaras,retiro_pct,meta_kg_ha,creado) VALUES (?,?,?,?,?,?,?,?,?,?)',
-                    (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,meta,date.today().isoformat()))
+            execute('INSERT INTO participantes(codigo,nombre,caserio,area_ha,plantas_ha,edad_anios,manejo_cascaras,retiro_pct,meta_kg_ha,creado,dni,distrito,provincia,parcela,etapa,ingeniero,cip) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,meta,date.today().isoformat(),dni.strip(),distrito.strip(),provincia.strip(),parcela.strip(),etapa,ingeniero.strip(),cip.strip()))
             st.success('Participante guardado.')
             st.rerun()
         except Exception as e:
@@ -439,7 +452,6 @@ with secciones[1]:
         st.session_state.pop('evaluacion_pendiente', None)
         for clave in FIELD_KEYS:
             st.session_state['dato_' + clave] = ''
-        st.session_state['rendimiento_evaluacion'] = 1000.0
         if pid_guardar is not None:
             ultimos = execute('SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC LIMIT 1', (pid_guardar,), True)
             if not ultimos.empty:
@@ -451,8 +463,6 @@ with secciones[1]:
             else:
                 st.session_state['_analisis_cargado'] = 'Este participante todavía no tiene análisis guardados.'
             fila_meta = p_guardar[p_guardar['id'] == pid_guardar].iloc[0]
-            if pd.notna(fila_meta['meta_kg_ha']):
-                st.session_state['rendimiento_evaluacion'] = float(fila_meta['meta_kg_ha'])
         else:
             st.session_state['_analisis_cargado'] = ''
 
@@ -477,11 +487,11 @@ with secciones[1]:
                 st.rerun()
         else:
             st.caption('Ingrese los resultados del primer análisis de este participante.')
+    rendimiento = float(fila_parcela['meta_kg_ha']) if fila_parcela is not None and pd.notna(fila_parcela['meta_kg_ha']) else 1000.0
+    st.caption(f'Meta de producción tomada de Inicio: {rendimiento:,.0f} kg de cacao seco/ha/año.')
+    laboratorio_analisis = st.text_input('Laboratorio del análisis de suelo', key='laboratorio_evaluacion')
     with st.form('evaluacion'):
-        st.subheader('1. ¿Cuánto cacao seco desea producir?')
-        rendimiento = st.number_input('Producción esperada (kg de grano seco por hectárea y año)',
-                                      min_value=100.0, max_value=10000.0, step=100.0, key='rendimiento_evaluacion')
-        st.subheader('2. Copie los valores de su análisis de suelo')
+        st.subheader('1. Copie los valores de su análisis de suelo')
         st.caption('Si el laboratorio no midió un indicador, déjelo vacío. No coloque cero para representar un dato faltante.')
         datos_texto = {}
         for j in range(0, len(CAMPOS), 3):
@@ -489,11 +499,13 @@ with secciones[1]:
             for columna, (clave, nombre, unidad) in zip(columnas, CAMPOS[j:j+3]):
                 datos_texto[clave] = columna.text_input(f'{nombre} ({unidad})' if unidad else nombre,
                                                        placeholder='No medido: dejar vacío', key='dato_'+clave)
+        st.caption('Densidad aparente referencial automática: 1.33 g/cm³ (0–20 cm).')
         calcular = st.form_submit_button('🌱 Evaluar mi suelo', type='primary', use_container_width=True)
 
     if calcular or st.session_state.get('evaluacion_pendiente') is not None:
         try:
             datos = {clave: leer_numero(datos_texto[clave], nombre) for clave, nombre, _ in CAMPOS}
+            datos['dap'] = 1.33  # Densidad aparente fija, referencial (g/cm³)
             for clave in ['mo','n','sat_al','arena','limo','arcilla']:
                 if datos[clave] is not None and datos[clave] > 100:
                     raise ValueError(f'{clave}: el porcentaje no puede superar 100.')
@@ -562,7 +574,7 @@ with secciones[1]:
             else:
                 st.info('Faltan pH y/o saturación de aluminio para descartar necesidad de encalado.')
             st.caption('Referencia: enfoque de neutralización de Al intercambiable. Esta simulación estequiométrica NO equivale a una dosis de campo validada por INIA; verificar método y respuesta local antes de aplicar.')
-            st.caption('Dolomita: PRNT supuesto 108 %. Cal agrícola: PRNT supuesto 135 %. Valores elegidos para simulación, NO certificados de los lotes.')
+            st.caption('PRNT de referencia: dolomita 108 % y cal agrícola 135 %. Verificar en la ficha técnica del producto; no son valores certificados aquí.')
             plantas_encalado = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
             area_encalado = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
             import math
@@ -573,14 +585,14 @@ with secciones[1]:
             prof_enc = ec3.number_input('Profundidad de suelo considerada (cm)', min_value=1.0, max_value=40.0, value=20.0, step=1.0, key='encalado_prof')
             e1, e2 = st.columns(2)
             kg_ha_encalado_calculado = None
-            producto_enc = e1.selectbox('Enmienda para simular', ['Dolomita (PRNT 108 % supuesto)', 'Cal agrícola (PRNT 135 % supuesto)'], key='encalado_producto')
-            sat_meta = e2.number_input('Meta ilustrativa de saturación de Al (%)', min_value=0.0, max_value=40.0, value=20.0, step=1.0, key='encalado_meta_al')
+            producto_enc = e1.selectbox('Enmienda para simular', ['Dolomita (PRNT 108 %)', 'Cal agrícola (PRNT 135 %)'], key='encalado_producto')
+            sat_meta = e2.number_input('Saturación de aluminio objetivo (%)', min_value=0.0, max_value=40.0, value=20.0, step=1.0, key='encalado_meta_al')
             prnt = 1.08 if producto_enc.startswith('Dolomita') else 1.35
             if relacion is not None:
                 st.info(f'Relación Ca/Mg obligatoria: {relacion:.2f}:1. La selección debe considerar también Mg absoluto, Ca absoluto y necesidad de encalado.')
             if radio_ext <= radio_int:
                 st.error('El radio exterior debe superar el radio interior.')
-            elif any(datos.get(k) is None for k in ('al','cice','dap','ca','mg')) or datos['cice'] <= 0 or datos['dap'] <= 0 or relacion is None:
+            elif any(datos.get(k) is None for k in ('al','cice','ca','mg')) or datos['cice'] <= 0 or datos['dap'] <= 0 or relacion is None:
                 st.warning('Para calcular, ingrese Al intercambiable, CICe, densidad aparente, Ca y Mg.')
             else:
                 exceso_al = max(0., datos['al'] - sat_meta / 100 * datos['cice'])
@@ -598,7 +610,7 @@ with secciones[1]:
                     g_planta = kg_ha * 1000 / plantas_encalado
                     sacos = math.ceil(kg_parcela / 50)
                     st.dataframe(pd.DataFrame([{'Producto':producto_enc, 'Ca/Mg':round(relacion,2), 'Exceso Al (cmol(+)/kg)':round(exceso_al,3), 'kg/ha':round(kg_ha,2), 'kg/parcela':round(kg_parcela,2), 'g/planta':round(g_planta,1), 'Sacos de 50 kg':sacos}]), hide_index=True, use_container_width=True)
-                    st.caption(f'Área tratada: {area_ha:,.1f} m²/ha. Masa de suelo: {masa_suelo:,.0f} kg/ha. Equivalente CaCO₃: {kg_equiv:,.1f} kg/ha. Ajuste por PRNT supuesto: {prnt:.2f}.')
+                    st.caption(f'Área tratada: {area_ha:,.1f} m²/ha. Masa de suelo: {masa_suelo:,.0f} kg/ha. Equivalente CaCO₃: {kg_equiv:,.1f} kg/ha. Ajuste por PRNT referencial: {prnt:.2f}.')
                     if producto_enc.startswith('Dolomita'):
                         st.caption(f'Aporte químico teórico de la dolomita (sin estimar disponibilidad): CaO {kg_ha*0.30:.2f} kg/ha; MgO {kg_ha*0.215:.2f} kg/ha. Porcentajes centrales de la ficha ODINSU (CaO 28–32 %, MgO 20–23 %).')
                     else:
@@ -606,7 +618,7 @@ with secciones[1]:
                     st.caption('Estos aportes de Ca y Mg solo serían efectivos si se aplicara la enmienda. No equivalen a nutrientes inmediatamente disponibles ni a una dosis aprobada.')
                     st.warning('RESULTADO SOLO DE SIMULACIÓN: neutralización estequiométrica de exceso de Al, no una recomendación de aplicación de campo validada por INIA. La neutralización real depende de acidez de reserva, reactividad, incorporación superficial, condiciones de suelo y calidad de la enmienda. No comprar ni aplicar basándose únicamente en esta cifra.')
             st.subheader('4. Extracción de nutrientes')
-            st.caption('Extracción estimada por grano seco. El efecto de las cáscaras se registra, pero aún no se cuantifica sin un coeficiente de biomasa validado.')
+            st.caption('Extracción estimada por grano seco. El reciclaje potencial de las cáscaras se presenta por separado en el balance NPK.')
             extraccion = pd.DataFrame([{'Nutrientes': {'N':'Nitrógeno (N)','P₂O₅':'Fósforo (P₂O₅)','K₂O':'Potasio (K₂O)','CaO':'Calcio (CaO)','MgO':'Magnesio (MgO)'}.get(nutriente,nutriente),
                                         'Extracción de nutrientes (kg/ha/año)': round(rendimiento*coef/1000, 2)}
                                        for nutriente, coef in EXTRACCION_GRANO_KG_T.items()])
@@ -790,7 +802,7 @@ with secciones[1]:
                 compost_aprovechable={k:compost_total[k]*f for k,f in [('N',org_n),('P₂O₅',org_p),('K₂O',org_k)]}
                 st.caption(f'Compost del módulo anterior: {compost_kg_ha:,.2f} kg/ha/año. Aporte estimado disponible: N {compost_aprovechable["N"]:.2f}, P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}, K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha/año.')
                 st.caption('Compost: el aporte aprovechable se descuenta una sola vez del requerimiento del cultivo. La etiqueta declara N, P y K elementales; P y K se convierten a P₂O₅ y K₂O para compararlos con los fertilizantes. Valores referenciales sujetos a análisis, humedad y mineralización.')
-                st.markdown('**Descuento automático de nutrientes del compost y enmiendas**')
+                st.markdown('**Balance NPK: suelo, compost y cáscaras**')
                 st.markdown('**Enmienda realmente aplicada (Ca y Mg)**')
                 st.caption('Solo se contabiliza una enmienda cuando se confirma su aplicación. No se descuenta por una dosis meramente simulada o recomendada.')
                 enm_aplicada=st.checkbox('Sí aplicó (cal o dolomita)', value=False, key='enm_aplicada_v72')
@@ -814,6 +826,18 @@ with secciones[1]:
                 # Ca/Mg: objetivo de concentración intercambiable del suelo, no extracción anual.
                 # La enmienda se descuenta solo cuando se confirma aplicación y se especifica su composición.
                 masa_suelo=masa
+                # Reciclaje potencial de cáscaras por t de cacao seco; NO se confunde con disponibilidad anual.
+                factor_cascaras = 0.0
+                if fila_parcela is not None:
+                    manejo_actual = str(fila_parcela.get('manejo_cascaras') or '')
+                    if manejo_actual == 'Permanecen en la parcela':
+                        factor_cascaras = 1.0
+                    elif manejo_actual == 'Retiro parcial':
+                        retiro_actual = fila_parcela.get('retiro_pct')
+                        factor_cascaras = max(0.0, 1.0 - float(retiro_actual)/100.0) if pd.notna(retiro_actual) else 0.0
+                potencial_cascaras = {k: rendimiento/1000.0 * coef * factor_cascaras
+                                      for k,coef in {'N':2.0,'P₂O₅':5.0,'K₂O':24.0}.items()}
+                st.caption('Cáscaras: reciclaje POTENCIAL estimado por tonelada de cacao seco (N 2, P₂O₅ 5, K₂O 24 kg/t), proporcional a la fracción que permanece. No se descuenta del déficit efectivo sin coeficiente de liberación validado.')
                 resumen_descuento=[]
                 for nutr in ('N','P₂O₅','K₂O'):
                     if nutr in ('N','P₂O₅','K₂O'):
@@ -836,10 +860,10 @@ with secciones[1]:
                         'Requerimiento / objetivo (kg/ha)':round(objetivo_nutr,2),
                         'Resultado del suelo (kg/ha)':round(suelo_nutr,2) if suelo_nutr is not None else 'Sin análisis',
                         'Aporte compost (kg/ha)':round(compost_nutr,2) if nutr in ('N','P₂O₅','K₂O') else 'Sin análisis',
-                        'Aporte cal/dolomita (kg/ha)':round(enmienda_nutr,2),
+                        'Cáscaras: aporte potencial (kg/ha)':round(potencial_cascaras[nutr],2),
                         'Necesidad restante / diferencia (kg/ha)':round(restante,2) if restante is not None else 'No calculable'})
                 st.dataframe(pd.DataFrame(resumen_descuento),hide_index=True,use_container_width=True)
-                st.caption('Balance anual estimado de N, P₂O₅ y K₂O. El aporte aprovechable del compost se descuenta una sola vez. El cálculo de encalado y los aportes teóricos de Ca/Mg se presentan por separado.')
+                st.caption('Balance NPK: el compost se descuenta una sola vez. Las cáscaras se muestran como aporte potencial, sin descuento efectivo hasta validar su liberación. El encalado se presenta por separado.')
                 st.markdown('**Fertilizantes seleccionados y balance nutricional**')
                 st.caption('Ingrese la presentación y el número de sacos directamente en cada fila. El compost se incorpora automáticamente al balance.')
                 # Entradas nativas: cada fertilizante conserva sus propios valores en session_state.
@@ -889,18 +913,16 @@ with secciones[1]:
                         'Diferencia (kg/ha)':r['Diferencia (kg/ha)'],'Estado':r['Estado']})
                 st.dataframe(pd.DataFrame(filas_unificadas),hide_index=True,use_container_width=True)
                 st.caption('Diferencia = aporte aprovechable del fertilizante − necesidad restante tras descontar suelo y compost. Las eficiencias minerales se aplican una sola vez al aporte; los orgánicos emplean disponibilidad anual estimada.')
-                # Mantener distribución en tres abonamientos y microelementos referenciales.
+                # Distribución operativa: 50 %, 30 %, 20 % por producto.
                 filas_detalle=[]
                 for x in usados:
                     total=plan[x]
-                    if minerales_efectivos[x]['P₂O₅']>0:
-                        a,b,c=total,0.,0.
-                    else:
-                        a,b,c=total/3,total/3,total/3
+                    a,b,c=total*0.50,total*0.30,total*0.20
                     filas_detalle.append((x,total,a,b,c))
                 for nombre,a,b,c in micro_ref:
                     if nombre in usados: continue
-                    filas_detalle.append((nombre,(a+b+c)*area_real,a*area_real,b*area_real,c*area_real))
+                    total_micro=(a+b+c)*area_real
+                    filas_detalle.append((nombre,total_micro,total_micro*0.50,total_micro*0.30,total_micro*0.20))
                 st.warning('Microelementos y sulfato de magnesio: dosis referenciales, no derivadas del análisis. Confirmar necesidad antes de aplicar, especialmente Cu y B.')
                 st.markdown('**Fertilizantes requeridos y distribución en tres abonamientos**')
                 filas_compra=[]
@@ -910,7 +932,7 @@ with secciones[1]:
                         'Sacos a comprar':math.ceil(total/peso) if total>0 else 0,
                         '1.º abonamiento (kg)':round(a,2),'2.º abonamiento (kg)':round(b,2),'3.º abonamiento (kg)':round(c,2)})
                 filas_compra.append({'Fertilizante':'TOTAL','Comprar (kg)':round(sum(r[1] for r in filas_detalle),2),
-                    'Sacos a comprar':'—','1.º abonamiento (kg)':round(sum(r[2] for r in filas_detalle),2),
+                    'Sacos a comprar':sum(r['Sacos a comprar'] for r in filas_compra),'1.º abonamiento (kg)':round(sum(r[2] for r in filas_detalle),2),
                     '2.º abonamiento (kg)':round(sum(r[3] for r in filas_detalle),2),'3.º abonamiento (kg)':round(sum(r[4] for r in filas_detalle),2)})
                 st.dataframe(pd.DataFrame(filas_compra),hide_index=True,use_container_width=True)
                 st.markdown('**Dosis en gramos por planta y abonamiento**')
@@ -918,32 +940,20 @@ with secciones[1]:
                     '2.º (g/planta)':round(sum(r[3] for r in filas_detalle)*1000/total_plantas,2),
                     '3.º (g/planta)':round(sum(r[4] for r in filas_detalle)*1000/total_plantas,2)}]
                 st.dataframe(pd.DataFrame(filas_gramos),hide_index=True,use_container_width=True)
-                st.caption('Distribución referencial: productos fosfatados en el primer abonamiento y otros en tres partes. Validar según fenología y compatibilidad.')
+                st.caption('Distribución operativa 50 % / 30 % / 20 % para cada producto. Validar dosis, compatibilidad y necesidades específicas de micronutrientes antes de aplicar.')
                 productor_pdf = str(fila_parcela['nombre']) if fila_parcela is not None else 'Sin participante seleccionado'
-                with st.expander('📄 Datos complementarios para la ficha PDF', expanded=False):
-                    f1, f2, f3 = st.columns(3)
-                    pdf_dni = f1.text_input('DNI del productor', key='pdf_dni')
-                    pdf_distrito = f2.text_input('Distrito', key='pdf_distrito')
-                    pdf_provincia = f3.text_input('Provincia', value='Leoncio Prado', key='pdf_provincia')
-                    f4, f5, f6 = st.columns(3)
-                    pdf_parcela = f4.text_input('Nombre o código de parcela', key='pdf_parcela')
-                    pdf_etapa = f5.selectbox('Etapa del cultivo', ['No especificada', 'Crecimiento', 'Producción'], key='pdf_etapa')
-                    pdf_laboratorio = f6.text_input('Laboratorio', key='pdf_laboratorio')
-                    f7, f8 = st.columns(2)
-                    pdf_ingeniero = f7.text_input('Ingeniero agrónomo responsable', key='pdf_ingeniero')
-                    pdf_cip = f8.text_input('N.º de colegiatura CIP', key='pdf_cip')
                 def valor_pdf_parcela(campo):
                     if fila_parcela is None:
                         return ''
                     valor = fila_parcela.get(campo, '')
                     return '' if pd.isna(valor) else valor
                 ficha_datos = {
-                    'codigo': valor_pdf_parcela('codigo'), 'dni': pdf_dni, 'caserio': valor_pdf_parcela('caserio'),
-                    'distrito': pdf_distrito, 'provincia': pdf_provincia, 'parcela': pdf_parcela,
-                    'edad': valor_pdf_parcela('edad_anios'), 'etapa': pdf_etapa,
+                    'codigo': valor_pdf_parcela('codigo'), 'dni': valor_pdf_parcela('dni'), 'caserio': valor_pdf_parcela('caserio'),
+                    'distrito': valor_pdf_parcela('distrito'), 'provincia': valor_pdf_parcela('provincia'), 'parcela': valor_pdf_parcela('parcela'),
+                    'edad': valor_pdf_parcela('edad_anios'), 'etapa': valor_pdf_parcela('etapa'),
                     'densidad': plantas, 'meta': rendimiento, 'cascaras': valor_pdf_parcela('manejo_cascaras'),
-                    'laboratorio': pdf_laboratorio, 'fecha_suelo': fecha_guardar,
-                    'ingeniero': pdf_ingeniero, 'cip': pdf_cip, 'fecha_emision': date.today().isoformat(),
+                    'laboratorio': laboratorio_analisis, 'fecha_suelo': fecha_guardar,
+                    'ingeniero': valor_pdf_parcela('ingeniero'), 'cip': valor_pdf_parcela('cip'), 'fecha_emision': date.today().isoformat(),
                     'enmienda': 'Dolomita' if producto_enc.startswith('Dolomita') else 'Cal agrícola',
                     'enmienda_kg_ha': f'{kg_ha_encalado_calculado:.2f}' if kg_ha_encalado_calculado is not None else 'No calculada',
                     'enmienda_kg_parcela': f'{kg_ha_encalado_calculado*area_real:.2f}' if kg_ha_encalado_calculado is not None else 'No calculada',
@@ -962,7 +972,7 @@ with secciones[1]:
                 except ImportError:
                     st.error('Para descargar PDF, agregue reportlab a requirements.txt en GitHub.')
                 st.warning('Simulación técnica preliminar. No aplicar sin validar análisis de suelo, composición de productos y recomendaciones locales.')
-            st.caption('Encalado: la enmienda declarada como realmente aplicada se contabiliza una sola vez en el balance complementario Ca/Mg; no modifica el balance NPK. La dosis solo simulada en la sección de encalado no se contabiliza.')
+            st.caption('Encalado: se presenta por separado del balance NPK. La confirmación de aplicación no implica disponibilidad inmediata de Ca/Mg.')
         except ValueError as e:
             st.session_state.pop('evaluacion_pendiente', None)
             st.error(str(e))
@@ -980,9 +990,9 @@ with secciones[1]:
             if st.button('💾 Guardar análisis de suelo', type='primary', key='guardar_evaluacion', use_container_width=True):
                 try:
                     valores = pendiente['datos']
-                    columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['textura', 'observaciones']
+                    columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['dap', 'textura', 'observaciones']
                     textura = textura_usda(valores['arena'], valores['limo'], valores['arcilla'])
-                    params = [pid_guardar, fecha_guardar.isoformat()] + [valores[k] for k in FIELD_KEYS] + [textura, f"Producción esperada al evaluar: {pendiente['rendimiento']:g} kg/ha/año"]
+                    params = [pid_guardar, fecha_guardar.isoformat()] + [valores[k] for k in FIELD_KEYS] + [1.33, textura, f"Meta registrada en Inicio: {pendiente['rendimiento']:g} kg/ha/año; laboratorio: {laboratorio_analisis}"]
                     execute(f"INSERT INTO analisis({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})", params)
                     st.session_state.pop('evaluacion_pendiente', None)
                     st.success('Análisis de suelo guardado correctamente. Consúltelo en «Análisis guardados».')
@@ -990,7 +1000,7 @@ with secciones[1]:
                     st.error(f'No se pudo guardar el análisis: {e}')
 
     with st.expander('Información técnica y fuentes de referencia'):
-        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- No se presupone densidad aparente ni se convierte directamente inventario analítico en dosis.\n\n**Para guardar un análisis, evalúelo y pulse «Guardar análisis de suelo» después de seleccionar un participante. Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
+        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- Densidad aparente fija referencial: 1.33 g/cm³ (0–20 cm); no equivale a medición de laboratorio.\n\n**Para guardar un análisis, evalúelo y pulse «Guardar análisis de suelo» después de seleccionar un participante. Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
 
 
 with secciones[2]:
