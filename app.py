@@ -57,14 +57,15 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         contenido.append(Spacer(1, 4*mm))
 
     agregar_datos('1. Identificación del productor y parcela', [
-        ('Código', 'codigo'), ('DNI', 'dni'), ('Caserío', 'caserio'), ('Distrito', 'distrito'),
-        ('Provincia', 'provincia'), ('Parcela', 'parcela'), ('Edad del cacao (años)', 'edad'),
+        ('Código', 'codigo'), ('Caserío', 'caserio'), ('Distrito', 'distrito'),
+        ('Provincia', 'provincia'), ('Edad del cacao (años)', 'edad'),
         ('Etapa del cultivo', 'etapa'), ('Plantas por hectárea', 'densidad'),
         ('Meta de producción (kg/ha/año)', 'meta'), ('Manejo de cáscaras', 'cascaras')])
     agregar_datos('2. Análisis de suelo', [('Laboratorio', 'laboratorio'), ('Fecha de muestreo/análisis', 'fecha_suelo'),
-        ('pH', 'ph'), ('Materia orgánica (%)', 'mo'), ('Fósforo (P)', 'p'), ('Potasio (K)', 'k'),
+        ('pH', 'ph'), ('Materia orgánica (%)', 'mo'), ('Fósforo (P)', 'p'), ('Potasio (K₂O)', 'k2o'),
         ('Calcio intercambiable', 'ca'), ('Magnesio intercambiable', 'mg'),
-        ('Saturación de aluminio (%)', 'sat_al')])
+        ('Saturación de aluminio (%)', 'sat_al'), ('CICe (cmol(+)/kg)', 'cice'),
+        ('Arena – Ao (%)', 'arena'), ('Limo – Lo (%)', 'limo'), ('Arcilla – Arc (%)', 'arcilla')])
     agregar_datos('3. Enmienda y compost', [('Enmienda simulada', 'enmienda'),
         ('Dosis calculada (kg/ha)', 'enmienda_kg_ha'), ('Cantidad por parcela (kg)', 'enmienda_kg_parcela'),
         ('Sacos de 50 kg', 'enmienda_sacos'), ('¿Confirmó aplicación?', 'enmienda_aplicada'),
@@ -99,19 +100,19 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                                styles['Normal']))
     contenido.append(Spacer(1, 10*mm))
     contenido.append(Paragraph('4. Responsable técnico', styles['Heading2']))
-    contenido.append(Paragraph('<b>Ingeniero agrónomo:</b> '+escape(ficha_valor('ingeniero'))+
+    contenido.append(Paragraph('<b>Responsable técnico:</b> '+escape(ficha_valor('ingeniero'))+
         '   |   <b>Colegiatura CIP:</b> '+escape(ficha_valor('cip'))+
         '   |   <b>Fecha de emisión:</b> '+escape(ficha_valor('fecha_emision')), styles['Normal']))
     contenido.append(Spacer(1, 17*mm))
     contenido.append(Paragraph('________________________________________', styles['Normal']))
-    contenido.append(Paragraph('Firma y sello del ingeniero responsable', styles['Normal']))
+    contenido.append(Paragraph('Firma y sello del responsable técnico', styles['Normal']))
     doc.build(contenido)
     return buf.getvalue()
 
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V8.3 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V8.4 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -129,8 +130,8 @@ CAMPOS = [
     ('al','Aluminio intercambiable','cmol(+)/kg'), ('h','Hidrógeno intercambiable','cmol(+)/kg'),
     ('na','Sodio intercambiable','cmol(+)/kg'), ('cice','CIC efectiva (CICe)','cmol(+)/kg'),
     ('sat_al','Saturación de aluminio','%'), ('ce','Conductividad eléctrica','dS/m'),
-    ('arena','Arena','%'),
-    ('limo','Limo','%'), ('arcilla','Arcilla','%')]
+    ('arena','Arena – Ao','%'),
+    ('limo','Limo – Lo','%'), ('arcilla','Arcilla – Arc','%')]
 
 
 # Biblioteca inicial recuperada de SIFERT V6 (26 entradas) + MOLIMAX 20-20-20.
@@ -418,22 +419,19 @@ with secciones[0]:
         retiro=c3.number_input('Porcentaje retirado (%)', min_value=0.0, max_value=100.0, value=50.0, step=5.0) if manejo=='Retiro parcial' else (100.0 if manejo=='Se retiran completamente' else 0.0)
         st.markdown('**Datos complementarios del productor y parcela para la ficha PDF**')
         c4,c5,c6=st.columns(3)
-        dni=c4.text_input('DNI del productor')
-        distrito=c5.text_input('Distrito')
-        provincia=c6.text_input('Provincia', value='Leoncio Prado')
-        c7,c8=st.columns(2)
-        parcela=c7.text_input('Nombre o código de parcela')
-        etapa=c8.selectbox('Etapa del cultivo', ['No especificada','Crecimiento','Producción'])
+        distrito=c4.text_input('Distrito')
+        provincia=c5.text_input('Provincia', value='Leoncio Prado')
+        etapa=c6.selectbox('Etapa del cultivo', ['No especificada','Crecimiento','Producción'])
         c9,c10=st.columns(2)
-        ingeniero=c9.text_input('Ingeniero agrónomo responsable')
-        cip=c10.text_input('N.º de colegiatura CIP')
+        ingeniero=c9.text_input('Responsable técnico')
+        cip=c10.text_input('N.º de colegiatura CIP (opcional)')
         crear=st.form_submit_button('Guardar participante')
     if crear:
         try:
             if not codigo.strip() or not nombre.strip():
                 raise ValueError('Código y nombre son obligatorios.')
             execute('INSERT INTO participantes(codigo,nombre,caserio,area_ha,plantas_ha,edad_anios,manejo_cascaras,retiro_pct,meta_kg_ha,creado,dni,distrito,provincia,parcela,etapa,ingeniero,cip) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                    (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,meta,date.today().isoformat(),dni.strip(),distrito.strip(),provincia.strip(),parcela.strip(),etapa,ingeniero.strip(),cip.strip()))
+                    (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,meta,date.today().isoformat(),'',distrito.strip(),provincia.strip(),'',etapa,ingeniero.strip(),cip.strip()))
             st.success('Participante guardado.')
             st.rerun()
         except Exception as e:
@@ -618,7 +616,7 @@ with secciones[1]:
                     st.caption('Estos aportes de Ca y Mg solo serían efectivos si se aplicara la enmienda. No equivalen a nutrientes inmediatamente disponibles ni a una dosis aprobada.')
                     st.warning('RESULTADO SOLO DE SIMULACIÓN: neutralización estequiométrica de exceso de Al, no una recomendación de aplicación de campo validada por INIA. La neutralización real depende de acidez de reserva, reactividad, incorporación superficial, condiciones de suelo y calidad de la enmienda. No comprar ni aplicar basándose únicamente en esta cifra.')
             st.subheader('4. Extracción de nutrientes')
-            st.caption('Extracción estimada por grano seco. El reciclaje potencial de las cáscaras se presenta por separado en el balance NPK.')
+            st.caption(f'Extracción calculada automáticamente para {rendimiento:,.0f} kg/ha/año de cacao seco registrados en Inicio. El reciclaje potencial de las cáscaras se presenta por separado en el balance NPK.')
             extraccion = pd.DataFrame([{'Nutrientes': {'N':'Nitrógeno (N)','P₂O₅':'Fósforo (P₂O₅)','K₂O':'Potasio (K₂O)','CaO':'Calcio (CaO)','MgO':'Magnesio (MgO)'}.get(nutriente,nutriente),
                                         'Extracción de nutrientes (kg/ha/año)': round(rendimiento*coef/1000, 2)}
                                        for nutriente, coef in EXTRACCION_GRANO_KG_T.items()])
@@ -639,7 +637,7 @@ with secciones[1]:
                 st.metric('Materia orgánica actual del suelo', f'{mo_val:.2f} %')
                 c1, c2, c3 = st.columns(3)
                 dosis_compost = c1.number_input('Compost que aplicará (kg/planta/año)', min_value=0.0, max_value=100.0, value=2.0, step=0.5, key='compost_dosis_real')
-                anios_mo = c2.selectbox('Horizonte de simulación (años)', [1, 2, 3, 4, 5], index=0, key='compost_anios_proyeccion')
+                anios_mo = c2.selectbox('Años de aplicación de compost', [1, 2, 3, 4, 5], index=0, key='compost_anios_proyeccion')
                 saco_compost = c3.number_input('Presentación (kg/saco)', min_value=1.0, value=50.0, key='saco_compost_proyeccion')
                 c4, c5 = st.columns(2)
                 radio_in = c4.number_input('Radio interior del anillo (m)', min_value=0.0, value=0.80, step=0.05, key='compost_radio_in')
@@ -948,8 +946,8 @@ with secciones[1]:
                     valor = fila_parcela.get(campo, '')
                     return '' if pd.isna(valor) else valor
                 ficha_datos = {
-                    'codigo': valor_pdf_parcela('codigo'), 'dni': valor_pdf_parcela('dni'), 'caserio': valor_pdf_parcela('caserio'),
-                    'distrito': valor_pdf_parcela('distrito'), 'provincia': valor_pdf_parcela('provincia'), 'parcela': valor_pdf_parcela('parcela'),
+                    'codigo': valor_pdf_parcela('codigo'), 'caserio': valor_pdf_parcela('caserio'),
+                    'distrito': valor_pdf_parcela('distrito'), 'provincia': valor_pdf_parcela('provincia'),
                     'edad': valor_pdf_parcela('edad_anios'), 'etapa': valor_pdf_parcela('etapa'),
                     'densidad': plantas, 'meta': rendimiento, 'cascaras': valor_pdf_parcela('manejo_cascaras'),
                     'laboratorio': laboratorio_analisis, 'fecha_suelo': fecha_guardar,
@@ -961,7 +959,7 @@ with secciones[1]:
                     'enmienda_aplicada': 'Sí, declarado por el usuario' if enm_aplicada else 'No confirmada',
                     'compost_kg_ha': f'{compost_kg_ha:.2f}',
                 }
-                for clave in ('ph','mo','p','k','ca','mg','sat_al'):
+                for clave in ('ph','mo','p','k2o','ca','mg','sat_al','cice','arena','limo','arcilla'):
                     ficha_datos[clave] = datos.get(clave)
                 try:
                     ficha_pdf = crear_ficha_pdf(productor_pdf, fecha_guardar, area_real,
@@ -996,6 +994,7 @@ with secciones[1]:
                     execute(f"INSERT INTO analisis({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})", params)
                     st.session_state.pop('evaluacion_pendiente', None)
                     st.success('Análisis de suelo guardado correctamente. Consúltelo en «Análisis guardados».')
+                    st.session_state['_analisis_cargado'] = f'Análisis guardado: {fecha_guardar.isoformat()}'
                 except Exception as e:
                     st.error(f'No se pudo guardar el análisis: {e}')
 
