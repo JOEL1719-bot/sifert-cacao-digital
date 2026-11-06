@@ -173,7 +173,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V9.0 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V9.2 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -530,7 +530,8 @@ with secciones[0]:
         for col in tabla_participantes.select_dtypes(include=['object']).columns:
             tabla_participantes[col] = tabla_participantes[col].replace(['None', 'nan', 'NaN', ''], pd.NA).fillna('Por completar')
         st.dataframe(tabla_participantes, hide_index=True, use_container_width=True)
-        st.caption('“Por completar” indica información no registrada en fichas anteriores. Puede actualizarla a continuación.')
+        st.caption('“Por completar” indica información no registrada en ese código. Los datos del formulario superior solo se guardan en el código indicado al pulsar «Guardar participante».')
+        st.info('Para completar datos de un código anterior, abra «Completar o corregir datos de un participante» y seleccione ese código. El sistema no une automáticamente códigos distintos aunque el nombre sea parecido.')
         with st.expander('✏️ Completar o corregir datos de un participante'):
             opciones_editar = {f"{r['codigo']} · {r['nombre']}": int(r['id']) for _, r in df_participantes.iterrows()}
             sel_editar = st.selectbox('Seleccione el participante', list(opciones_editar), key='sel_editar_part')
@@ -625,6 +626,31 @@ with secciones[1]:
             fila_meta = p_guardar[p_guardar['id'] == pid_guardar].iloc[0]
         else:
             st.session_state['_analisis_cargado'] = ''
+
+    # Recuperación adicional: si la selección no cambió pero los campos están vacíos
+    # (por ejemplo, al volver desde «Análisis guardados»), restaurar el último análisis.
+    # Nunca sobrescribir datos que el usuario ya está editando.
+    if pid_guardar is not None and all(
+        str(st.session_state.get('dato_' + clave, '')).strip() == '' for clave in FIELD_KEYS
+    ):
+        ultimos_recuperacion = execute(
+            'SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC LIMIT 1',
+            (pid_guardar,), True
+        )
+        if not ultimos_recuperacion.empty:
+            ultimo_recuperado = ultimos_recuperacion.iloc[0]
+            for clave in FIELD_KEYS:
+                valor_recuperado = ultimo_recuperado[clave]
+                st.session_state['dato_' + clave] = (
+                    f'{float(valor_recuperado):g}' if pd.notna(valor_recuperado) else ''
+                )
+            if ('meta_produccion' in ultimo_recuperado
+                    and pd.notna(ultimo_recuperado['meta_produccion'])):
+                st.session_state['meta_evaluacion'] = float(ultimo_recuperado['meta_produccion'])
+            st.session_state['_analisis_cargado'] = (
+                f"Análisis recuperado automáticamente: {ultimo_recuperado['fecha']} "
+                f"(registro {int(ultimo_recuperado['id'])})"
+            )
 
     fecha_guardar = st.date_input("Fecha del análisis", value=date.today(), key="fecha_evaluacion")
     st.caption("Seleccione un participante registrado para guardar el análisis; también puede evaluar sin guardar.")
@@ -1167,7 +1193,18 @@ with secciones[2]:
         if df.empty:
             st.info('No hay análisis guardados para este participante.')
         else:
-            st.dataframe(df, hide_index=True, use_container_width=True)
+            st.caption('Análisis registrados. Pulse ✕ a la derecha del análisis que desea eliminar. La eliminación es definitiva.')
+            for _, registro in df.iterrows():
+                c_fecha, c_detalle, c_borrar = st.columns([2, 6, 1], vertical_alignment='center')
+                c_fecha.write(str(registro['fecha']))
+                c_detalle.write(f"Análisis {int(registro['id'])} · pH: {registro['ph'] if pd.notna(registro['ph']) else '—'} · M.O.: {registro['mo'] if pd.notna(registro['mo']) else '—'} %")
+                if c_borrar.button('✕', key=f"borrar_analisis_{int(registro['id'])}", help='Eliminar definitivamente este análisis'):
+                    execute('DELETE FROM analisis WHERE id=? AND participante_id=?', (int(registro['id']), pid))
+                    st.success('Análisis eliminado.')
+                    st.rerun()
+            with st.expander('Ver todos los resultados del laboratorio'):
+                columnas_ocultas = ['id', 'participante_id']
+                st.dataframe(df.drop(columns=columnas_ocultas, errors='ignore'), hide_index=True, use_container_width=True)
             opciones={f"{r['fecha']} · Análisis {int(r['id'])}":int(r['id']) for _,r in df.iterrows()}
             aid=opciones[st.selectbox('Registro para editar',list(opciones))]
             fila=df[df.id==aid].iloc[0]
