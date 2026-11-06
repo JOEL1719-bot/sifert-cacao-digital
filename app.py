@@ -101,7 +101,6 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     contenido.append(Spacer(1, 10*mm))
     contenido.append(Paragraph('4. Responsable técnico', styles['Heading2']))
     contenido.append(Paragraph('<b>Responsable técnico:</b> '+escape(ficha_valor('ingeniero'))+
-        '   |   <b>Colegiatura CIP:</b> '+escape(ficha_valor('cip'))+
         '   |   <b>Fecha de emisión:</b> '+escape(ficha_valor('fecha_emision')), styles['Normal']))
     contenido.append(Spacer(1, 17*mm))
     contenido.append(Paragraph('________________________________________', styles['Normal']))
@@ -112,7 +111,8 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V8.4 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V8.7 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.markdown('\n<style>\n/* SIFERT V8.7 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:1.25rem; }\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -412,6 +412,7 @@ secciones = st.tabs(['🏠 Inicio', '🌱 Evaluar suelo', '💾 Análisis guarda
                      '📈 Comparación histórica', '📥 Exportar / importar'])
 
 with secciones[0]:
+    st.markdown('<div class="sifert-inicio-marker sifert-hero inicio"><div><h2>🌿 Registro de productores de cacao</h2><p>Datos de la parcela y del responsable técnico</p></div><span class="art">🌳🍫</span></div>', unsafe_allow_html=True)
     st.subheader('1. Registrar participante y datos de la parcela')
     st.caption('Registre una sola vez al participante. Después seleccione su código en Evaluar suelo.')
     with st.form('nuevo_participante'):
@@ -453,6 +454,7 @@ with secciones[0]:
 
 
 with secciones[1]:
+    st.markdown('<div class="sifert-suelo-marker sifert-hero suelo"><div><h2>🌱 Evaluación de suelo y fertilización</h2><p>Análisis químico · balance NPK · plan de abonamiento</p></div><span class="art">🪴🔬</span></div>', unsafe_allow_html=True)
     p_guardar = participantes()
     pid_guardar = elegir_participante(p_guardar, "elegir_para_evaluar", permitir_ninguno=True) if not p_guardar.empty else None
     # Al cambiar de productor, recuperar automáticamente su último análisis.
@@ -633,15 +635,6 @@ with secciones[1]:
                         st.caption('La cal agrícola aporta principalmente calcio; para cuantificar CaO y MgO se requiere su composición real. No se presupone que carezca de magnesio.')
                     st.caption('Estos aportes de Ca y Mg solo serían efectivos si se aplicara la enmienda. No equivalen a nutrientes inmediatamente disponibles ni a una dosis aprobada.')
                     st.warning('RESULTADO SOLO DE SIMULACIÓN: neutralización estequiométrica de exceso de Al, no una recomendación de aplicación de campo validada por INIA. La neutralización real depende de acidez de reserva, reactividad, incorporación superficial, condiciones de suelo y calidad de la enmienda. No comprar ni aplicar basándose únicamente en esta cifra.')
-            st.subheader('4. Extracción de nutrientes')
-            st.caption(f'Extracción calculada automáticamente para {rendimiento:,.0f} kg/ha/año de cacao seco ingresados en Evaluar suelo. El reciclaje potencial de las cáscaras se presenta por separado en el balance NPK.')
-            extraccion = pd.DataFrame([{'Nutrientes': {'N':'Nitrógeno (N)','P₂O₅':'Fósforo (P₂O₅)','K₂O':'Potasio (K₂O)','CaO':'Calcio (CaO)','MgO':'Magnesio (MgO)'}.get(nutriente,nutriente),
-                                        'Extracción de nutrientes (kg/ha/año)': round(rendimiento*coef/1000, 2)}
-                                       for nutriente, coef in EXTRACCION_GRANO_KG_T.items()])
-            st.dataframe(extraccion, hide_index=True, use_container_width=True)
-            st.caption('Coeficientes bibliográficos orientativos de V4.2 (N 22; P₂O₅ 6.87; K₂O 10.8; CaO 1.3; MgO 5.3 kg/t). No validados localmente. Las cáscaras retiradas exportan nutrientes adicionales que aquí no se cuantifican.')
-            if fila_parcela is not None:
-                st.info(f"Manejo de cáscaras registrado: {fila_parcela['manejo_cascaras'] or 'No definido'}. La extracción adicional por cáscaras y el crecimiento vegetativo aún están pendientes de validación; no se asignan dosis.")
             st.subheader('5. Compost y poda: proyección de materia orgánica')
             st.caption('El agricultor elige cuánto compost aplicará. SIFERT estima por separado el aporte del compost y el de los residuos de poda que permanecen en el anillo.')
             mo_val = datos.get('mo')
@@ -794,6 +787,7 @@ with secciones[1]:
                     org_n=co_n.number_input('Disponibilidad anual N orgánico (%)',0,100,30,5,key='org_dispon_n')/100
                     org_p=co_p.number_input('Disponibilidad anual P₂O₅ orgánico (%)',0,100,30,5,key='org_dispon_p')/100
                     org_k=co_k.number_input('Disponibilidad anual K₂O orgánico (%)',0,100,70,5,key='org_dispon_k')/100
+                    st.info('Nota técnica: Coeficientes referenciales de disponibilidad anual para simulación. El INIA reconoce la liberación gradual de nutrientes del compost; sin embargo, los porcentajes específicos de N (30 %), P₂O₅ (30 %) y K₂O (70 %) no han sido validados para el compost utilizado por DEVIDA. Los valores son editables.')
                     st.markdown('**Compost registrado en el módulo de materia orgánica**')
                     st.caption('Etiqueta del compost: N 0.3–1.5 %, P 0.1–1.0 % y K 0.3–1.0 % (elementales). Valores iniciales dentro de esos rangos; edítelos según el análisis del lote. No son porcentajes garantizados de disponibilidad.')
                     c1,c2,c3=st.columns(3)
