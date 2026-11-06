@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V5.9 · AVANCE — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V9.3 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -31,13 +31,13 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     styles.add(ParagraphStyle(name='EjecutivoSub', parent=styles['Heading2'], fontSize=12, leading=15,
                               textColor=colors.HexColor('#14543B'), spaceBefore=12, spaceAfter=6))
     styles.add(ParagraphStyle(name='EjecutivoNota', parent=styles['Normal'], fontSize=9, leading=13))
-    contenido = [Paragraph('PLAN DE ABONAMIENTO DEL CACAO', styles['EjecutivoTitulo']),
-                 Paragraph('Resumen para el productor | SIFERT CACAO DIGITAL', styles['Normal']),
+    contenido = [Paragraph('PLAN DE FERTILIZACIÓN DEL CACAO', styles['EjecutivoTitulo']),
+                 Paragraph('GUÍA PRÁCTICA PARA EL PRODUCTOR | SIFERT CACAO DIGITAL', styles['Normal']),
                  Spacer(1, 5*mm),
                  Paragraph('<b>Productor:</b> '+escape(str(productor))+'  |  <b>Área:</b> '+f'{area_ha:,.2f}'+
-                           ' ha  |  <b>Plantas:</b> '+str(int(plantas))+'  |  <b>Análisis:</b> '+escape(str(fecha_analisis)), styles['EjecutivoNota']),
+                           ' ha  |  <b>Plantas en la parcela:</b> '+str(int(plantas))+'  |  <b>Fecha del análisis:</b> '+escape(str(fecha_analisis)), styles['EjecutivoNota']),
                  Spacer(1, 5*mm),
-                 Paragraph('1. ¿QUÉ FERTILIZANTES NECESITO COMPRAR?', styles['EjecutivoSub'])]
+                 Paragraph('1. FERTILIZANTES QUE DEBE COMPRAR', styles['EjecutivoSub'])]
     compras_limpias = [r for r in compra if str(r.get('Fertilizante','')).upper() != 'TOTAL']
     resumen_compra = [['Fertilizante', 'Cantidad (kg)', 'Sacos a comprar']]
     for r in compras_limpias:
@@ -58,35 +58,37 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         return t
     ancho_util = landscape(A4)[0]-30*mm
     contenido.append(tabla_ejecutiva(resumen_compra, [ancho_util*.62, ancho_util*.19, ancho_util*.19]))
-    contenido.append(Paragraph('2. ¿CÓMO DISTRIBUYO LOS TRES ABONAMIENTOS?', styles['EjecutivoSub']))
+    contenido.append(Paragraph('2. CANTIDAD PARA CADA ABONAMIENTO', styles['EjecutivoSub']))
     contenido.append(Paragraph('Distribución propuesta: <b>primera aplicación 50 %</b>, '
                               '<b>segunda 30 %</b> y <b>tercera 20 %</b>. '
                               'Las fechas deben definirse según las condiciones de la parcela.', styles['EjecutivoNota']))
     filas_uso = [['Producto', '1.º (kg/parcela)', '2.º (kg/parcela)', '3.º (kg/parcela)']]
-    for r in compra:
+    for r in compras_limpias:
         filas_uso.append([str(r.get('Fertilizante','')), str(r.get('1.º abonamiento (kg)','')),
                          str(r.get('2.º abonamiento (kg)','')), str(r.get('3.º abonamiento (kg)',''))])
     contenido.append(Spacer(1, 3*mm))
     contenido.append(tabla_ejecutiva(filas_uso, [ancho_util*.49, ancho_util*.17, ancho_util*.17, ancho_util*.17]))
     if gramos:
-        r=gramos[-1]
+        r=next((x for x in gramos if str(x.get('Fertilizante', x.get('Producto', ''))).upper() == 'TOTAL'), gramos[-1])
         contenido.append(Spacer(1, 4*mm))
-        contenido.append(Paragraph('<b>Dosis total orientativa por planta:</b> 1.º abonamiento: '+
+        contenido.append(Paragraph('3. DOSIS TOTAL POR PLANTA', styles['EjecutivoSub']))
+        contenido.append(Paragraph('<b>Sumando los fertilizantes seleccionados:</b> 1.º abonamiento: '+
                                   escape(str(r.get('1.º (g/planta)',''))) + ' g; 2.º: '+
                                   escape(str(r.get('2.º (g/planta)',''))) + ' g; 3.º: '+
                                   escape(str(r.get('3.º (g/planta)',''))) + ' g.', styles['EjecutivoNota']))
     contenido.append(Spacer(1, 5*mm))
+    contenido.append(Paragraph('4. RECOMENDACIONES Y VALIDACIÓN TÉCNICA', styles['EjecutivoSub']))
     contenido.append(Paragraph('<b>IMPORTANTE:</b> Este plan es una simulación técnica. Antes de comprar o aplicar, '
                               'el responsable técnico debe validar las dosis, los productos, el análisis de suelo '
                               'y la necesidad de micronutrientes. No mezcle ni aplique productos sin asesoría.',
                               styles['EjecutivoNota']))
     contenido.append(Spacer(1, 6*mm))
-    contenido.append(Paragraph('Responsable técnico: '+escape(str(ficha.get('ingeniero') or 'Por completar')),
+    contenido.append(Paragraph('<b>Responsable técnico:</b> '+escape(str(ficha.get('ingeniero') or 'Por completar')),
                               styles['EjecutivoNota']))
     contenido.append(Spacer(1, 8*mm))
     contenido.append(Paragraph('_______________________________  Firma del responsable técnico', styles['EjecutivoNota']))
     contenido.append(PageBreak())
-    contenido.append(Paragraph('ANEXO TÉCNICO | Análisis y balance nutricional', styles['TitSifert']))
+    contenido.append(Paragraph('ANEXO TÉCNICO | Sustento de la recomendación', styles['TitSifert']))
     contenido.append(Paragraph(f'<b>Productor:</b> {escape(str(productor))}   |   '
                                f'<b>Fecha del análisis:</b> {escape(str(fecha_analisis))}   |   '
                                f'<b>Área:</b> {area_ha:,.2f} ha   |   '
@@ -155,25 +157,16 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     agregar_tabla('Balance nutricional NPK', pd.DataFrame(balance))
     contenido.append(Paragraph('Cáscaras de cacao: el reciclaje potencial de NPK se informa por separado; no se descuenta como disponibilidad anual sin validación.', styles['Normal']))
     contenido.append(Spacer(1, 3*mm))
-    agregar_tabla('Fertilizantes y distribución en tres abonamientos', pd.DataFrame(compra))
-    agregar_tabla('Dosis total por planta', pd.DataFrame(gramos))
-    contenido.append(Paragraph('Simulación técnica preliminar. Validar los resultados del análisis, la composición '
+    contenido.append(Paragraph('Nota del anexo: simulación técnica preliminar. Validar los resultados del análisis, la composición '
                                'de los productos y las recomendaciones agronómicas locales antes de aplicar.',
                                styles['Normal']))
-    contenido.append(Spacer(1, 10*mm))
-    contenido.append(Paragraph('4. Responsable técnico', styles['Heading2']))
-    contenido.append(Paragraph('<b>Responsable técnico:</b> '+escape(ficha_valor('ingeniero'))+
-        '   |   <b>Fecha de emisión:</b> '+escape(ficha_valor('fecha_emision')), styles['Normal']))
-    contenido.append(Spacer(1, 17*mm))
-    contenido.append(Paragraph('________________________________________', styles['Normal']))
-    contenido.append(Paragraph('Firma y sello del responsable técnico', styles['Normal']))
     doc.build(contenido)
     return buf.getvalue()
 
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V9.2 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V9.3 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
