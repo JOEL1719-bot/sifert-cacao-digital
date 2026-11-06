@@ -110,9 +110,9 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
-st.title('🌱 SIFERT CACAO DIGITAL')
-st.caption('V8.7 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
-st.markdown('\n<style>\n/* SIFERT V8.7 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:1.25rem; }\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
+st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
+st.caption('V8.9 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -423,14 +423,15 @@ with secciones[0]:
         area=c1.number_input('Área (ha)', min_value=0.0, value=1.0)
         plantas=c2.number_input('Plantas por ha', min_value=1, value=1100)
         edad=c3.number_input('Edad del cacao (años)', min_value=0.0, value=5.0)
-        manejo=c2.selectbox('Manejo de cáscaras', ['Permanecen en la parcela','Se retiran completamente','Retiro parcial'])
-        retiro=c3.number_input('Porcentaje retirado (%)', min_value=0.0, max_value=100.0, value=50.0, step=5.0) if manejo=='Retiro parcial' else (100.0 if manejo=='Se retiran completamente' else 0.0)
         st.markdown('**Datos complementarios del productor y parcela para la ficha PDF**')
         c4,c5,c6=st.columns(3)
-        distrito=c4.text_input('Distrito')
-        provincia=c5.text_input('Provincia', value='Leoncio Prado')
-        etapa=c6.selectbox('Etapa del cultivo', ['No especificada','Crecimiento','Producción'])
-        ingeniero=st.text_input('Responsable técnico')
+        manejo=c4.selectbox('Manejo de cáscaras', ['Permanecen en la parcela','Se retiran completamente','Retiro parcial'])
+        distrito=c5.text_input('Distrito')
+        provincia=c6.text_input('Provincia', value='Leoncio Prado')
+        c7,c8=st.columns([1,2])
+        etapa=c7.selectbox('Etapa del cultivo', ['No especificada','Crecimiento','Producción'])
+        ingeniero=c8.text_input('Responsable técnico')
+        retiro=c4.number_input('Porcentaje retirado (%)', min_value=0.0, max_value=100.0, value=50.0, step=5.0) if manejo=='Retiro parcial' else (100.0 if manejo=='Se retiran completamente' else 0.0)
         crear=st.form_submit_button('Guardar participante')
     if crear:
         try:
@@ -450,7 +451,58 @@ with secciones[0]:
         except Exception as e:
             st.error(str(e))
     st.caption('Si el código ya existe, Guardar participante actualizará sus datos sin duplicarlo. La meta de producción se ingresa en Evaluar suelo.')
-    st.dataframe(participantes(), hide_index=True, use_container_width=True)
+    st.subheader('Participantes registrados')
+    df_participantes = participantes()
+    if df_participantes.empty:
+        st.info('Aún no hay participantes registrados.')
+    else:
+        columnas_visibles = {
+            'codigo': 'Código', 'nombre': 'Productor', 'caserio': 'Caserío',
+            'distrito': 'Distrito', 'provincia': 'Provincia',
+            'area_ha': 'Área (ha)', 'plantas_ha': 'Plantas/ha',
+            'edad_anios': 'Edad (años)', 'manejo_cascaras': 'Manejo de cáscaras',
+            'etapa': 'Etapa', 'ingeniero': 'Responsable técnico'
+        }
+        disponibles = [c for c in columnas_visibles if c in df_participantes.columns]
+        st.dataframe(df_participantes[disponibles].rename(columns=columnas_visibles),
+                     hide_index=True, use_container_width=True)
+
+        with st.expander('🗑️ Eliminar un participante registrado'):
+            st.warning('Esta acción elimina definitivamente el participante. Si tiene análisis de suelo o aplicaciones vinculadas, primero debe eliminar esos registros desde sus módulos correspondientes.')
+            opciones_borrar = {
+                f"{fila['codigo']} · {fila['nombre']}": int(fila['id'])
+                for _, fila in df_participantes.iterrows()
+            }
+            etiqueta_borrar = st.selectbox('Seleccione el participante que desea eliminar',
+                                          list(opciones_borrar), key='participante_a_borrar')
+            id_borrar = opciones_borrar[etiqueta_borrar]
+            vinculados_analisis = execute('SELECT COUNT(*) AS total FROM analisis WHERE participante_id=?',
+                                          (id_borrar,), True)
+            vinculados_aplicaciones = execute('SELECT COUNT(*) AS total FROM aplicaciones WHERE participante_id=?',
+                                              (id_borrar,), True)
+            n_analisis = int(vinculados_analisis.iloc[0]['total'])
+            n_aplicaciones = int(vinculados_aplicaciones.iloc[0]['total'])
+            if n_analisis or n_aplicaciones:
+                st.error(f'No se puede eliminar todavía: tiene {n_analisis} análisis y {n_aplicaciones} aplicaciones asociadas.')
+            confirmar_borrado = st.checkbox('Confirmo que deseo eliminar definitivamente este participante',
+                                           key='confirmar_borrado_participante')
+            if st.button('Eliminar participante', key='borrar_participante',
+                         disabled=not confirmar_borrado or bool(n_analisis or n_aplicaciones)):
+                try:
+                    # Comprobación dentro de la misma transacción para no dejar registros huérfanos.
+                    with connect() as conn:
+                        cur = conn.cursor()
+                        placeholder = '%s' if IS_POSTGRES else '?'
+                        for tabla in ('analisis', 'aplicaciones'):
+                            cur.execute(f'SELECT COUNT(*) FROM {tabla} WHERE participante_id={placeholder}',
+                                        (id_borrar,))
+                            if cur.fetchone()[0]:
+                                raise ValueError('El participante tiene registros asociados. Elimínelos primero.')
+                        cur.execute(f'DELETE FROM participantes WHERE id={placeholder}', (id_borrar,))
+                    st.success('Participante eliminado correctamente.')
+                    st.rerun()
+                except Exception as e:
+                    st.error(f'No se pudo eliminar: {e}')
 
 
 with secciones[1]:
