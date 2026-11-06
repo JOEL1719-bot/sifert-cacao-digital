@@ -359,7 +359,7 @@ def init_db():
             ph REAL, mo REAL, n REAL, p REAL, k2o REAL, k_cmol REAL,
             ca REAL, mg REAL, al REAL, h REAL, na REAL, cice REAL,
             sat_al REAL, ce REAL, dap REAL, arena REAL, limo REAL, arcilla REAL,
-            textura TEXT, observaciones TEXT,
+            textura TEXT, observaciones TEXT, meta_produccion REAL,
             FOREIGN KEY(participante_id) REFERENCES participantes(id))''')
         cur.execute(f'''CREATE TABLE IF NOT EXISTS aplicaciones (
             id {ident}, participante_id INTEGER NOT NULL, fecha TEXT NOT NULL,
@@ -384,6 +384,14 @@ def init_db():
             cur.execute('PRAGMA table_info(analisis)')
             if 'dap' not in {r[1] for r in cur.fetchall()}:
                 cur.execute('ALTER TABLE analisis ADD COLUMN dap REAL')
+
+# La meta de producción pertenece a cada análisis de suelo.
+        if IS_POSTGRES:
+            cur.execute('ALTER TABLE analisis ADD COLUMN IF NOT EXISTS meta_produccion REAL')
+        else:
+            cur.execute('PRAGMA table_info(analisis)')
+            if 'meta_produccion' not in {r[1] for r in cur.fetchall()}:
+                cur.execute('ALTER TABLE analisis ADD COLUMN meta_produccion REAL')
 
 init_db()
 FIELD_KEYS = [c[0] for c in CAMPOS]
@@ -414,7 +422,6 @@ with secciones[0]:
         area=c1.number_input('Área (ha)', min_value=0.0, value=1.0)
         plantas=c2.number_input('Plantas por ha', min_value=1, value=1100)
         edad=c3.number_input('Edad del cacao (años)', min_value=0.0, value=5.0)
-        meta=c1.number_input('Meta de cacao seco (kg/ha/año)', min_value=100.0, max_value=10000.0, value=1000.0, step=100.0)
         manejo=c2.selectbox('Manejo de cáscaras', ['Permanecen en la parcela','Se retiran completamente','Retiro parcial'])
         retiro=c3.number_input('Porcentaje retirado (%)', min_value=0.0, max_value=100.0, value=50.0, step=5.0) if manejo=='Retiro parcial' else (100.0 if manejo=='Se retiran completamente' else 0.0)
         st.markdown('**Datos complementarios del productor y parcela para la ficha PDF**')
@@ -429,18 +436,19 @@ with secciones[0]:
             if not codigo.strip() or not nombre.strip():
                 raise ValueError('Código y nombre son obligatorios.')
             existente = execute('SELECT id FROM participantes WHERE codigo=?', (codigo.strip(),), True)
+            existente_meta = execute('SELECT meta_kg_ha FROM participantes WHERE codigo=?', (codigo.strip(),), True)
             if existente.empty:
                 execute('INSERT INTO participantes(codigo,nombre,caserio,area_ha,plantas_ha,edad_anios,manejo_cascaras,retiro_pct,meta_kg_ha,creado,dni,distrito,provincia,parcela,etapa,ingeniero,cip) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                        (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,meta,date.today().isoformat(),'',distrito.strip(),provincia.strip(),'',etapa,ingeniero.strip(),''))
+                        (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,1000.0,date.today().isoformat(),'',distrito.strip(),provincia.strip(),'',etapa,ingeniero.strip(),''))
                 st.success('Participante guardado.')
             else:
                 execute('UPDATE participantes SET nombre=?, caserio=?, area_ha=?, plantas_ha=?, edad_anios=?, manejo_cascaras=?, retiro_pct=?, meta_kg_ha=?, distrito=?, provincia=?, etapa=?, ingeniero=? WHERE codigo=?',
-                        (nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,meta,distrito.strip(),provincia.strip(),etapa,ingeniero.strip(),codigo.strip()))
-                st.success('Datos del participante actualizados, incluida la meta de producción.')
+                        (nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,float(existente_meta.iloc[0]['meta_kg_ha']) if not existente_meta.empty and pd.notna(existente_meta.iloc[0]['meta_kg_ha']) else 1000.0,distrito.strip(),provincia.strip(),etapa,ingeniero.strip(),codigo.strip()))
+                st.success('Datos del participante actualizados.')
             st.rerun()
         except Exception as e:
             st.error(str(e))
-    st.caption('Si el código ya existe, Guardar participante actualizará sus datos y su meta de producción, sin duplicarlo.')
+    st.caption('Si el código ya existe, Guardar participante actualizará sus datos sin duplicarlo. La meta de producción se ingresa en Evaluar suelo.')
     st.dataframe(participantes(), hide_index=True, use_container_width=True)
 
 
@@ -453,12 +461,15 @@ with secciones[1]:
     if anterior != pid_guardar:
         st.session_state['_productor_evaluacion_anterior'] = pid_guardar
         st.session_state.pop('evaluacion_pendiente', None)
+        st.session_state['meta_evaluacion'] = 1000.0
         for clave in FIELD_KEYS:
             st.session_state['dato_' + clave] = ''
         if pid_guardar is not None:
             ultimos = execute('SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC LIMIT 1', (pid_guardar,), True)
             if not ultimos.empty:
                 ultimo = ultimos.iloc[0]
+                if 'meta_produccion' in ultimo and pd.notna(ultimo['meta_produccion']):
+                    st.session_state['meta_evaluacion'] = float(ultimo['meta_produccion'])
                 for clave in FIELD_KEYS:
                     v = ultimo[clave]
                     st.session_state['dato_' + clave] = f'{float(v):g}' if pd.notna(v) else ''
@@ -482,6 +493,8 @@ with secciones[1]:
             elegido = st.selectbox('Cargar un análisis guardado', list(etiquetas), key='analisis_para_cargar')
             if st.button('📂 Cargar análisis seleccionado', key='boton_cargar_analisis'):
                 registro = historico[historico['id'] == etiquetas[elegido]].iloc[0]
+                if 'meta_produccion' in registro and pd.notna(registro['meta_produccion']):
+                    st.session_state['meta_evaluacion'] = float(registro['meta_produccion'])
                 for clave in FIELD_KEYS:
                     valor = registro[clave]
                     st.session_state['dato_' + clave] = f'{float(valor):g}' if pd.notna(valor) else ''
@@ -490,8 +503,8 @@ with secciones[1]:
                 st.rerun()
         else:
             st.caption('Ingrese los resultados del primer análisis de este participante.')
-    rendimiento = float(fila_parcela['meta_kg_ha']) if fila_parcela is not None and pd.notna(fila_parcela['meta_kg_ha']) else 1000.0
-    st.info(f'Meta de producción GUARDADA para el participante seleccionado: {rendimiento:,.0f} kg de cacao seco/ha/año. Si cambió la meta en Inicio, pulse Guardar participante usando el mismo código y vuelva a seleccionar al productor.')
+    rendimiento = st.number_input('Meta de cacao seco (kg/ha/año)', min_value=100.0, max_value=10000.0, step=100.0, key='meta_evaluacion', help='Ingrese aquí la producción esperada. Este valor alimenta directamente la extracción, el balance NPK, el aporte potencial de cáscaras y la ficha PDF.')
+    st.caption(f'Producción utilizada en todos los cálculos de esta evaluación: {rendimiento:,.0f} kg/ha/año.')
     laboratorio_analisis = st.text_input('Laboratorio del análisis de suelo', key='laboratorio_evaluacion')
     with st.form('evaluacion'):
         st.subheader('1. Copie los valores de su análisis de suelo')
@@ -621,7 +634,7 @@ with secciones[1]:
                     st.caption('Estos aportes de Ca y Mg solo serían efectivos si se aplicara la enmienda. No equivalen a nutrientes inmediatamente disponibles ni a una dosis aprobada.')
                     st.warning('RESULTADO SOLO DE SIMULACIÓN: neutralización estequiométrica de exceso de Al, no una recomendación de aplicación de campo validada por INIA. La neutralización real depende de acidez de reserva, reactividad, incorporación superficial, condiciones de suelo y calidad de la enmienda. No comprar ni aplicar basándose únicamente en esta cifra.')
             st.subheader('4. Extracción de nutrientes')
-            st.caption(f'Extracción calculada automáticamente para {rendimiento:,.0f} kg/ha/año de cacao seco registrados en Inicio. El reciclaje potencial de las cáscaras se presenta por separado en el balance NPK.')
+            st.caption(f'Extracción calculada automáticamente para {rendimiento:,.0f} kg/ha/año de cacao seco ingresados en Evaluar suelo. El reciclaje potencial de las cáscaras se presenta por separado en el balance NPK.')
             extraccion = pd.DataFrame([{'Nutrientes': {'N':'Nitrógeno (N)','P₂O₅':'Fósforo (P₂O₅)','K₂O':'Potasio (K₂O)','CaO':'Calcio (CaO)','MgO':'Magnesio (MgO)'}.get(nutriente,nutriente),
                                         'Extracción de nutrientes (kg/ha/año)': round(rendimiento*coef/1000, 2)}
                                        for nutriente, coef in EXTRACCION_GRANO_KG_T.items()])
@@ -993,9 +1006,9 @@ with secciones[1]:
             if st.button('💾 Guardar análisis de suelo', type='primary', key='guardar_evaluacion', use_container_width=True):
                 try:
                     valores = pendiente['datos']
-                    columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['dap', 'textura', 'observaciones']
+                    columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['dap', 'textura', 'observaciones', 'meta_produccion']
                     textura = textura_usda(valores['arena'], valores['limo'], valores['arcilla'])
-                    params = [pid_guardar, fecha_guardar.isoformat()] + [valores[k] for k in FIELD_KEYS] + [1.33, textura, f"Meta registrada en Inicio: {pendiente['rendimiento']:g} kg/ha/año; laboratorio: {laboratorio_analisis}"]
+                    params = [pid_guardar, fecha_guardar.isoformat()] + [valores[k] for k in FIELD_KEYS] + [1.33, textura, f"Meta de evaluación: {pendiente['rendimiento']:g} kg/ha/año; laboratorio: {laboratorio_analisis}", pendiente['rendimiento']]
                     execute(f"INSERT INTO analisis({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})", params)
                     st.session_state.pop('evaluacion_pendiente', None)
                     st.success('Análisis de suelo guardado correctamente. Consúltelo en «Análisis guardados».')
