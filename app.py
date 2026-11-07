@@ -166,7 +166,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V9.3 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V9.4 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -740,20 +740,21 @@ with secciones[1]:
                 st.caption(f'Ca: {ca_val:g} cmol(+)/kg · Mg: {mg_val:g} cmol(+)/kg. Una relación por sí sola no determina el producto.')
             else:
                 st.info('Para evaluar Ca/Mg ingrese calcio y magnesio intercambiables; Mg debe ser mayor que cero.')
-            if requiere_revision:
-                st.warning('La acidez o saturación de aluminio justifican evaluar encalado mediante el método del INIA.')
-                if ca_val is None or mg_val is None:
-                    st.info('Faltan Ca y/o Mg para orientar el tipo de enmienda.')
-                elif mg_val < 0.5 and (ca_val >= 3 or (relacion is not None and relacion > 4)):
-                    st.info('**Producto orientativo: dolomita**, por Mg bajo. Confirmar necesidad y aporte de Mg con análisis y ficha.')
-                elif mg_val >= 1.0 and ca_val < 3:
-                    st.info('**Producto orientativo: cal agrícola con bajo Mg**, si la ficha demuestra bajo aporte de Mg. La cal de Tarapoto también contiene Mg: verificar su composición.')
-                else:
-                    st.info('**Tipo de enmienda por confirmar:** evaluar concentraciones absolutas de Ca/Mg y composición real de ambas fuentes; no elegir por relación aislada.')
-            elif ph_val is not None and sat_val is not None:
-                st.success('Los indicadores ingresados no activan el criterio preliminar de revisión por acidez; no se recomienda encalado automático.')
+            # Criterios de cribado orientativos; no son una prescripción validada del INIA.
+            # Exigir datos completos y coherentes antes de emitir una categoría.
+            if any(v is None for v in (ph_val, sat_val, ca_val, mg_val)):
+                st.info('**DATOS INSUFICIENTES:** ingrese pH, saturación de aluminio, calcio y magnesio para orientar la enmienda.')
+            elif not (0 <= sat_val <= 100 and ca_val >= 0 and mg_val >= 0 and 0 < ph_val <= 14):
+                st.error('**DATOS INCONSISTENTES:** revise pH, saturación de aluminio, calcio y magnesio.')
+            elif ph_val >= 5.5 and sat_val < 20:
+                st.success('**NO REQUIERE ENMIENDA según este diagnóstico preliminar.** La acidez y la saturación de aluminio no activan los criterios de revisión de encalado.')
+            elif mg_val < 0.5:
+                st.warning('**DOLOMITA (opción orientativa).** El suelo presenta acidez o aluminio elevado y magnesio bajo. Confirme la composición de la dolomita y la necesidad de encalado antes de aplicar.')
+            elif mg_val >= 1.0:
+                st.warning('**CAL AGRÍCOLA (opción orientativa).** El suelo presenta acidez o aluminio elevado y el magnesio no está bajo según el criterio provisional. Confirme la composición del producto antes de aplicar.')
             else:
-                st.info('Faltan pH y/o saturación de aluminio para descartar necesidad de encalado.')
+                st.info('**TIPO DE ENMIENDA POR CONFIRMAR.** Hay indicios de acidez, pero el nivel intermedio de magnesio requiere revisión técnica para elegir entre cal agrícola y dolomita.')
+            st.caption('Criterios provisionales de orientación: pH < 5.5 o saturación de Al ≥ 20 % para revisar encalado; Mg < 0.5 cmol(+)/kg para orientar dolomita y Mg ≥ 1.0 para orientar cal agrícola. No equivalen a una recomendación de dosis ni a umbrales certificados por INIA.')
             st.caption('Referencia: enfoque de neutralización de Al intercambiable. Esta simulación estequiométrica NO equivale a una dosis de campo validada por INIA; verificar método y respuesta local antes de aplicar.')
             st.caption('PRNT de referencia: dolomita 108 % y cal agrícola 135 %. Verificar en la ficha técnica del producto; no son valores certificados aquí.')
             plantas_encalado = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
