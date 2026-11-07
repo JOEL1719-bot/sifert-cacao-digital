@@ -166,7 +166,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V9.6 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V9.7 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -469,7 +469,7 @@ secciones = st.tabs(['🏠 Registro y análisis', '🌱 Resultados del suelo', '
 with secciones[0]:
     st.markdown('<div class="sifert-inicio-marker sifert-hero inicio"><div><h2>🌿 Registro de productores de cacao</h2><p>Datos de la parcela y del responsable técnico</p></div><span class="art">🌳🍫</span></div>', unsafe_allow_html=True)
     st.subheader('1. Registrar participante y datos de la parcela')
-    st.caption('Registre una sola vez al participante. Después seleccione su código en Evaluar suelo.')
+    st.caption('Registre los datos del productor y, a continuación, complete su análisis de suelo.')
     with st.form('nuevo_participante'):
         c1,c2,c3=st.columns(3)
         codigo=c1.text_input('Código único (evite DNI)')
@@ -502,6 +502,9 @@ with secciones[0]:
                 execute('UPDATE participantes SET nombre=?, caserio=?, area_ha=?, plantas_ha=?, edad_anios=?, manejo_cascaras=?, retiro_pct=?, meta_kg_ha=?, distrito=?, provincia=?, etapa=?, ingeniero=? WHERE codigo=?',
                         (nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,float(existente_meta.iloc[0]['meta_kg_ha']) if not existente_meta.empty and pd.notna(existente_meta.iloc[0]['meta_kg_ha']) else 1000.0,distrito.strip(),provincia.strip(),etapa,ingeniero.strip(),codigo.strip()))
                 st.success('Datos del participante actualizados.')
+            nuevo_registro = execute('SELECT id FROM participantes WHERE codigo=?', (codigo.strip(),), True)
+            if not nuevo_registro.empty:
+                st.session_state['_participante_registro_actual'] = int(nuevo_registro.iloc[0]['id'])
             st.rerun()
         except Exception as e:
             st.error(str(e))
@@ -594,7 +597,22 @@ with secciones[0]:
 
     st.markdown('<div class="sifert-suelo-marker sifert-hero suelo"><div><h2>🌱 Evaluación de suelo y fertilización</h2><p>Análisis químico · balance NPK · plan de abonamiento</p></div><span class="art">🪴🔬</span></div>', unsafe_allow_html=True)
     p_guardar = participantes()
-    pid_guardar = elegir_participante(p_guardar, "elegir_para_evaluar", permitir_ninguno=True) if not p_guardar.empty else None
+    # Sin desplegable duplicado: usar el participante que se acaba de guardar.
+    # En sesiones nuevas, usar el registro más reciente como selección inicial.
+    pid_guardar = st.session_state.get('_participante_registro_actual')
+    if not p_guardar.empty:
+        ids_validos = set(p_guardar['id'].astype(int).tolist())
+        if pid_guardar not in ids_validos:
+            ultimo_registrado = execute('SELECT id FROM participantes ORDER BY id DESC LIMIT 1', fetch=True)
+            pid_guardar = int(ultimo_registrado.iloc[0]['id']) if not ultimo_registrado.empty else None
+            st.session_state['_participante_registro_actual'] = pid_guardar
+    else:
+        pid_guardar = None
+    if pid_guardar is not None:
+        fila_activa = p_guardar[p_guardar['id'] == pid_guardar].iloc[0]
+        st.caption(f"Análisis vinculado a: {fila_activa['codigo']} · {fila_activa['nombre']}. Para cambiar de productor, registre o actualice su código en el formulario superior.")
+    else:
+        st.info('Registre primero los datos del productor para asociar el análisis.')
     # Al cambiar de productor, recuperar automáticamente su último análisis.
     # Los campos se actualizan ANTES de crear los widgets de Streamlit.
     anterior = st.session_state.get('_productor_evaluacion_anterior', '__inicial__')
@@ -645,32 +663,12 @@ with secciones[0]:
                 f"(registro {int(ultimo_recuperado['id'])})"
             )
 
-    fecha_guardar = st.date_input("Fecha del análisis", value=date.today(), key="fecha_evaluacion")
-    st.caption("Seleccione un participante registrado para guardar el análisis; también puede evaluar sin guardar.")
-    fila_parcela = p_guardar[p_guardar['id'] == pid_guardar].iloc[0] if pid_guardar is not None else None
-    if fila_parcela is not None:
-        st.caption(f"Parcela: {fila_parcela['plantas_ha'] or 1100} plantas/ha · Edad: {fila_parcela['edad_anios']} años · Cáscaras: {fila_parcela['manejo_cascaras'] or 'No registrado'} · Retiro: {fila_parcela['retiro_pct'] if pd.notna(fila_parcela['retiro_pct']) else 'No registrado'} %")
-        if st.session_state.get('_analisis_cargado'):
-            st.info(st.session_state['_analisis_cargado'])
-        historico = execute('SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC', (pid_guardar,), True)
-        if not historico.empty:
-            etiquetas = {f"{r['fecha']} · Análisis {int(r['id'])}": int(r['id']) for _, r in historico.iterrows()}
-            elegido = st.selectbox('Cargar un análisis guardado', list(etiquetas), key='analisis_para_cargar')
-            if st.button('📂 Cargar análisis seleccionado', key='boton_cargar_analisis'):
-                registro = historico[historico['id'] == etiquetas[elegido]].iloc[0]
-                if 'meta_produccion' in registro and pd.notna(registro['meta_produccion']):
-                    st.session_state['meta_evaluacion'] = float(registro['meta_produccion'])
-                for clave in FIELD_KEYS:
-                    valor = registro[clave]
-                    st.session_state['dato_' + clave] = f'{float(valor):g}' if pd.notna(valor) else ''
-                st.session_state.pop('evaluacion_pendiente', None)
-                st.session_state['_analisis_cargado'] = f"Análisis cargado: {registro['fecha']} (registro {int(registro['id'])})"
-                st.rerun()
-        else:
-            st.caption('Ingrese los resultados del primer análisis de este participante.')
-    rendimiento = st.number_input('Meta de cacao seco (kg/ha/año)', min_value=100.0, max_value=10000.0, step=100.0, key='meta_evaluacion', help='Ingrese aquí la producción esperada. Este valor alimenta directamente la extracción, el balance NPK, el aporte potencial de cáscaras y la ficha PDF.')
-    st.caption(f'Producción utilizada en todos los cálculos de esta evaluación: {rendimiento:,.0f} kg/ha/año.')
-    laboratorio_analisis = st.text_input('Laboratorio del análisis de suelo', key='laboratorio_evaluacion')
+    # Datos generales del análisis, antes de los resultados del laboratorio.
+    st.markdown('### Datos generales del análisis de suelo')
+    col_fecha, col_meta, col_lab = st.columns(3)
+    fecha_guardar = col_fecha.date_input('Fecha del análisis', value=date.today(), key='fecha_evaluacion')
+    rendimiento = col_meta.number_input('Meta de cacao seco (kg/ha/año)', min_value=100.0, max_value=10000.0, step=100.0, key='meta_evaluacion', help='Producción esperada utilizada en los cálculos de fertilización.')
+    laboratorio_analisis = col_lab.text_input('Laboratorio del análisis de suelo', key='laboratorio_evaluacion')
     with st.form('evaluacion'):
         st.subheader('1. Copie los valores de su análisis de suelo')
         st.caption('Si el laboratorio no midió un indicador, déjelo vacío. No coloque cero para representar un dato faltante.')
