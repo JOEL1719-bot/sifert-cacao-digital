@@ -166,7 +166,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V9.4 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V9.6 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -463,7 +463,7 @@ def elegir_participante(df, key, permitir_ninguno=False):
         opciones = {'Solo evaluar (sin guardar)': None, **opciones}
     return opciones[st.selectbox('Participante', list(opciones), key=key)]
 
-secciones = st.tabs(['🏠 Inicio', '🌱 Evaluar suelo', '💾 Análisis guardados',
+secciones = st.tabs(['🏠 Registro y análisis', '🌱 Resultados del suelo', '💾 Análisis guardados',
                      '📈 Comparación histórica', '📥 Exportar / importar'])
 
 with secciones[0]:
@@ -591,7 +591,7 @@ with secciones[0]:
                     st.error(f'No se pudo eliminar: {e}')
 
 
-with secciones[1]:
+
     st.markdown('<div class="sifert-suelo-marker sifert-hero suelo"><div><h2>🌱 Evaluación de suelo y fertilización</h2><p>Análisis químico · balance NPK · plan de abonamiento</p></div><span class="art">🪴🔬</span></div>', unsafe_allow_html=True)
     p_guardar = participantes()
     pid_guardar = elegir_participante(p_guardar, "elegir_para_evaluar", permitir_ninguno=True) if not p_guardar.empty else None
@@ -681,11 +681,48 @@ with secciones[1]:
                 datos_texto[clave] = columna.text_input(f'{nombre} ({unidad})' if unidad else nombre,
                                                        placeholder='No medido: dejar vacío', key='dato_'+clave)
         st.caption('Densidad aparente referencial automática: 1.33 g/cm³ (0–20 cm).')
-        calcular = st.form_submit_button('🌱 Evaluar mi suelo', type='primary', use_container_width=True)
+        calcular = st.form_submit_button('💾 Guardar análisis y calcular resultados', type='primary', use_container_width=True)
 
-    if calcular or st.session_state.get('evaluacion_pendiente') is not None:
+    if calcular:
         try:
-            datos = {clave: leer_numero(datos_texto[clave], nombre) for clave, nombre, _ in CAMPOS}
+            if pid_guardar is None:
+                raise ValueError('Primero registre y seleccione un participante para guardar su análisis.')
+            valores = {clave: leer_numero(datos_texto[clave], nombre) for clave, nombre, _ in CAMPOS}
+            if not any(v is not None for v in valores.values()):
+                raise ValueError('Ingrese al menos un resultado del laboratorio. No se guardan análisis vacíos.')
+            for clave in ('mo','n','sat_al','arena','limo','arcilla'):
+                if valores[clave] is not None and valores[clave] > 100:
+                    raise ValueError(f'{clave}: el porcentaje no puede superar 100.')
+            if valores['ph'] is not None and not (0 < valores['ph'] <= 14):
+                raise ValueError('El pH debe estar entre 0 y 14.')
+            columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['dap','textura','observaciones','meta_produccion']
+            parametros = [pid_guardar, fecha_guardar.isoformat()] + [valores[k] for k in FIELD_KEYS] + [
+                1.33, textura_usda(valores['arena'],valores['limo'],valores['arcilla']),
+                f'Meta de evaluación: {rendimiento:g} kg/ha/año; laboratorio: {laboratorio_analisis}', float(rendimiento)]
+            execute(f"INSERT INTO analisis({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})", parametros)
+            st.session_state['evaluacion_pendiente'] = {
+                'datos': valores.copy(), 'rendimiento': float(rendimiento),
+                'participante_id': pid_guardar, 'fecha': fecha_guardar.isoformat(),
+                'laboratorio': laboratorio_analisis}
+            st.success('Análisis guardado en la base de datos. Abra la segunda pestaña «Resultados del suelo» para ver el diagnóstico y el plan de fertilización.')
+        except Exception as e:
+            st.error(f'No se guardó el análisis: {e}')
+
+
+with secciones[1]:
+    st.markdown('<div class="sifert-suelo-marker sifert-hero suelo"><div><h2>🌱 Resultados del suelo y fertilización</h2><p>Diagnóstico químico · balance NPK · plan de abonamiento</p></div><span class="art">🪴🔬</span></div>', unsafe_allow_html=True)
+    pid_guardar = st.session_state.get('_productor_evaluacion_anterior')
+    fecha_guardar = date.fromisoformat(st.session_state['evaluacion_pendiente']['fecha']) if st.session_state.get('evaluacion_pendiente') else date.today()
+    laboratorio_analisis = st.session_state.get('evaluacion_pendiente', {}).get('laboratorio', '')
+    rendimiento = st.session_state.get('evaluacion_pendiente', {}).get('rendimiento', 1000.0)
+    fila_parcela = participantes().query('id == @pid_guardar').iloc[0] if pid_guardar is not None and not participantes().query('id == @pid_guardar').empty else None
+    if st.session_state.get('evaluacion_pendiente') is None:
+        st.info('Primero registre al productor y guarde los resultados del laboratorio en la pestaña Inicio. Aquí aparecerán los resultados calculados.')
+    if st.session_state.get('evaluacion_pendiente') is not None:
+        try:
+            # La evaluación pendiente es una instantánea inmutable hasta guardar.
+            # Los reruns de botones, pestañas y descargas no deben sobrescribirla.
+            datos = st.session_state['evaluacion_pendiente']['datos'].copy()
             datos['dap'] = 1.33  # Densidad aparente fija, referencial (g/cm³)
             for clave in ['mo','n','sat_al','arena','limo','arcilla']:
                 if datos[clave] is not None and datos[clave] > 100:
@@ -695,7 +732,6 @@ with secciones[1]:
             fracciones = [datos[k] for k in ['arena','limo','arcilla']]
             if all(v is not None for v in fracciones) and abs(sum(fracciones)-100)>2:
                 st.warning('Arena + limo + arcilla no suman aproximadamente 100 %. Revise la transcripción.')
-            st.session_state['evaluacion_pendiente'] = {'datos': datos.copy(), 'rendimiento': float(rendimiento)}
             st.divider()
             st.subheader('3. Resultado de su evaluación')
             tabla = []
@@ -1151,31 +1187,8 @@ with secciones[1]:
             st.session_state.pop('evaluacion_pendiente', None)
             st.error(str(e))
 
-    # El botón permanece disponible tras el recálculo de Streamlit.
-    # Se guarda exactamente el último análisis evaluado, no campos sin validar.
-    pendiente = st.session_state.get('evaluacion_pendiente')
-    if pendiente is not None:
-        st.divider()
-        st.subheader('💾 Guardar análisis de suelo')
-        if pid_guardar is None:
-            st.info('Para guardar este análisis, registre un participante en la pestaña Inicio y selecciónelo arriba. Puede evaluar sin guardar.')
-        else:
-            st.caption('Se guardarán los resultados de la última evaluación para el participante seleccionado y la fecha indicada. Compruebe ambos antes de continuar.')
-            if st.button('💾 Guardar análisis de suelo', type='primary', key='guardar_evaluacion', use_container_width=True):
-                try:
-                    valores = pendiente['datos']
-                    columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['dap', 'textura', 'observaciones', 'meta_produccion']
-                    textura = textura_usda(valores['arena'], valores['limo'], valores['arcilla'])
-                    params = [pid_guardar, fecha_guardar.isoformat()] + [valores[k] for k in FIELD_KEYS] + [1.33, textura, f"Meta de evaluación: {pendiente['rendimiento']:g} kg/ha/año; laboratorio: {laboratorio_analisis}", pendiente['rendimiento']]
-                    execute(f"INSERT INTO analisis({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})", params)
-                    st.session_state.pop('evaluacion_pendiente', None)
-                    st.success('Análisis de suelo guardado correctamente. Consúltelo en «Análisis guardados».')
-                    st.session_state['_analisis_cargado'] = f'Análisis guardado: {fecha_guardar.isoformat()}'
-                except Exception as e:
-                    st.error(f'No se pudo guardar el análisis: {e}')
-
     with st.expander('Información técnica y fuentes de referencia'):
-        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- Densidad aparente fija referencial: 1.33 g/cm³ (0–20 cm); no equivale a medición de laboratorio.\n\n**Para guardar un análisis, evalúelo y pulse «Guardar análisis de suelo» después de seleccionar un participante. Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
+        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- Densidad aparente fija referencial: 1.33 g/cm³ (0–20 cm); no equivale a medición de laboratorio.\n\n**Para guardar un análisis, complete los datos en la primera pestaña y pulse «Guardar análisis y calcular resultados».  Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
 
 
 with secciones[2]:
@@ -1215,6 +1228,8 @@ with secciones[2]:
             if actualizar:
                 try:
                     valores={clave:leer_numero(cambios[clave],nombre) for clave,nombre,_ in CAMPOS}
+                    if not any(valores[k] is not None for k in FIELD_KEYS):
+                        raise ValueError('No se puede guardar un análisis sin resultados del laboratorio.')
                     asignaciones=','.join([f'{k}=?' for k in FIELD_KEYS])
                     execute(f'UPDATE analisis SET fecha=?,{asignaciones} WHERE id=? AND participante_id=?',
                             [fecha_ed.isoformat()]+[valores[k] for k in FIELD_KEYS]+[aid,pid])
