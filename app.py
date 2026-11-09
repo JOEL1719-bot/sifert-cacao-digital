@@ -175,8 +175,8 @@ st.info('Ingrese los resultados de su análisis de suelo y la producción de cac
 EXTRACCION_GRANO_KG_T = {'N': 22.0, 'P₂O₅': 6.87, 'K₂O': 10.8,
                           'CaO': 1.3, 'MgO': 5.3}
 # Umbrales provisionales del archivo original, sujetos a método de laboratorio.
-UMBRALES = {'mo': (2.0, 4.0), 'n': (0.10, 0.20), 'p': (7.0, 14.0),
-            'k_cmol': (0.20, 0.40), 'ca': (3.0, 6.0), 'mg': (0.50, 1.00)}
+UMBRALES = {'mo': (2.0, 4.0), 'n': (0.10, 0.20), 'p': (15.0, 30.0),
+            'k_cmol': (0.30, 0.60), 'ca': (3.0, 6.0), 'mg': (0.50, 1.00)}
 CAMPOS = [
     ('ph','pH',''), ('mo','Materia orgánica','%'), ('n','Nitrógeno total','%'),
     ('p','Fósforo disponible','ppm'), ('k2o','K₂O reportado','ppm'),
@@ -344,21 +344,30 @@ def textura_usda(arena, limo, arcilla):
     if arcilla >= 40: return 'Arcilloso'
     return 'Franco (verificar clasificación textural)'
 
-def clasificar(k, v):
+def clasificar(k, v, metodo_p='Bray I'):
     if v is None:
         return 'No determinado'
     if k == 'ph':
         if not 0 < v <= 14: return 'Revisar resultado'
         if v < 4.5: return 'Suelo ácido (técnicamente: extremadamente ácido)'
+        if v < 5.0: return 'Muy fuertemente ácido'
         if v < 5.5: return 'Fuertemente ácido'
         if v < 6.5: return 'Moderadamente ácido'
         if v <= 7.3: return 'Cercano a neutro'
         return 'Alcalino'
     if k == 'sat_al':
         if v > 100: return 'Revisar resultado'
-        if v < 10: return 'Riesgo bajo (orientativo)'
-        if v < 20: return 'Riesgo moderado (orientativo)'
-        return 'Riesgo elevado (orientativo)'
+        return 'Adecuado para cacao (<20 %)' if v < 20 else 'Supera el límite adecuado para cacao (≥20 %)'
+    if k == 'p':
+        if metodo_p == 'Olsen':
+            return 'Pendiente de validar rangos Olsen'
+        return 'Bajo' if v < 15 else 'Medio' if v <= 30 else 'Alto'
+    if k == 'k_cmol':
+        return 'Muy bajo' if v < 0.20 else 'Bajo' if v <= 0.30 else 'Medio' if v <= 0.60 else 'Alto'
+    if k == 'mg':
+        return 'Por debajo del rango adecuado para cacao' if v < 1.0 else 'Adecuado para cacao' if v <= 1.5 else 'Por encima del rango adecuado para cacao'
+    if k == 'ca':
+        return 'Por debajo del rango adecuado para cacao' if v < 4 else 'Adecuado para cacao' if v <= 5 else 'Por encima del rango adecuado para cacao'
     if k in UMBRALES:
         if v == 0: return 'Revisar: cero reportado'
         bajo, alto = UMBRALES[k]
@@ -447,6 +456,14 @@ def init_db():
             cur.execute('PRAGMA table_info(analisis)')
             if 'meta_produccion' not in {r[1] for r in cur.fetchall()}:
                 cur.execute('ALTER TABLE analisis ADD COLUMN meta_produccion REAL')
+        # Migración compatible con Neon y SQLite: metadatos analíticos persistentes.
+        for campo in ('laboratorio', 'metodo_fosforo'):
+            if IS_POSTGRES:
+                cur.execute(f'ALTER TABLE analisis ADD COLUMN IF NOT EXISTS {campo} TEXT')
+            else:
+                cur.execute('PRAGMA table_info(analisis)')
+                if campo not in {r[1] for r in cur.fetchall()}:
+                    cur.execute(f'ALTER TABLE analisis ADD COLUMN {campo} TEXT')
 
 init_db()
 FIELD_KEYS = [c[0] for c in CAMPOS]
@@ -472,16 +489,25 @@ with secciones[0]:
     st.caption('Registre los datos del productor y, a continuación, complete su análisis de suelo.')
     # Al abrir la aplicación, iniciar con un formulario nuevo y sin propietario implícito.
     registros_inicio = participantes()
+    if st.session_state.pop('_actualizacion_exitosa', False):
+        st.session_state.pop('selector_inicio', None)
+        st.session_state['_selector_inicio_objetivo'] = st.session_state.get('_productor_evaluacion_anterior')
     opciones_inicio = {'➕ Nuevo productor y nuevo análisis': None}
     opciones_inicio.update({f"{r['codigo']} · {r['nombre']}": int(r['id']) for _, r in registros_inicio.iterrows()})
+    objetivo = st.session_state.pop('_selector_inicio_objetivo', None)
+    if objetivo is not None:
+        for etiqueta, identificador in opciones_inicio.items():
+            if identificador == objetivo:
+                st.session_state['selector_inicio'] = etiqueta
+                break
     seleccion_inicio = st.selectbox('Productor para registrar o consultar', list(opciones_inicio), key='selector_inicio')
     productor_existente_id = opciones_inicio[seleccion_inicio]
     # Hidratar todos los widgets desde la base de datos al cambiar la selección.
     # Se hace antes de instanciar cualquier widget y se conserva lo editado durante reruns.
     fila_productor = (registros_inicio[registros_inicio['id'] == productor_existente_id].iloc[0]
                       if productor_existente_id is not None else None)
-    if st.session_state.get('_selector_inicio_previo') != seleccion_inicio:
-        st.session_state['_selector_inicio_previo'] = seleccion_inicio
+    if st.session_state.get('_selector_inicio_previo') != productor_existente_id:
+        st.session_state['_selector_inicio_previo'] = productor_existente_id
         st.session_state['_datos_productor_cargado'] = productor_existente_id
         mapeo = {'codigo':'codigo','nombre':'nombre','caserio':'caserio','area':'area_ha',
                  'plantas':'plantas_ha','edad':'edad_anios','manejo':'manejo_cascaras',
@@ -532,7 +558,7 @@ with secciones[0]:
         st.session_state['_analisis_inicio_previo'] = (productor_existente_id, analisis_inicio_id)
         for k in FIELD_KEYS:
             st.session_state.pop('dato_' + k, None)
-        for k in ('fecha_evaluacion','meta_evaluacion','laboratorio_evaluacion'):
+        for k in ('fecha_evaluacion','meta_evaluacion','laboratorio_evaluacion','metodo_fosforo_evaluacion'):
             st.session_state.pop(k, None)
         st.session_state.pop('evaluacion_pendiente', None)
         if analisis_inicio_id is not None:
@@ -549,13 +575,15 @@ with secciones[0]:
             import re
             observacion_h = str(fila_h.get('observaciones') or '')
             coincidencia_lab = re.search(r'laboratorio:\s*([^;]+)', observacion_h, flags=re.IGNORECASE)
-            st.session_state['laboratorio_evaluacion'] = coincidencia_lab.group(1).strip() if coincidencia_lab else ''
+            st.session_state['laboratorio_evaluacion'] = (str(fila_h.get('laboratorio')) if pd.notna(fila_h.get('laboratorio')) else (coincidencia_lab.group(1).strip() if coincidencia_lab else ''))
+            st.session_state['metodo_fosforo_evaluacion'] = str(fila_h.get('metodo_fosforo')) if pd.notna(fila_h.get('metodo_fosforo')) and fila_h.get('metodo_fosforo') in ('Bray I','Olsen') else 'Bray I'
             st.session_state['evaluacion_pendiente'] = {
                 'datos': {k: (float(fila_h[k]) if pd.notna(fila_h[k]) else None) for k in FIELD_KEYS},
                 'rendimiento': st.session_state['meta_evaluacion'],
                 'participante_id': productor_existente_id,
                 'fecha': str(fila_h['fecha'])[:10],
-                'laboratorio': st.session_state['laboratorio_evaluacion']}
+                'laboratorio': st.session_state['laboratorio_evaluacion'],
+                'metodo_fosforo': st.session_state['metodo_fosforo_evaluacion']}
     if analisis_inicio_id is not None:
         st.caption('Análisis recuperado. Puede consultar sus resultados en la segunda pestaña o editarlo y guardar los cambios con el botón inferior.')
 
@@ -603,6 +631,11 @@ with secciones[0]:
     if etapa == 'Crecimiento':
         st.caption('Crecimiento: la meta de cosecha no interviene en la demanda vegetativa de los dos primeros años.')
     laboratorio_analisis = col_lab.text_input('Laboratorio del análisis de suelo', key='laboratorio_evaluacion')
+    metodo_fosforo = st.selectbox('Método de fósforo disponible (según informe del laboratorio)',
+        ['Bray I', 'Olsen'], key='metodo_fosforo_evaluacion',
+        help='Bray I suele emplearse en suelos ácidos; Olsen en suelos neutros o alcalinos. Seleccione el método realmente reportado por el laboratorio.')
+    if metodo_fosforo == 'Olsen':
+        st.info('Los rangos de Olsen aún requieren validación documental. Se guardará el método, pero no se asignará una categoría de fósforo no verificada.')
     with st.form('evaluacion'):
         st.subheader('1. Copie los valores de su análisis de suelo')
         st.caption('Si el laboratorio no midió un indicador, déjelo vacío. No coloque cero para representar un dato faltante.')
@@ -642,10 +675,10 @@ with secciones[0]:
                         (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,float(rendimiento),date.today().isoformat(),'',distrito.strip(),provincia.strip(),'',etapa,ingeniero.strip(),''))
                     cur.execute(q('SELECT id FROM participantes WHERE codigo=?'), (codigo.strip(),))
                     pid_guardar = int(cur.fetchone()[0])
-                columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['dap','textura','observaciones','meta_produccion']
+                columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['dap','textura','observaciones','meta_produccion','laboratorio','metodo_fosforo']
                 parametros = [pid_guardar, fecha_guardar.isoformat()] + [valores[k] for k in FIELD_KEYS] + [
                     1.33, textura_usda(valores['arena'],valores['limo'],valores['arcilla']),
-                    f'Meta de evaluación: {rendimiento:g} kg/ha/año; laboratorio: {laboratorio_analisis}', float(rendimiento)]
+                    f'Meta de evaluación: {rendimiento:g} kg/ha/año; laboratorio: {laboratorio_analisis}', float(rendimiento), laboratorio_analisis, metodo_fosforo]
                 if analisis_inicio_id is None:
                     cur.execute(q(f"INSERT INTO analisis({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})"), parametros)
                 else:
@@ -657,7 +690,10 @@ with secciones[0]:
             st.session_state['evaluacion_pendiente'] = {
                 'datos': valores.copy(), 'rendimiento': float(rendimiento),
                 'participante_id': pid_guardar, 'fecha': fecha_guardar.isoformat(),
-                'laboratorio': laboratorio_analisis}
+                'laboratorio': laboratorio_analisis, 'metodo_fosforo': metodo_fosforo}
+            # Sincronizar inmediatamente el selector tras actualizar el nombre en Neon.
+            st.session_state['_selector_inicio_previo'] = pid_guardar
+            st.session_state['_actualizacion_exitosa'] = True
             st.success('Datos actualizados correctamente. Consulte los resultados en la segunda pestaña.' if analisis_inicio_id is not None else 'Productor y análisis guardados juntos. Consulte los resultados en la segunda pestaña.')
         except Exception as e:
             st.error(f'No se pudo guardar: {e}')
@@ -665,30 +701,10 @@ with secciones[0]:
 
 with secciones[1]:
     st.markdown('<div class="sifert-suelo-marker sifert-hero suelo"><div><h2>🌱 Resultados del suelo y fertilización</h2><p>Diagnóstico químico · balance NPK · plan de abonamiento</p></div><span class="art">🪴🔬</span></div>', unsafe_allow_html=True)
-    registros_resultados = participantes()
-    if not registros_resultados.empty:
-        opciones_res = {f"{r['codigo']} · {r['nombre']}": int(r['id']) for _, r in registros_resultados.iterrows()}
-        etiqueta_res = st.selectbox('Consultar productor guardado', list(opciones_res), index=None,
-                                    placeholder='Seleccione un productor para ver sus resultados', key='consulta_productor')
-        pid_consulta = opciones_res[etiqueta_res] if etiqueta_res else None
-        if pid_consulta is not None:
-            analisis_disponibles = execute('SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC', (pid_consulta,), True)
-            if not analisis_disponibles.empty:
-                opciones_analisis = {f"{r['fecha']} · Análisis {i+1}": i for i, (_,r) in enumerate(analisis_disponibles.iterrows())}
-                etiqueta_analisis = st.selectbox('Análisis guardado', list(opciones_analisis), key='consulta_analisis')
-                registro_analisis = analisis_disponibles.iloc[opciones_analisis[etiqueta_analisis]]
-                identificador = int(registro_analisis['id'])
-                if st.session_state.get('_consulta_id_cargado') != identificador:
-                    st.session_state['_consulta_id_cargado'] = identificador
-                    st.session_state['_productor_evaluacion_anterior'] = pid_consulta
-                    st.session_state['evaluacion_pendiente'] = {
-                        'datos': {k: (float(registro_analisis[k]) if pd.notna(registro_analisis[k]) else None) for k in FIELD_KEYS},
-                        'rendimiento': float(registro_analisis['meta_produccion']) if pd.notna(registro_analisis.get('meta_produccion')) else 1000.0,
-                        'participante_id': pid_consulta, 'fecha': str(registro_analisis['fecha']),
-                        'laboratorio': ''}
-            else:
-                st.info('Este productor todavía no tiene análisis registrados.')
-    pid_guardar = pid_consulta if not registros_resultados.empty and pid_consulta is not None else st.session_state.get('_productor_evaluacion_anterior')
+    # Resultados sincronizados con la selección de Registro; sin segundo selector.
+    pid_guardar = st.session_state.get('_productor_evaluacion_anterior')
+    if pid_guardar is None:
+        st.info('Seleccione un productor y su análisis en la pestaña Registro.')
     fecha_guardar = date.fromisoformat(st.session_state['evaluacion_pendiente']['fecha']) if st.session_state.get('evaluacion_pendiente') else date.today()
     laboratorio_analisis = st.session_state.get('evaluacion_pendiente', {}).get('laboratorio', '')
     rendimiento = st.session_state.get('evaluacion_pendiente', {}).get('rendimiento', 1000.0)
@@ -719,7 +735,7 @@ with secciones[1]:
                 if clave not in indicadores_visibles or datos[clave] is None:
                     continue
                 tabla.append({'Indicador':nombre, 'Resultado': datos[clave] if datos[clave] is not None else 'No medido',
-                              'Unidad':unidad, 'Interpretación orientativa':clasificar(clave, datos[clave])})
+                              'Unidad':unidad, 'Interpretación orientativa':clasificar(clave, datos[clave], st.session_state['evaluacion_pendiente'].get('metodo_fosforo', 'Bray I'))})
             textura = textura_usda(datos['arena'], datos['limo'], datos['arcilla'])
             if textura:
                 tabla.append({'Indicador': 'Textura del suelo',
@@ -733,7 +749,7 @@ with secciones[1]:
                 sat_calculada = datos['al'] / datos['cice'] * 100
                 if datos['sat_al'] is not None and abs(sat_calculada - datos['sat_al']) > 0.5:
                     st.warning(f'Compruebe la saturación de aluminio: Al/CICe × 100 = {sat_calculada:.2f} %, frente al {datos["sat_al"]:.2f} % ingresado. Verifique la metodología del laboratorio.')
-            st.caption('Los umbrales son provisionales y requieren contrastarse con el método analítico del laboratorio y la calibración para cacao local.')
+            st.caption('Referencias: INIA (2025), tablas 11, 15 y 27. Bray I: <15 bajo, 15–30 medio, >30 alto; Olsen: interpretación pendiente de validar. Los rangos adecuados para cacao no equivalen a una escala general de fertilidad. Confirme el método analítico del laboratorio.')
             ph, al, mg = datos['ph'], datos['sat_al'], datos['mg']
             if ph is not None and (ph < 5.5 or (al is not None and al >= 20)):
                 st.warning('Suelo ácido o con señal de aluminio: conviene evaluar una corrección de acidez con asistencia técnica. No se calcula dosis de cal o dolomita sin datos adicionales.')
