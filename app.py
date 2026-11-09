@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V12.3 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V12.4 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -57,15 +57,20 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                            ' ha  |  <b>Plantas en la parcela:</b> '+str(int(plantas))+'  |  <b>Fecha del análisis:</b> '+escape(str(fecha_analisis)), styles['EjecutivoNota']),
                  Spacer(1, 5*mm),
                  Paragraph('1. FERTILIZANTES QUE DEBE COMPRAR', styles['EjecutivoSub'])]
-    compras_limpias = [r for r in compra if str(r.get('Fertilizante','')).upper() != 'TOTAL GENERAL']
+    # Separar fertilizantes de las aplicaciones independientes en la ficha.
+    filas_fert = [r for r in compra if str(r.get('Fertilizante','')).upper() not in ('TOTAL GENERAL', 'SUBTOTAL FERTILIZANTES')
+                  and '(enmienda)' not in str(r.get('Fertilizante','')).lower()
+                  and not str(r.get('Fertilizante','')).lower().startswith('compost (')]
+    filas_enmiendas = [r for r in compra if '(enmienda)' in str(r.get('Fertilizante','')).lower()
+                       or str(r.get('Fertilizante','')).lower().startswith('compost (')]
     resumen_compra = [['Fertilizante', 'Cantidad (kg)', 'Sacos / kg']]
-    for r in compras_limpias:
+    for r in filas_fert:
         resumen_compra.append([str(r.get('Fertilizante','')), str(r.get('Comprar (kg)','')),
                                str(r.get('Sacos / kg',''))])
-    total_compra = next((r for r in compra if str(r.get('Fertilizante','')).upper() == 'TOTAL GENERAL'), None)
-    if total_compra:
-        resumen_compra.append(['TOTAL GENERAL', str(total_compra.get('Comprar (kg)','')),
-                               str(total_compra.get('Sacos / kg',''))])
+    subtotal = next((r for r in compra if str(r.get('Fertilizante','')).upper() == 'SUBTOTAL FERTILIZANTES'), None)
+    if subtotal:
+        resumen_compra.append(['SUBTOTAL FERTILIZANTES', str(subtotal.get('Comprar (kg)','')),
+                               'Ver productos'])
     def tabla_ejecutiva(filas, anchos):
         t = Table([[Paragraph(escape(str(c)), styles['CeldaSifert']) for c in fila] for fila in filas],
                   colWidths=anchos, repeatRows=1, hAlign='LEFT')
@@ -77,19 +82,31 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         return t
     ancho_util = landscape(A4)[0]-30*mm
     contenido.append(tabla_ejecutiva(resumen_compra, [ancho_util*.62, ancho_util*.19, ancho_util*.19]))
+    contenido.append(Paragraph('ENMIENDAS Y COMPOST: DOSIS DE APLICACIÓN', styles['EjecutivoSub']))
+    filas_enmiendas_pdf = [['Producto', 'Cantidad (kg/parcela)', 'Sacos / kg', 'Dosis (g/planta)', 'Aplicación']]
+    for r in filas_enmiendas:
+        nombre = str(r.get('Fertilizante','')).replace(' (enmienda)', '').replace(' (aplicación independiente)', '')
+        cantidad = float(r.get('Comprar (kg)',0) or 0)
+        dosis = cantidad * 1000.0 / max(float(plantas),1.0)
+        filas_enmiendas_pdf.append([nombre, f'{cantidad:,.2f}', str(r.get('Sacos / kg','')),
+                                   f'{dosis:,.1f}', 'Independiente'])
+    if len(filas_enmiendas_pdf)>1:
+        contenido.append(tabla_ejecutiva(filas_enmiendas_pdf,
+            [ancho_util*.20,ancho_util*.23,ancho_util*.15,ancho_util*.21,ancho_util*.21]))
+    else:
+        contenido.append(Paragraph('No se registraron enmiendas ni compost.', styles['EjecutivoNota']))
+
     contenido.append(Paragraph('2. CANTIDAD PARA CADA ABONAMIENTO', styles['EjecutivoSub']))
     contenido.append(Paragraph('Distribución propuesta: <b>primera aplicación 50 %</b>, '
                               '<b>segunda 32 %</b> y <b>tercera 18 %</b>. '
                               'Las fechas deben definirse según las condiciones de la parcela.', styles['EjecutivoNota']))
     filas_uso = [['Producto', '1.º (kg/parcela)', '2.º (kg/parcela)', '3.º (kg/parcela)']]
-    for r in compras_limpias:
-        if r.get('Fertilizante') == 'SUBTOTAL FERTILIZANTES':
-            continue
+    for r in filas_fert:
         filas_uso.append([str(r.get('Fertilizante','')), str(r.get('1.º abonamiento (kg)','')),
                          str(r.get('2.º abonamiento (kg)','')), str(r.get('3.º abonamiento (kg)',''))])
     contenido.append(Spacer(1, 3*mm))
     contenido.append(tabla_ejecutiva(filas_uso, [ancho_util*.49, ancho_util*.17, ancho_util*.17, ancho_util*.17]))
-    contenido.append(Paragraph('Enmienda y compost: aplicación independiente, sin reparto automático 50/32/18. Las cantidades de micronutrientes son ingresadas manualmente y requieren validación técnica.', styles['EjecutivoNota']))
+    contenido.append(Paragraph('La enmienda y el compost se aplican de manera independiente. Los micronutrientes requieren validación técnica.', styles['EjecutivoNota']))
     if gramos:
         r=next((x for x in gramos if str(x.get('Fertilizante', x.get('Producto', ''))).upper() == 'TOTAL'), gramos[-1])
         contenido.append(Spacer(1, 4*mm))
@@ -192,8 +209,8 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V12.3 · Balance NPK y Ca/Mg · Proyección referencial de M.O. · Simulación técnica')
-st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
+st.caption('V12.4 · Balance NPK y Ca/Mg · Proyección referencial de M.O. · Simulación técnica')
+st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n/* V12.4: vista compacta para teléfonos; los campos nunca se recortan. */\n@media (max-width: 767px) {\n  .block-container { padding: 2.9rem .55rem 1.5rem !important; max-width:100% !important; }\n  div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),\n  div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) { padding:.55rem !important; border-radius:12px !important; }\n  div[data-testid="stHorizontalBlock"] { flex-direction:column !important; gap:.45rem !important; align-items:stretch !important; }\n  div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] { width:100% !important; min-width:0 !important; flex:1 1 auto !important; }\n  div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] { align-items:stretch !important; }\n  div[data-testid="stMetric"] { padding:.5rem !important; }\n  div[data-testid="stMetricValue"] { font-size:clamp(1.15rem,5.4vw,1.65rem) !important; overflow-wrap:anywhere; }\n  div[data-testid="stDataFrame"] { max-width:100% !important; overflow-x:auto !important; }\n  div[data-baseweb="tab-list"] { overflow-x:auto !important; flex-wrap:nowrap !important; }\n  button[data-baseweb="tab"] { white-space:nowrap !important; padding:8px 10px !important; font-size:.84rem !important; }\n  h1 { font-size:1.45rem !important; }\n  h2 { font-size:1.22rem !important; }\n  h3 { font-size:1.05rem !important; line-height:1.3 !important; }\n  .sifert-hero { padding:11px !important; }\n  .sifert-hero .art { display:none !important; }\n  .sifert-hero p { display:none !important; }\n  /* Ocultar solamente leyendas informativas; alertas, controles y resultados permanecen. */\n  div[data-baseweb="tab-panel"] [data-testid="stCaptionContainer"] { display:none !important; }\n  div[data-baseweb="tab-panel"] [data-testid="stExpander"] [data-testid="stCaptionContainer"] { display:block !important; }\n  div[data-testid="stNumberInput"] input { min-width:0 !important; }\n  div[data-testid="stButton"] button, div[data-testid="stFormSubmitButton"] button { max-width:100% !important; white-space:normal !important; }\n}\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
 # Parámetros de referencia internos. Son bibliográficos, NO una calibración local
@@ -1403,30 +1420,47 @@ with secciones[1]:
                         'Sacos / kg':formato_compra(total,peso,es_micro),
                         '1.º abonamiento (kg)':round(a,2),'2.º abonamiento (kg)':round(b,2),'3.º abonamiento (kg)':round(c,2)})
                 total_fertilizantes = sum(r[1] for r in filas_detalle)
-                filas_compra.append({'Fertilizante':'SUBTOTAL FERTILIZANTES','Comprar (kg)':round(total_fertilizantes,2),
+                # Cuadro 1: solo fertilizantes y sus tres aplicaciones.
+                filas_compra.append({'Fertilizante':'TOTAL FERTILIZANTES','Comprar (kg)':round(total_fertilizantes,2),
                     'Sacos / kg':'Ver productos','1.º abonamiento (kg)':round(sum(r[2] for r in filas_detalle),2),
                     '2.º abonamiento (kg)':round(sum(r[3] for r in filas_detalle),2),
                     '3.º abonamiento (kg)':round(sum(r[4] for r in filas_detalle),2)})
-                # Enmiendas y compost son compras independientes de los 3 abonamientos.
+                st.dataframe(pd.DataFrame(filas_compra),hide_index=True,use_container_width=True)
+                # Cuadro 2: enmienda y compost, sin reparto en los tres abonamientos.
                 kg_enmienda_parcela = (max(0.0,float(kg_ha_encalado_calculado))*area_real
                     if kg_ha_encalado_calculado is not None and producto_enc != 'No aplicar' else 0.0)
                 kg_compost_parcela = max(0.0,compost_kg_ha*area_real)
+                filas_enmiendas = []
                 if kg_enmienda_parcela > 0:
-                    filas_compra.append({'Fertilizante':producto_enc+' (enmienda)',
-                        'Comprar (kg)':round(kg_enmienda_parcela,2),
+                    filas_enmiendas.append({'Producto':producto_enc,
+                        'Cantidad (kg/parcela)':round(kg_enmienda_parcela,2),
                         'Sacos / kg':formato_compra(kg_enmienda_parcela,50.0),
-                        '1.º abonamiento (kg)':'—','2.º abonamiento (kg)':'—','3.º abonamiento (kg)':'—'})
+                        'Dosis (g/planta)':round(kg_enmienda_parcela*1000/max(total_plantas,1),1),
+                        'Aplicación':'Independiente'})
                 if kg_compost_parcela > 0:
                     peso_compost = float(st.session_state.get('saco_compost_proyeccion',50.0) or 50.0)
-                    filas_compra.append({'Fertilizante':'Compost (aplicación independiente)',
-                        'Comprar (kg)':round(kg_compost_parcela,2),
+                    filas_enmiendas.append({'Producto':'Compost',
+                        'Cantidad (kg/parcela)':round(kg_compost_parcela,2),
                         'Sacos / kg':formato_compra(kg_compost_parcela,peso_compost),
-                        '1.º abonamiento (kg)':'—','2.º abonamiento (kg)':'—','3.º abonamiento (kg)':'—'})
-                filas_compra.append({'Fertilizante':'TOTAL GENERAL','Comprar (kg)':round(total_fertilizantes+kg_enmienda_parcela+kg_compost_parcela,2),
-                    'Sacos / kg':'Ver productos','1.º abonamiento (kg)':'—',
-                    '2.º abonamiento (kg)':'—','3.º abonamiento (kg)':'—'})
-                st.dataframe(pd.DataFrame(filas_compra),hide_index=True,use_container_width=True)
-                st.caption('La enmienda y el compost se compran por separado y no se distribuyen en los tres abonamientos. Los micronutrientes se dosifican manualmente, sin prescripción automática.')
+                        'Dosis (g/planta)':round(kg_compost_parcela*1000/max(total_plantas,1),1),
+                        'Aplicación':'Independiente'})
+                st.markdown('**Enmiendas y compost: dosis de aplicación**')
+                if filas_enmiendas:
+                    st.dataframe(pd.DataFrame(filas_enmiendas),hide_index=True,use_container_width=True)
+                else:
+                    st.info('Sin enmiendas ni compost registrados para esta parcela.')
+                st.metric('Total general requerido (fertilizantes + enmiendas + compost)',
+                          f'{total_fertilizantes+kg_enmienda_parcela+kg_compost_parcela:,.2f} kg')
+                # Se mantiene estructura de compra para la ficha PDF y anexos existentes.
+                filas_compra_pdf = [r for r in filas_compra if r['Fertilizante'] != 'TOTAL FERTILIZANTES']
+                filas_compra_pdf.append({'Fertilizante':'SUBTOTAL FERTILIZANTES',
+                    'Comprar (kg)':round(total_fertilizantes,2),'Sacos / kg':'Ver productos'})
+                for r in filas_enmiendas:
+                    filas_compra_pdf.append({'Fertilizante':r['Producto']+' (enmienda)' if r['Producto']!='Compost' else 'Compost (aplicación independiente)',
+                        'Comprar (kg)':r['Cantidad (kg/parcela)'],'Sacos / kg':r['Sacos / kg']})
+                filas_compra_pdf.append({'Fertilizante':'TOTAL GENERAL',
+                    'Comprar (kg)':round(total_fertilizantes+kg_enmienda_parcela+kg_compost_parcela,2),
+                    'Sacos / kg':'Ver productos'})
                 st.markdown('**Dosis en gramos por planta y abonamiento**')
                 filas_gramos=[{'Fertilizante':'TOTAL','1.º (g/planta)':round(sum(r[2] for r in filas_detalle)*1000/total_plantas,2),
                     '2.º (g/planta)':round(sum(r[3] for r in filas_detalle)*1000/total_plantas,2),
@@ -1458,7 +1492,7 @@ with secciones[1]:
                     ficha_datos[clave] = datos.get(clave)
                 try:
                     ficha_pdf = crear_ficha_pdf(productor_pdf, fecha_guardar, area_real,
-                                               total_plantas, filas_balance, filas_compra, filas_gramos, ficha_datos)
+                                               total_plantas, filas_balance, filas_compra_pdf, filas_gramos, ficha_datos)
                     st.download_button('📄 Descargar ficha final de fertilización (PDF)',
                         data=ficha_pdf, file_name='SIFERT_CACAO_FICHA_FERTILIZACION.pdf',
                         mime='application/pdf', key='descarga_abonamientos_pdf')
