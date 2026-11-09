@@ -1119,55 +1119,6 @@ with secciones[1]:
                                                 'Necesidad restante / diferencia (kg/ha)':round(restante,2) if restante is not None else 'No calculable'})
                 st.dataframe(pd.DataFrame(resumen_descuento),hide_index=True,use_container_width=True)
                 st.caption('Balance NPK: el compost se descuenta una sola vez. Las cáscaras no se consideran. El encalado se presenta por separado.')
-                # Balance integrado Ca/Mg: leer los mismos controles de fertilizantes,
-                # nunca solicitar una segunda cantidad de kieserita.
-                st.markdown('**Balance integrado de calcio y magnesio (Ca/Mg)**')
-                st.caption('Se actualiza al seleccionar productos y editar sus sacos en Fertilizantes. La diferencia es teórica; no equivale a disponibilidad inmediata ni a dosis recomendada.')
-                area_camg = math.pi * max(0.0, radio_ext**2 - radio_int**2) * plantas_encalado
-                masa_camg = min(area_camg, 10000.0) * (prof_enc / 100.0) * float(datos.get('dap') or 0.0) * 1000.0
-                aportes_fert_ca = 0.0
-                aportes_fert_mg = 0.0
-                aportes_fert_kies_mg = 0.0
-                aportes_fert_kies_s = 0.0
-                detalle_aportes_camg = []
-                for nombre_fert in fuentes:
-                    peso_fert = float(st.session_state.get('peso_v69_'+nombre_fert, 50.0))
-                    sacos_fert = float(st.session_state.get('sacos_v69_'+nombre_fert, 0.0))
-                    kg_fert_ha = peso_fert * sacos_fert / area_real
-                    if kg_fert_ha <= 0:
-                        continue
-                    comp_fert = minerales[nombre_fert]
-                    ca_fert = kg_fert_ha * float(comp_fert.get('Ca_reportado') or 0) / 100.0
-                    mg_fert = kg_fert_ha * float(comp_fert.get('Mg_reportado') or 0) / 100.0
-                    aportes_fert_ca += ca_fert
-                    aportes_fert_mg += mg_fert
-                    if nombre_fert.startswith('Kieserita'):
-                        aportes_fert_kies_mg += mg_fert
-                        aportes_fert_kies_s += kg_fert_ha * float(comp_fert.get('S_reportado') or 22.0) / 100.0
-                    if ca_fert or mg_fert:
-                        detalle_aportes_camg.append({'Producto':nombre_fert, 'Ca elemental (kg/ha)':round(ca_fert,2), 'Mg elemental (kg/ha)':round(mg_fert,2)})
-                filas_camg_integrado = []
-                for nutr, meta, conversion, aporte_enmienda, aporte_fert in (
-                    ('Ca', 4.5, 200.39, ca_total_aportado, aportes_fert_ca),
-                    ('Mg', 1.25, 121.53, mg_total_aportado, aportes_fert_mg)):
-                    medido = datos.get(nutr.lower())
-                    deficit = (max(0.0,(meta-float(medido))*conversion*masa_camg/1_000_000)
-                               if medido is not None and masa_camg > 0 else None)
-                    filas_camg_integrado.append({
-                        'Nutriente':nutr,
-                        'Suelo (cmol(+)/kg)':round(float(medido),3) if medido is not None else 'Sin análisis',
-                        'Objetivo provisional (cmol(+)/kg)':meta,
-                        'Déficit localizado teórico (kg/ha)':round(deficit,2) if deficit is not None else 'No calculable',
-                        'Enmienda aplicada (kg/ha)':round(aporte_enmienda,2),
-                        'Fertilizantes seleccionados (kg/ha)':round(aporte_fert,2),
-                        'Diferencia restante teórica (kg/ha)':round(max(0.0,deficit-aporte_enmienda-aporte_fert),2) if deficit is not None else 'No calculable'})
-                st.dataframe(pd.DataFrame(filas_camg_integrado),hide_index=True,use_container_width=True)
-                st.caption(f'Área de anillos: {min(area_camg,10000):,.1f} m²/ha de plantación · profundidad {prof_enc:g} cm. El Mg objetivo 1.25 cmol(+)/kg aún requiere validación. Solo se descuenta la enmienda cuando se declara aplicada.')
-                if detalle_aportes_camg:
-                    with st.expander('Ver aportes de Ca/Mg por fertilizante'):
-                        st.dataframe(pd.DataFrame(detalle_aportes_camg),hide_index=True,use_container_width=True)
-                st.caption(f'Kieserita seleccionada: Mg elemental {aportes_fert_kies_mg:.2f} kg/ha; S referencial {aportes_fert_kies_s:.2f} kg/ha. La cantidad proviene de los sacos seleccionados abajo, sin ingreso duplicado. Se asume aplicación en los anillos evaluados; si se distribuye fuera de ellos, el descuento no es válido.')
-                st.caption('El aporte químico potencial de fertilizantes y enmiendas no implica que todo se incorpore al Mg/Ca intercambiable del suelo. No sumar nuevamente kieserita en Enmienda.')
                 st.markdown('**Fertilizantes seleccionados y balance nutricional**')
                 st.caption('Cambie los sacos o el peso de presentación: el balance, el total y la ficha PDF se actualizan automáticamente.')
                 # Los number_input están fuera de st.form: cada edición produce un rerun
@@ -1217,6 +1168,57 @@ with secciones[1]:
                         'Diferencia (kg/ha)':r['Diferencia (kg/ha)'],'Estado':r['Estado']})
                 st.dataframe(pd.DataFrame(filas_unificadas),hide_index=True,use_container_width=True)
                 st.caption('Diferencia = aporte aprovechable del fertilizante − necesidad restante tras descontar suelo y compost. Las eficiencias minerales se aplican una sola vez al aporte; los orgánicos emplean disponibilidad anual estimada.')
+                # Mostrar el balance Ca/Mg debajo del balance de fertilizantes.
+                # Balance integrado Ca/Mg: leer los mismos controles de fertilizantes,
+                # nunca solicitar una segunda cantidad de kieserita.
+                st.markdown('**Balance integrado de calcio y magnesio (Ca/Mg)**')
+                st.caption('Se actualiza al seleccionar productos y editar sus sacos en Fertilizantes. La diferencia es teórica; no equivale a disponibilidad inmediata ni a dosis recomendada.')
+                area_camg = math.pi * max(0.0, radio_ext**2 - radio_int**2) * plantas_encalado
+                masa_camg = min(area_camg, 10000.0) * (prof_enc / 100.0) * float(datos.get('dap') or 0.0) * 1000.0
+                aportes_fert_ca = 0.0
+                aportes_fert_mg = 0.0
+                aportes_fert_kies_mg = 0.0
+                aportes_fert_kies_s = 0.0
+                detalle_aportes_camg = []
+                for nombre_fert in fuentes:
+                    peso_fert = float(st.session_state.get('peso_v69_'+nombre_fert, 50.0))
+                    sacos_fert = float(st.session_state.get('sacos_v69_'+nombre_fert, 0.0))
+                    kg_fert_ha = peso_fert * sacos_fert / area_real
+                    if kg_fert_ha <= 0:
+                        continue
+                    comp_fert = minerales[nombre_fert]
+                    ca_fert = kg_fert_ha * float(comp_fert.get('Ca_reportado') or 0) / 100.0
+                    mg_fert = kg_fert_ha * float(comp_fert.get('Mg_reportado') or 0) / 100.0
+                    aportes_fert_ca += ca_fert
+                    aportes_fert_mg += mg_fert
+                    if nombre_fert.startswith('Kieserita'):
+                        aportes_fert_kies_mg += mg_fert
+                        aportes_fert_kies_s += kg_fert_ha * float(comp_fert.get('S_reportado') or 22.0) / 100.0
+                    if ca_fert or mg_fert:
+                        detalle_aportes_camg.append({'Producto':nombre_fert, 'Ca elemental (kg/ha)':round(ca_fert,2), 'Mg elemental (kg/ha)':round(mg_fert,2)})
+                filas_camg_integrado = []
+                for nutr, meta, conversion, aporte_enmienda, aporte_fert in (
+                    ('Ca', 4.5, 200.39, ca_total_aportado, aportes_fert_ca),
+                    ('Mg', 1.25, 121.53, mg_total_aportado, aportes_fert_mg)):
+                    medido = datos.get(nutr.lower())
+                    deficit = (max(0.0,(meta-float(medido))*conversion*masa_camg/1_000_000)
+                               if medido is not None and masa_camg > 0 else None)
+                    filas_camg_integrado.append({
+                        'Nutriente':nutr,
+                        'Suelo (cmol(+)/kg)':round(float(medido),3) if medido is not None else 'Sin análisis',
+                        'Objetivo provisional (cmol(+)/kg)':meta,
+                        'Déficit localizado teórico (kg/ha)':round(deficit,2) if deficit is not None else 'No calculable',
+                        'Aporte enmienda (kg/ha)':round(aporte_enmienda,2),
+                        'Aporte fertilizantes (kg/ha)':round(aporte_fert,2),
+                        'Diferencia (kg/ha)':round(aporte_enmienda+aporte_fert-deficit,2) if deficit is not None else 'No calculable',
+                        'Estado': ('Sin análisis' if deficit is None else ('Excedente teórico' if deficit <= 0 and aporte_enmienda+aporte_fert > 0 else ('Sin déficit' if deficit <= 0 else ('Equilibrado' if abs(aporte_enmienda+aporte_fert-deficit) <= deficit*0.05 else ('Exceso' if aporte_enmienda+aporte_fert > deficit else 'Déficit')))))})
+                st.dataframe(pd.DataFrame(filas_camg_integrado),hide_index=True,use_container_width=True)
+                st.caption(f'Área de anillos: {min(area_camg,10000):,.1f} m²/ha de plantación · profundidad {prof_enc:g} cm. El Mg objetivo 1.25 cmol(+)/kg aún requiere validación. Solo se descuenta la enmienda cuando se declara aplicada.')
+                if detalle_aportes_camg:
+                    with st.expander('Ver aportes de Ca/Mg por fertilizante'):
+                        st.dataframe(pd.DataFrame(detalle_aportes_camg),hide_index=True,use_container_width=True)
+                st.caption(f'Kieserita seleccionada: Mg elemental {aportes_fert_kies_mg:.2f} kg/ha; S referencial {aportes_fert_kies_s:.2f} kg/ha. La cantidad proviene de los sacos seleccionados arriba, sin ingreso duplicado. Se asume aplicación en los anillos evaluados; si se distribuye fuera de ellos, el descuento no es válido.')
+                st.caption('El aporte químico potencial de fertilizantes y enmiendas no implica que todo se incorpore al Mg/Ca intercambiable del suelo. No sumar nuevamente kieserita en Enmienda.')
                 # Distribución operativa: 50 %, 32 %, 18 % por producto.
                 filas_detalle=[]
                 for x in usados:
