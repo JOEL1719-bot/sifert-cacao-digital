@@ -1106,67 +1106,6 @@ with secciones[1]:
                 st.caption(f'Compost del módulo anterior: {compost_kg_ha:,.2f} kg/ha/año. Aporte estimado disponible: N {compost_aprovechable["N"]:.2f}, P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}, K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha/año.')
                 st.caption('Compost: el aporte aprovechable se descuenta una sola vez del requerimiento del cultivo. La etiqueta declara N, P y K elementales; P y K se convierten a P₂O₅ y K₂O para compararlos con los fertilizantes. Valores referenciales sujetos a análisis, humedad y mineralización.')
                 st.markdown('**Balance NPK: suelo y compost**')
-                st.markdown('**Balance complementario de calcio y magnesio (Ca/Mg)**')
-                st.caption('Solo se descuenta el aporte estimado disponible de una enmienda realmente aplicada; la dosis simulada no se descuenta.')
-                enm_aplicada = st.checkbox('Sí aplicó (cal o dolomita)', value=False, key='enm_aplicada_v72')
-                enm_ca_kg_ha = 0.0
-                enm_mg_kg_ha = 0.0
-                ca_total_aportado = 0.0
-                mg_total_aportado = 0.0
-                if enm_aplicada and (producto_enc == 'No aplicar' or kg_ha_encalado_calculado is None):
-                    st.warning('Para registrar la aplicación, seleccione una enmienda y compruebe que exista una dosis calculada.')
-                elif enm_aplicada:
-                    st.caption(f'Enmienda: {producto_enc}. Dosis simulada: {kg_ha_encalado_calculado:,.2f} kg/ha. Confirme la cantidad realmente aplicada.')
-                    dosis_real_enm = st.number_input('Dosis realmente aplicada (kg/ha)', min_value=0.0,
-                        value=0.0, step=10.0, key='enm_dosis_real_camg',
-                        help='Ingrese lo efectivamente aplicado, no la dosis simulada.')
-                    col_ca, col_mg = st.columns(2)
-                    if producto_enc == 'Dolomita':
-                        cao_pct = col_ca.number_input('CaO del producto (%)', min_value=0.0, max_value=100.0,
-                            value=30.0, step=0.5, key='enm_cao_pct_camg')
-                        mgo_pct = col_mg.number_input('MgO del producto (%)', min_value=0.0, max_value=100.0,
-                            value=21.5, step=0.5, key='enm_mgo_pct_camg')
-                    else:
-                        cao_pct = col_ca.number_input('CaO del producto (%) según ficha', min_value=0.0, max_value=100.0,
-                            value=0.0, step=0.5, key='enm_cao_pct_cal_camg')
-                        mgo_pct = col_mg.number_input('MgO del producto (%) según ficha', min_value=0.0, max_value=100.0,
-                            value=0.0, step=0.5, key='enm_mgo_pct_cal_camg')
-                    if cao_pct + mgo_pct > 100:
-                        st.error('CaO + MgO supera 100 %. Revise la ficha técnica del producto.')
-                        cao_pct, mgo_pct = 0.0, 0.0
-                    ca_total_aportado = dosis_real_enm * cao_pct / 100 * (40.078 / 56.077)
-                    mg_total_aportado = dosis_real_enm * mgo_pct / 100 * (24.305 / 40.304)
-                    fraccion_enm = st.number_input('Fracción estimada disponible de Ca/Mg en el período (%)',
-                        min_value=0.0, max_value=100.0, value=0.0, step=5.0, key='enm_fraccion_disp_camg') / 100
-                    enm_ca_kg_ha = ca_total_aportado * fraccion_enm
-                    enm_mg_kg_ha = mg_total_aportado * fraccion_enm
-                    st.caption(f'Aporte total potencial: Ca {ca_total_aportado:.2f} y Mg {mg_total_aportado:.2f} kg/ha. '
-                               f'Aporte estimado disponible: Ca {enm_ca_kg_ha:.2f} y Mg {enm_mg_kg_ha:.2f} kg/ha.')
-                    st.caption('Con disponibilidad 0 % no se descuenta Ca ni Mg. Modifique el porcentaje solo con sustento técnico; marcar aplicación no demuestra disponibilidad inmediata.')
-                # Objetivos de concentración intercambiable (INIA 2025, tabla 27):
-                # Ca 4–5 y Mg 1–1.5 cmol(+)/kg. No confundir stock con extracción anual.
-                # El balance es un indicador teórico de corrección, no dosis de fertilizante.
-                filas_camg = []
-                for nutr, meta, factor_mgkg, aporte_kg in (
-                    ('Ca', 4.5, 200.39, enm_ca_kg_ha),
-                    ('Mg', 1.25, 121.53, enm_mg_kg_ha)):
-                    analisis = datos.get(nutr.lower())
-                    if analisis is None:
-                        filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': 'Sin análisis',
-                            'Objetivo (cmol(+)/kg)': meta, 'Déficit inicial (kg/ha)': 'No calculable',
-                            'Aporte estimado disponible (kg/ha)': round(aporte_kg,2),
-                            'Diferencia pendiente (kg/ha)': 'No calculable'})
-                        continue
-                    # factor_mgkg: mg/kg por cmol(+)/kg. masa: kg suelo/ha (0–20 cm).
-                    deficit_inicial = max(0.0, (meta - float(analisis)) * factor_mgkg * masa / 1_000_000)
-                    pendiente = max(0.0, deficit_inicial - aporte_kg)
-                    filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': round(float(analisis),3),
-                        'Objetivo (cmol(+)/kg)': meta, 'Déficit inicial (kg/ha)': round(deficit_inicial,2),
-                        'Aporte estimado disponible (kg/ha)': round(aporte_kg,2),
-                        'Diferencia pendiente (kg/ha)': round(pendiente,2)})
-                st.dataframe(pd.DataFrame(filas_camg), hide_index=True, use_container_width=True)
-                st.caption('Si persiste déficit de Mg, evaluar un suplemento como Magnocal solo tras confirmar su composición, la disponibilidad y la necesidad agronómica. No se genera dosis automática.')
-                st.caption('Nota: kg/ha representa un déficit teórico de reserva intercambiable en 0–20 cm; no equivale a requerimiento anual ni demuestra cambio real del análisis de suelo.')
                 masa_suelo = masa
                 # Por decisión del usuario, las cáscaras no se incluyen en el balance.
                 potencial_cascaras = {'N': 0.0, 'P₂O₅': 0.0, 'K₂O': 0.0}
@@ -1244,6 +1183,65 @@ with secciones[1]:
                         'Diferencia (kg/ha)':r['Diferencia (kg/ha)'],'Estado':r['Estado']})
                 st.dataframe(pd.DataFrame(filas_unificadas),hide_index=True,use_container_width=True)
                 st.caption('Diferencia = aporte aprovechable del fertilizante − necesidad restante tras descontar suelo y compost. Las eficiencias minerales se aplican una sola vez al aporte; los orgánicos emplean disponibilidad anual estimada.')
+                st.markdown('**Balance complementario de calcio y magnesio (Ca/Mg)**')
+                st.caption('Al confirmar la aplicación, se utiliza automáticamente la dosis calculada arriba. Solo se descuenta la fracción estimada disponible.')
+                enm_aplicada = st.checkbox('Sí aplicó (cal o dolomita)', value=False, key='enm_aplicada_v72')
+                enm_ca_kg_ha = 0.0
+                enm_mg_kg_ha = 0.0
+                ca_total_aportado = 0.0
+                mg_total_aportado = 0.0
+                if enm_aplicada and (producto_enc == 'No aplicar' or kg_ha_encalado_calculado is None):
+                    st.warning('Para registrar la aplicación, seleccione una enmienda y compruebe que exista una dosis calculada.')
+                elif enm_aplicada:
+                    st.caption(f'Enmienda: {producto_enc}. Dosis aplicada tomada automáticamente del cálculo: {kg_ha_encalado_calculado:,.2f} kg/ha.')
+                    dosis_real_enm = float(kg_ha_encalado_calculado)
+                    col_ca, col_mg = st.columns(2)
+                    if producto_enc == 'Dolomita':
+                        cao_pct = col_ca.number_input('CaO del producto (%)', min_value=0.0, max_value=100.0,
+                            value=30.0, step=0.5, key='enm_cao_pct_camg')
+                        mgo_pct = col_mg.number_input('MgO del producto (%)', min_value=0.0, max_value=100.0,
+                            value=21.5, step=0.5, key='enm_mgo_pct_camg')
+                    else:
+                        cao_pct = col_ca.number_input('CaO del producto (%) según ficha', min_value=0.0, max_value=100.0,
+                            value=0.0, step=0.5, key='enm_cao_pct_cal_camg')
+                        mgo_pct = col_mg.number_input('MgO del producto (%) según ficha', min_value=0.0, max_value=100.0,
+                            value=0.0, step=0.5, key='enm_mgo_pct_cal_camg')
+                    if cao_pct + mgo_pct > 100:
+                        st.error('CaO + MgO supera 100 %. Revise la ficha técnica del producto.')
+                        cao_pct, mgo_pct = 0.0, 0.0
+                    ca_total_aportado = dosis_real_enm * cao_pct / 100 * (40.078 / 56.077)
+                    mg_total_aportado = dosis_real_enm * mgo_pct / 100 * (24.305 / 40.304)
+                    fraccion_enm = st.number_input('Fracción estimada disponible de Ca/Mg en el período (%)',
+                        min_value=0.0, max_value=100.0, value=0.0, step=5.0, key='enm_fraccion_disp_camg') / 100
+                    enm_ca_kg_ha = ca_total_aportado * fraccion_enm
+                    enm_mg_kg_ha = mg_total_aportado * fraccion_enm
+                    st.caption(f'Aporte total potencial: Ca {ca_total_aportado:.2f} y Mg {mg_total_aportado:.2f} kg/ha. '
+                               f'Aporte estimado disponible: Ca {enm_ca_kg_ha:.2f} y Mg {enm_mg_kg_ha:.2f} kg/ha.')
+                    st.caption('Con disponibilidad 0 % no se descuenta Ca ni Mg. Modifique el porcentaje solo con sustento técnico; marcar aplicación no demuestra disponibilidad inmediata.')
+                # Objetivos de concentración intercambiable (INIA 2025, tabla 27):
+                # Ca 4–5 y Mg 1–1.5 cmol(+)/kg. No confundir stock con extracción anual.
+                # El balance es un indicador teórico de corrección, no dosis de fertilizante.
+                filas_camg = []
+                for nutr, meta, factor_mgkg, aporte_kg in (
+                    ('Ca', 4.5, 200.39, enm_ca_kg_ha),
+                    ('Mg', 1.25, 121.53, enm_mg_kg_ha)):
+                    analisis = datos.get(nutr.lower())
+                    if analisis is None:
+                        filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': 'Sin análisis',
+                            'Objetivo (cmol(+)/kg)': meta, 'Déficit inicial (kg/ha)': 'No calculable',
+                            'Aporte estimado disponible (kg/ha)': round(aporte_kg,2),
+                            'Diferencia pendiente (kg/ha)': 'No calculable'})
+                        continue
+                    # factor_mgkg: mg/kg por cmol(+)/kg. masa: kg suelo/ha (0–20 cm).
+                    deficit_inicial = max(0.0, (meta - float(analisis)) * factor_mgkg * masa / 1_000_000)
+                    pendiente = max(0.0, deficit_inicial - aporte_kg)
+                    filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': round(float(analisis),3),
+                        'Objetivo (cmol(+)/kg)': meta, 'Déficit inicial (kg/ha)': round(deficit_inicial,2),
+                        'Aporte estimado disponible (kg/ha)': round(aporte_kg,2),
+                        'Diferencia pendiente (kg/ha)': round(pendiente,2)})
+                st.dataframe(pd.DataFrame(filas_camg), hide_index=True, use_container_width=True)
+                st.caption('Si persiste déficit de Mg, evaluar un suplemento como Magnocal solo tras confirmar su composición, la disponibilidad y la necesidad agronómica. No se genera dosis automática.')
+                st.caption('Nota: kg/ha representa un déficit teórico de reserva intercambiable en 0–20 cm; no equivale a requerimiento anual ni demuestra cambio real del análisis de suelo.')
                 # Distribución operativa: 50 %, 32 %, 18 % por producto.
                 filas_detalle=[]
                 for x in usados:
