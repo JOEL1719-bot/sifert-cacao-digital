@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V13.5 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V13.6 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -63,7 +63,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     styles = getSampleStyleSheet()
     for estilo in styles.byName.values():
         estilo.fontName = fuente_bold if estilo.name.startswith('Heading') or estilo.name == 'Title' else fuente_pdf
-    styles.add(ParagraphStyle(name='CeldaSifert', parent=styles['Normal'], fontName=fuente_pdf, fontSize=8.2, leading=10.7))
+    styles.add(ParagraphStyle(name='CeldaSifert', parent=styles['Normal'], fontName=fuente_pdf, fontSize=7.7, leading=9.7))
     styles.add(ParagraphStyle(name='SifertPie', parent=styles['Normal'], fontName=fuente_pdf, fontSize=7, leading=9, textColor=colors.HexColor('#63796F')))
     styles.add(ParagraphStyle(name='CabSifert', parent=styles['CeldaSifert'], textColor=colors.white))
     styles.add(ParagraphStyle(name='TitSifert', parent=styles['Heading1'], fontName=fuente_bold, fontSize=14, leading=17, spaceAfter=5))
@@ -74,6 +74,16 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     styles.add(ParagraphStyle(name='EjecutivoSub', parent=styles['Heading2'], fontName=fuente_bold, fontSize=11.4, leading=14,
                               textColor=colors.HexColor('#14543B'), spaceBefore=7, spaceAfter=4))
     styles.add(ParagraphStyle(name='EjecutivoNota', parent=styles['Normal'], fontName=fuente_pdf, fontSize=9, leading=12))
+    styles.add(ParagraphStyle(name='ExecCardValue', parent=styles['Normal'], fontName=fuente_bold, fontSize=18, leading=23, textColor=colors.HexColor('#14543B'), alignment=TA_CENTER))
+    styles.add(ParagraphStyle(name='ExecCardLabel', parent=styles['Normal'], fontName=fuente_bold, fontSize=8.4, leading=12, textColor=colors.HexColor('#547467'), alignment=TA_CENTER))
+    styles.add(ParagraphStyle(name='ExecSection', parent=styles['Heading2'], fontName=fuente_bold, fontSize=12, leading=16, textColor=colors.HexColor('#14543B'), spaceBefore=8, spaceAfter=6))
+    def tarjetas_pdf(elementos, ancho, alto=18*mm):
+        celdas=[]
+        for etiqueta, valor in elementos:
+            celdas.append([Paragraph(texto_quimico(etiqueta),styles['ExecCardLabel']), Paragraph(texto_quimico(valor),styles['ExecCardValue'])])
+        tabla=Table([[Table([[v] for v in celda],colWidths=[ancho/len(celdas)-8*mm],rowHeights=[7*mm,10*mm]) for celda in celdas]], colWidths=[ancho/len(celdas)]*len(celdas), rowHeights=[alto],hAlign='LEFT')
+        tabla.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#ECF5EE')),('BOX',(0,0),(-1,-1),.6,colors.HexColor('#B8D5C3')),('INNERGRID',(0,0),(-1,-1),3,colors.white),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+        return tabla
     styles['Heading2'].fontSize=10
     styles['Heading2'].leading=12
     styles['Heading2'].spaceBefore=6
@@ -102,13 +112,15 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     def tabla_ejecutiva(filas, anchos):
         t = Table([[Paragraph(texto_quimico(c), styles['CeldaSifert']) for c in fila] for fila in filas],
                   colWidths=anchos, repeatRows=1, hAlign='LEFT')
-        t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#D8EBDD')),
+        t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#D3E8D9')),
                                ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#F5F9F4')]),
                                ('LINEBELOW',(0,0),(-1,-1),.3,colors.HexColor('#CEDCD1')),
                                ('VALIGN',(0,0),(-1,-1),'TOP'),
-                               ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),('LEFTPADDING',(0,0),(-1,-1),9),('RIGHTPADDING',(0,0),(-1,-1),9)]))
+                               ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),('LEFTPADDING',(0,0),(-1,-1),9),('RIGHTPADDING',(0,0),(-1,-1),9)]))
         return t
     ancho_util = landscape(A4)[0]-30*mm
+    contenido.insert(4, tarjetas_pdf([('ÁREA DE CULTIVO',f'{area_ha:,.2f} ha'),('PLANTAS',f'{int(plantas):,}'),('FERTILIZANTES',f"{sum(float(r.get('Cantidad (kg)',0) or 0) for r in filas_fert):,.0f} kg")], ancho_util))
+    contenido.insert(5, Spacer(1,3*mm))
     contenido.append(tabla_ejecutiva(resumen_compra, [ancho_util*.52, ancho_util*.21, ancho_util*.27]))
     contenido.append(Paragraph('Los sacos indicados corresponden a la cantidad exacta seleccionada por el técnico, incluso fracciones de saco. La presentación de cada producto es la registrada en SIFERT.', styles['EjecutivoNota']))
     contenido.append(Paragraph('ENMIENDAS Y COMPOST: DOSIS DE APLICACIÓN', styles['EjecutivoSub']))
@@ -148,18 +160,11 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         contenido.append(Spacer(1, 4*mm))
         contenido.append(Paragraph('3. DOSIS TOTAL POR PLANTA', styles['EjecutivoSub']))
         contenido.append(Paragraph('Cantidad total de fertilizantes por planta en cada aplicación:', styles['EjecutivoNota']))
-        dosis_filas = [['PRIMER ABONAMIENTO · 50 %', 'SEGUNDO ABONAMIENTO · 32 %', 'TERCER ABONAMIENTO · 18 %'],
-                       [str(r.get('1.º (g/planta)',''))+' g/planta',
-                        str(r.get('2.º (g/planta)',''))+' g/planta',
-                        str(r.get('3.º (g/planta)',''))+' g/planta']]
-        dosis_t = Table([[Paragraph(escape(v), styles['EjecutivoNota']) for v in fila] for fila in dosis_filas],
-                       colWidths=[ancho_util/3]*3, hAlign='LEFT')
-        dosis_t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#D8EBDD')),
-                                    ('BACKGROUND',(0,1),(-1,1),colors.HexColor('#EFF7F0')),
-                                    ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
-                                    ('LINEBELOW',(0,-1),(-1,-1),.6,colors.HexColor('#C2D8C7'))]))
         contenido.append(Spacer(1,3*mm))
-        contenido.append(dosis_t)
+        contenido.append(tarjetas_pdf([
+            ('1.er ABONAMIENTO · 50 %',str(r.get('1.º (g/planta)',''))+' g/planta'),
+            ('2.º ABONAMIENTO · 32 %',str(r.get('2.º (g/planta)',''))+' g/planta'),
+            ('3.er ABONAMIENTO · 18 %',str(r.get('3.º (g/planta)',''))+' g/planta')],ancho_util,24*mm))
     contenido.append(Spacer(1, 5*mm))
     contenido.append(Paragraph('4. RECOMENDACIONES Y VALIDACIÓN TÉCNICA', styles['EjecutivoSub']))
     contenido.append(Paragraph('<b>IMPORTANTE:</b> Este plan es una simulación técnica. Antes de comprar o aplicar, '
@@ -200,10 +205,17 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         tabla.setStyle(TableStyle([('GRID',(0,0),(-1,-1),.25,colors.HexColor('#CBD5D1')),
                                    ('VALIGN',(0,0),(-1,-1),'TOP'),('BACKGROUND',(0,0),(0,-1),colors.HexColor('#F0F5F3')),
                                    ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#F0F5F3')),
-                                   ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
+                                   ('TOPPADDING',(0,0),(-1,-1),2),('BOTTOMPADDING',(0,0),(-1,-1),2)]))
         contenido.append(tabla)
         contenido.append(Spacer(1, 4*mm))
 
+    contenido.append(tarjetas_pdf([
+        ('ACIDEZ · pH',ficha_valor('ph')),
+        ('MATERIA ORGÁNICA',ficha_valor('mo')+' %'),
+        ('SATURACIÓN DE AL',ficha_valor('sat_al')+' %')],ancho_util,17*mm))
+    contenido.append(Spacer(1,4*mm))
+    contenido.append(Paragraph('LECTURA PARA EL AGRICULTOR: el análisis permite identificar acidez, materia orgánica y nutrientes del suelo. La interpretación y las dosis deben revisarse con el técnico responsable.',styles['EjecutivoNota']))
+    contenido.append(Spacer(1,3*mm))
     agregar_datos('1. Identificación del productor y parcela', [
         ('Código', 'codigo'), ('Caserío', 'caserio'), ('Distrito', 'distrito'),
         ('Provincia', 'provincia'), ('Edad del cacao (años)', 'edad'),
@@ -232,13 +244,18 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
             ('GRID',(0,0),(-1,-1),0.3,colors.HexColor('#CBD5D1')),
             ('VALIGN',(0,0),(-1,-1),'TOP'),
             ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
-            ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
+            ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3),
         ]))
         contenido.append(tabla)
         contenido.append(Spacer(1, 3*mm))
 
     contenido.append(PageBreak())
     contenido.append(Paragraph('ANEXO TÉCNICO | Balances nutricionales', styles['EjecutivoTitulo']))
+    if balance:
+        def estado_resumen(n):
+            return next((str(x.get('Estado','—')) for x in balance if str(x.get('Nutriente','')).replace('₂','2').replace('₅','5')==n),'—')
+        contenido.append(tarjetas_pdf([('BALANCE N',estado_resumen('N')),('BALANCE P₂O₅',estado_resumen('P2O5')),('BALANCE K₂O',estado_resumen('K2O'))],ancho_util,17*mm))
+        contenido.append(Spacer(1,4*mm))
     if ficha.get('balance_origen_npk'):
         agregar_tabla('Origen de la necesidad NPK (kg/ha)', pd.DataFrame(ficha['balance_origen_npk']))
         contenido.append(Paragraph('Necesidad restante = máximo de cero y (requerimiento - suelo - compost). '
@@ -339,6 +356,22 @@ div[data-testid="stNumberInput"] input,div[data-testid="stTextInput"] input{bord
 .sifert-hero.inicio{background:linear-gradient(115deg,#104735,#226f4d 70%,#4c925d)!important}
 .sifert-hero.suelo{background:linear-gradient(115deg,#194f3d,#39745b 70%,#8d9c55)!important}
 @media(max-width:767px){.block-container{padding:.75rem .5rem 2rem!important}h1{font-size:1.42rem!important}div[data-baseweb="tab-panel"]{border-radius:12px!important}div[data-testid="stMetric"]{padding:.7rem!important}div[data-testid="stDataFrame"]{overflow-x:auto!important}div[data-baseweb="tab-panel"] [data-testid="stCaptionContainer"]{display:block!important;font-size:.78rem!important;line-height:1.3!important}.sifert-hero{padding:13px!important}.sifert-hero p{display:block!important;font-size:.82rem!important}}
+</style>''',unsafe_allow_html=True)
+
+
+# V13.6 · tarjetas de diagnóstico, legibilidad móvil y jerarquía ejecutiva.
+st.markdown('''<style>
+.sifert-exec-intro{background:linear-gradient(105deg,#164f3b,#367c58);color:#fff;border-radius:17px;padding:19px 24px;margin:12px 0 14px;border-bottom:4px solid #d7b05e}
+.sifert-exec-intro .eyebrow{font-size:.71rem;font-weight:800;letter-spacing:.14em;color:#dceedd}
+.sifert-exec-intro .heading{font-size:clamp(1.25rem,2.4vw,1.8rem);font-weight:850;margin:5px 0}
+.sifert-exec-intro .desc{font-size:.9rem;color:#edf6ec}
+.sifert-diagnostic-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 17px}
+.sifert-diagnostic-card{background:#fff;border:1px solid #d4e3d5;border-top:5px solid #32855e;border-radius:15px;padding:16px 16px 13px;box-shadow:0 5px 18px #1c513217;min-width:0}
+.sifert-card-label{font-size:.82rem;font-weight:750;color:#53705e}
+.sifert-card-value{font-size:clamp(1.35rem,2.2vw,2rem);font-weight:850;color:#174f39;letter-spacing:-.03em;margin:7px 0 3px;overflow-wrap:anywhere}
+.sifert-card-state{font-size:.82rem;font-weight:700;color:#825d24;border-radius:6px;background:#faf2dc;display:inline-block;padding:3px 7px}
+@media(max-width:1000px){.sifert-diagnostic-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.sifert-diagnostic-grid{gap:8px}.sifert-diagnostic-card{padding:11px 10px}.sifert-card-value{font-size:1.28rem}.sifert-card-label{font-size:.74rem}.sifert-card-state{font-size:.72rem}.sifert-exec-intro{padding:14px}}
 </style>''',unsafe_allow_html=True)
 
 
@@ -1063,7 +1096,21 @@ with secciones[1]:
                               'Resultado': textura, 'Unidad': '',
                               'Interpretación orientativa': 'Clase textural USDA', 'Sustento técnico':'USDA (triángulo textural)'})
             if tabla:
-                tabla_ajustada(pd.DataFrame(tabla), hide_index=True, use_container_width=True)
+                st.markdown('''<div class="sifert-exec-intro"><div class="eyebrow">DIAGNÓSTICO DE LA PARCELA</div><div class="heading">¿Cómo está el suelo de su cacao?</div><div class="desc">Primero revise los indicadores principales. El detalle del laboratorio y sus fuentes se conserva más abajo.</div></div>''',unsafe_allow_html=True)
+                def dato_carta(clave,etiqueta,unidad=''):
+                    valor=datos.get(clave)
+                    if valor is None:return ('No medido','Sin dato')
+                    try:numero=f'{float(valor):.2f}'.rstrip('0').rstrip('.')
+                    except (ValueError,TypeError):numero=str(valor)
+                    return (numero+unidad,clasificar(clave,valor,metodo_p_resultado))
+                claves_tarjetas=[('ph','Acidez del suelo',''),('mo','Materia orgánica',' %'),('p','Fósforo disponible',' ppm'),('k_cmol','Potasio intercambiable',' cmol/kg')]
+                tarjetas=[]
+                for clave,etiqueta,unidad in claves_tarjetas:
+                    valor,interpretacion=dato_carta(clave,etiqueta,unidad)
+                    tarjetas.append(f'<div class="sifert-diagnostic-card"><div class="sifert-card-label">{etiqueta}</div><div class="sifert-card-value">{valor}</div><div class="sifert-card-state">{interpretacion}</div></div>')
+                st.markdown('<div class="sifert-diagnostic-grid">'+''.join(tarjetas)+'</div>',unsafe_allow_html=True)
+                with st.expander('Ver análisis completo y sustento técnico',expanded=False):
+                    tabla_ajustada(pd.DataFrame(tabla), hide_index=True, use_container_width=True)
             else:
                 st.info('Ingrese resultados de suelo para mostrar el diagnóstico.')
             if datos['al'] is not None and datos['cice'] is not None and datos['cice'] > 0:
