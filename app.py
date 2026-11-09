@@ -166,7 +166,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V9.9 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V10.1 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -345,25 +345,31 @@ def textura_usda(arena, limo, arcilla):
     return 'Franco (verificar clasificación textural)'
 
 def clasificar(k, v):
+    """Comparación orientativa con rangos de referencia para cacao (INIA 2025).
+    No equivale a recomendación de dosis ni a calibración local del laboratorio.
+    """
     if v is None:
         return 'No determinado'
-    if k == 'ph':
-        if not 0 < v <= 14: return 'Revisar resultado'
-        if v < 4.5: return 'Suelo ácido (técnicamente: extremadamente ácido)'
-        if v < 5.5: return 'Fuertemente ácido'
-        if v < 6.5: return 'Moderadamente ácido'
-        if v <= 7.3: return 'Cercano a neutro'
-        return 'Alcalino'
-    if k == 'sat_al':
-        if v > 100: return 'Revisar resultado'
-        if v < 10: return 'Riesgo bajo (orientativo)'
-        if v < 20: return 'Riesgo moderado (orientativo)'
-        return 'Riesgo elevado (orientativo)'
-    if k in UMBRALES:
-        if v == 0: return 'Revisar: cero reportado'
-        bajo, alto = UMBRALES[k]
-        return 'Bajo' if v < bajo else 'Medio' if v <= alto else 'Alto'
-    return 'Registrado, sin umbral validado'
+    if k == 'ph' and not 0 < v <= 14:
+        return 'Revisar resultado'
+    if k == 'sat_al' and not 0 <= v <= 100:
+        return 'Revisar resultado'
+    if v < 0:
+        return 'Revisar resultado'
+    rangos = {
+        'ph': (5.5, 6.5), 'mo': (4.0, None), 'n': (0.20, None),
+        'p': (10.0, None), 'k_cmol': (0.20, 0.30),
+        'ca': (4.0, 5.0), 'mg': (1.0, 1.5),
+        'sat_al': (None, 20.0),
+    }
+    if k not in rangos:
+        return 'Registrado'
+    minimo, maximo = rangos[k]
+    if minimo is not None and v < minimo:
+        return 'Inferior al rango adecuado'
+    if maximo is not None and (v > maximo if k != 'sat_al' else v >= maximo):
+        return 'Superior al rango adecuado'
+    return 'Dentro del rango adecuado'
 
 
 # Almacenamiento compatible con la estructura de las versiones V3/V4 anteriores.
@@ -723,12 +729,12 @@ with secciones[1]:
                 if clave not in indicadores_visibles or datos[clave] is None:
                     continue
                 tabla.append({'Indicador':nombre, 'Resultado': datos[clave] if datos[clave] is not None else 'No medido',
-                              'Unidad':unidad, 'Interpretación orientativa':clasificar(clave, datos[clave])})
+                              'Unidad':unidad, 'Respecto al rango de referencia':clasificar(clave, datos[clave])})
             textura = textura_usda(datos['arena'], datos['limo'], datos['arcilla'])
             if textura:
                 tabla.append({'Indicador': 'Textura del suelo',
                               'Resultado': textura, 'Unidad': '',
-                              'Interpretación orientativa': 'Clase textural USDA'})
+                              'Respecto al rango de referencia': 'Clase textural USDA'})
             if tabla:
                 st.dataframe(pd.DataFrame(tabla), hide_index=True, use_container_width=True)
             else:
@@ -737,16 +743,8 @@ with secciones[1]:
                 sat_calculada = datos['al'] / datos['cice'] * 100
                 if datos['sat_al'] is not None and abs(sat_calculada - datos['sat_al']) > 0.5:
                     st.warning(f'Compruebe la saturación de aluminio: Al/CICe × 100 = {sat_calculada:.2f} %, frente al {datos["sat_al"]:.2f} % ingresado. Verifique la metodología del laboratorio.')
-            st.caption('Los umbrales son provisionales y requieren contrastarse con el método analítico del laboratorio y la calibración para cacao local.')
-            ph, al, mg = datos['ph'], datos['sat_al'], datos['mg']
-            if ph is not None and (ph < 5.5 or (al is not None and al >= 20)):
-                st.warning('Suelo ácido o con señal de aluminio: conviene evaluar una corrección de acidez con asistencia técnica. No se calcula dosis de cal o dolomita sin datos adicionales.')
-            elif al is not None and al >= 20:
-                st.warning('Saturación de aluminio elevada: solicite evaluación técnica de acidez.')
-            if mg is not None and 0 < mg < 0.5:
-                st.info('Magnesio intercambiable bajo según criterio provisional. Verificar antes de seleccionar una enmienda.')
             st.subheader('4. Diagnóstico de encalado y relación Ca/Mg')
-            st.caption('Secuencia: primero necesidad de neutralizar acidez y aluminio; después Ca y Mg para orientar el tipo de enmienda. No usar rangos Ca/Mg como prescripción automática.')
+            st.caption('Consulte los indicadores y seleccione la enmienda según la evaluación técnica de campo.')
             ca_val, mg_val = datos.get('ca'), datos.get('mg')
             relacion = ca_val / mg_val if ca_val is not None and mg_val is not None and mg_val > 0 else None
             sat_val = datos.get('sat_al')
@@ -754,15 +752,15 @@ with secciones[1]:
             requiere_revision = (ph_val is not None and ph_val < 5.5) or (sat_val is not None and sat_val >= 20)
             if relacion is not None:
                 st.metric('Relación Ca/Mg (cmol(+)/kg)', f'{relacion:.2f}:1')
-                st.caption(f'Ca: {ca_val:g} cmol(+)/kg · Mg: {mg_val:g} cmol(+)/kg. Una relación por sí sola no determina el producto.')
+                st.caption(f'Ca: {ca_val:g} · Mg: {mg_val:g} cmol(+)/kg. La relación es un indicador complementario.')
             else:
                 st.info('Para evaluar Ca/Mg ingrese calcio y magnesio intercambiables; Mg debe ser mayor que cero.')
-            st.caption('Valores orientativos para cacao (verificar método analítico y rangos INIA 2025): pH 5.5–6.5; saturación Al < 20 %; Ca 4–5 y Mg 1.0–1.5 cmol(+)/kg. La relación Ca/Mg es complementaria.')
-            st.info('El técnico selecciona la enmienda según su evaluación de campo y la ficha técnica del producto.')
+            st.dataframe(pd.DataFrame([{'Indicador':'pH', 'Resultado': f"{ph_val:.2f}" if ph_val is not None else '—', 'Referencia para cacao':'5.5–6.5'}, {'Indicador':'Saturación Al (%)', 'Resultado':f"{sat_val:.2f}" if sat_val is not None else '—', 'Referencia para cacao':'< 20'}, {'Indicador':'Calcio (cmol(+)/kg)', 'Resultado':f"{ca_val:.2f}" if ca_val is not None else '—', 'Referencia para cacao':'4–5'}, {'Indicador':'Magnesio (cmol(+)/kg)', 'Resultado':f"{mg_val:.2f}" if mg_val is not None else '—', 'Referencia para cacao':'1.0–1.5'}]), hide_index=True, use_container_width=True)
+            st.caption('Referencias orientativas para cacao atribuidas al INIA (2025); verificar tabla original y método del laboratorio antes de utilizarlas como umbrales definitivos.')
             plantas_encalado = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
             area_encalado = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
             import math
-            st.markdown('**Simulación de dosis de encalado (revisar antes de aplicar)**')
+            st.markdown('**Dosis estimada de encalado en el anillo de aplicación**')
             ec1, ec2, ec3 = st.columns(3)
             radio_int = ec1.number_input('Radio interior encalado (m)', min_value=0.0, value=0.80, step=0.05, key='encalado_radio_int')
             radio_ext = ec2.number_input('Radio exterior encalado (m)', min_value=0.05, value=1.20, step=0.05, key='encalado_radio_ext')
@@ -778,10 +776,8 @@ with secciones[1]:
                                        value=prnt_inicial, step=1.0, key='encalado_prnt',
                                        disabled=producto_enc == 'No aplicar')
             prnt = prnt_pct / 100.0
-            st.caption('PRNT inicial referencial y editable: dolomita 108 %; cal agrícola 135 %. Reemplace por el valor de la ficha técnica de su producto.')
+            st.caption('PRNT editable: confirme el porcentaje con la ficha técnica del producto.')
             sat_meta = st.number_input('Saturación de aluminio objetivo (%)', min_value=0.0, max_value=40.0, value=20.0, step=1.0, key='encalado_meta_al')
-            if relacion is not None:
-                st.info(f'Relación Ca/Mg obligatoria: {relacion:.2f}:1. La selección debe considerar también Mg absoluto, Ca absoluto y necesidad de encalado.')
             if producto_enc == 'No aplicar':
                 st.info('No se calculará dosis de encalado porque el técnico seleccionó No aplicar.')
             elif radio_ext <= radio_int:
@@ -804,13 +800,13 @@ with secciones[1]:
                     g_planta = kg_ha * 1000 / plantas_encalado
                     sacos = math.ceil(kg_parcela / 50)
                     st.dataframe(pd.DataFrame([{'Producto':producto_enc, 'Ca/Mg':round(relacion,2), 'Exceso Al (cmol(+)/kg)':round(exceso_al,3), 'kg/ha':round(kg_ha,2), 'kg/parcela':round(kg_parcela,2), 'g/planta':round(g_planta,1), 'Sacos de 50 kg':sacos}]), hide_index=True, use_container_width=True)
-                    st.caption(f'Área tratada: {area_ha:,.1f} m²/ha. Masa de suelo: {masa_suelo:,.0f} kg/ha. Equivalente CaCO₃: {kg_equiv:,.1f} kg/ha. Ajuste por PRNT referencial: {prnt:.2f}.')
+                    st.caption(f'Anillo tratado: {area_ha:,.1f} m²/ha. Dosis teórica ajustada al PRNT ingresado ({prnt_pct:g} %).')
                     if producto_enc.startswith('Dolomita'):
-                        st.caption(f'Aporte químico teórico de la dolomita (sin estimar disponibilidad): CaO {kg_ha*0.30:.2f} kg/ha; MgO {kg_ha*0.215:.2f} kg/ha. Porcentajes centrales de la ficha ODINSU (CaO 28–32 %, MgO 20–23 %).')
+                        st.caption(f'Aporte teórico según composición referencial ODINSU: CaO {kg_ha*0.30:.2f} y MgO {kg_ha*0.215:.2f} kg/ha. Verificar composición real del producto.')
                     else:
-                        st.caption('La cal agrícola aporta principalmente calcio; para cuantificar CaO y MgO se requiere su composición real. No se presupone que carezca de magnesio.')
-                    st.caption('Estos aportes de Ca y Mg solo serían efectivos si se aplicara la enmienda. No equivalen a nutrientes inmediatamente disponibles ni a una dosis aprobada.')
-                    st.warning('RESULTADO SOLO DE SIMULACIÓN: neutralización estequiométrica de exceso de Al, no una recomendación de aplicación de campo validada por INIA. La neutralización real depende de acidez de reserva, reactividad, incorporación superficial, condiciones de suelo y calidad de la enmienda. No comprar ni aplicar basándose únicamente en esta cifra.')
+                        st.caption('Para estimar CaO y MgO de la cal, consultar la composición del producto.')
+                    st.caption('Los aportes químicos son teóricos; no equivalen a nutrientes inmediatamente disponibles.')
+                    st.caption('Dosis orientativa, no validada para aplicación directa. Confirmar con evaluación técnica de campo.')
             st.subheader('5. Compost y poda: proyección de materia orgánica')
             st.caption('El agricultor elige cuánto compost aplicará. SIFERT estima por separado el aporte del compost y el de los residuos de poda que permanecen en el anillo.')
             mo_val = datos.get('mo')
