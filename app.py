@@ -888,84 +888,76 @@ with secciones[1]:
                         st.caption('La cal agrícola aporta principalmente calcio; para cuantificar CaO y MgO se requiere su composición real. No se presupone que carezca de magnesio.')
                     st.caption('Estos aportes de Ca y Mg solo serían efectivos si se aplicara la enmienda. No equivalen a nutrientes inmediatamente disponibles ni a una dosis aprobada.')
                     st.caption('Dosis referencial por neutralización de aluminio: verificar con el método y ejemplo INIA antes de recomendar la aplicación.')
-            st.subheader('5. Compost y poda: proyección de materia orgánica')
-            st.caption('El agricultor elige cuánto compost aplicará. SIFERT estima por separado el aporte del compost y el de los residuos de poda que permanecen en el anillo.')
-            mo_val = datos.get('mo')
-            if mo_val is None:
-                st.info('Ingrese el porcentaje de materia orgánica del análisis para activar la simulación.')
-            else:
-                import math
-                plantas_compost = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
-                area_compost = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
-                dap_compost = datos.get('dap')
-                st.metric('Materia orgánica actual del suelo', f'{mo_val:.2f} %')
-                c1, c2, c3 = st.columns(3)
-                dosis_compost = c1.number_input('Compost que aplicará (kg/planta/año)', min_value=0.0, max_value=100.0, value=2.0, step=0.5, key='compost_dosis_real')
-                anios_mo = c2.selectbox('Años de aplicación de compost', [1, 2, 3, 4, 5], index=0, key='compost_anios_proyeccion')
-                saco_compost = c3.number_input('Presentación (kg/saco)', min_value=1.0, value=50.0, key='saco_compost_proyeccion')
-                c4, c5 = st.columns(2)
-                radio_in = c4.number_input('Radio interior del anillo (m)', min_value=0.0, value=0.80, step=0.05, key='compost_radio_in')
-                radio_out = c5.number_input('Radio exterior del anillo (m)', min_value=0.05, value=1.20, step=0.05, key='compost_radio_out')
-                profundidad = 20.0  # Profundidad fija de evaluación (0–20 cm)
-                with st.expander('⚙️ Parámetros técnicos y supuestos editables', expanded=False):
-                    p1, p2, p3 = st.columns(3)
-                    carbono_poda = p1.number_input('Carbono anual de poda (t C/ha/año)', min_value=0.0, value=3.45, step=0.05, key='compost_carbono_poda')
-                    retencion_poda = p2.number_input('Estabilización estimada de poda (%)', min_value=0.0, max_value=100.0, value=20.0, step=5.0, key='compost_retencion_poda')
-                    residuos_anillo = p3.number_input('Poda depositada en anillos (%)', min_value=0.0, max_value=100.0, value=100.0, step=5.0, key='compost_residuos_anillo')
-                    p4, p5, p6 = st.columns(3)
-                    mo_compost = p4.number_input('M.O. del compost (%)', min_value=0.1, max_value=100.0, value=30.0, step=1.0, key='compost_mo_producto')
-                    retencion_compost = p5.number_input('Estabilización estimada del compost (%)', min_value=0.0, max_value=100.0, value=20.0, step=5.0, key='compost_retencion_producto')
-                    humedad_compost = p6.number_input('Humedad del compost (%)', min_value=0.0, max_value=99.0, value=25.0, step=1.0, key='compost_humedad')
-                    base_mo = st.radio('Base de la M.O. declarada en etiqueta', ['Producto tal como se vende (base húmeda)', 'Materia seca (base seca)'], horizontal=True, key='compost_base_mo')
-                    st.caption('La etiqueta comercial declara 20–40 % de M.O. y 15–35 % de humedad. Verificar base con el proveedor. Los coeficientes del 20 % son supuestos provisionales, no tasas medidas en Leoncio Prado.')
-                kg_compost_ha_anual = dosis_compost * plantas_compost
-                kg_compost_parcela_anual = kg_compost_ha_anual * area_compost
-                r1, r2 = st.columns(2)
-                r1.metric('Compost anual por hectárea', f'{kg_compost_ha_anual:,.0f} kg')
-                r2.metric('Sacos de compost al año (parcela)', f'{math.ceil(kg_compost_parcela_anual/saco_compost):,}')
-                if dap_compost is None or dap_compost <= 0:
-                    st.warning('Para proyectar el cambio porcentual de M.O., ingrese la densidad aparente medida en el análisis. La cantidad de compost y los sacos sí pueden calcularse sin ella.')
-                elif radio_out <= radio_in:
-                    st.error('El radio exterior debe superar el radio interior.')
+            st.markdown('**Balance complementario de calcio y magnesio (Ca/Mg)**')
+            st.caption('Enfoque INIA (2025): evaluar Ca y Mg intercambiables frente a valores de referencia; el encalado se calcula por neutralización de aluminio. No se presume disponibilidad inmediata de la enmienda.')
+            enm_aplicada = st.checkbox('Sí aplicó (cal o dolomita)', value=False, key='enm_aplicada_v72')
+            ca_total_aportado = 0.0
+            mg_total_aportado = 0.0
+            if enm_aplicada and (producto_enc == 'No aplicar' or kg_ha_encalado_calculado is None):
+                st.warning('Seleccione una enmienda y complete los datos necesarios para obtener su dosis.')
+            elif enm_aplicada:
+                dosis_real_enm = float(kg_ha_encalado_calculado)
+                st.caption(f'Enmienda: {producto_enc}. Dosis tomada automáticamente del cálculo de encalado: {dosis_real_enm:,.2f} kg/ha.')
+                col_ca, col_mg = st.columns(2)
+                if producto_enc == 'Dolomita':
+                    cao_pct = col_ca.number_input('CaO del producto (%)', min_value=0.0, max_value=100.0,
+                        value=30.0, step=0.5, key='enm_cao_pct_camg')
+                    mgo_pct = col_mg.number_input('MgO del producto (%)', min_value=0.0, max_value=100.0,
+                        value=21.5, step=0.5, key='enm_mgo_pct_camg')
                 else:
-                    area_anillo_planta = math.pi * (radio_out**2 - radio_in**2)
-                    area_anillos_ha = area_anillo_planta * plantas_compost
-                    if area_anillos_ha > 10000:
-                        st.error('Los anillos suman más de 1 ha; revise los radios o la densidad de plantas.')
-                    else:
-                        masa_suelo_ha = area_anillos_ha * profundidad / 100 * dap_compost * 1000
-                        fraccion_mo = mo_compost / 100
-                        if base_mo.startswith('Materia seca'):
-                            fraccion_mo *= (1 - humedad_compost / 100)
-                        aporte_compost_anual = kg_compost_ha_anual * fraccion_mo * retencion_compost / 100
-                        aporte_poda_anual = carbono_poda * 1000 * 1.724 * retencion_poda / 100 * residuos_anillo / 100
-                        aporte_total_anual = aporte_compost_anual + aporte_poda_anual
-                        incremento_anual = 100 * aporte_total_anual / masa_suelo_ha
-                        incremento_horizonte = incremento_anual * anios_mo
-                        mo_proyectada = mo_val + incremento_horizonte
-                        st.caption(f'Anillos: {area_anillo_planta:.3f} m²/planta · {area_anillos_ha:,.1f} m²/ha de plantación · Profundidad 0–{profundidad:g} cm · DAP {dap_compost:g} g/cm³.')
-                        st.dataframe(pd.DataFrame([
-                            {'Concepto':'Aporte estimado de compost por año','Aporte de M.O. (kg/ha/año)':round(aporte_compost_anual,1),'Aumento estimado de M.O. (puntos %/año)':f'{100*aporte_compost_anual/masa_suelo_ha:.4f}'},
-                            {'Concepto':'Aporte estimado de poda por año','Aporte de M.O. (kg/ha/año)':round(aporte_poda_anual,1),'Aumento estimado de M.O. (puntos %/año)':f'{100*aporte_poda_anual/masa_suelo_ha:.4f}'},
-                            {'Concepto':'TOTAL anual (compost + poda)','Aporte de M.O. (kg/ha/año)':round(aporte_total_anual,1),'Aumento estimado de M.O. (puntos %/año)':f'{mo_val:.2f} + {incremento_anual:.4f} = {mo_val + incremento_anual:.2f} %'},
-                        ]), hide_index=True, use_container_width=True)
-                        a, b, c = st.columns(3)
-                        a.metric('M.O. inicial', f'{mo_val:.3f} %')
-                        b.metric(f'Aumento teórico ({anios_mo} año/s)', f'+{incremento_horizonte:.3f} puntos %')
-                        c.metric('M.O. proyectada (sin pérdidas)', f'{mo_proyectada:.3f} %')
-                        st.caption(f'Compost acumulado en {anios_mo} año(s): {kg_compost_parcela_anual*anios_mo:,.0f} kg/parcela. Se supone la misma dosis y el mismo aporte de poda cada año.')
-                        st.caption('Nota técnica: el incremento de materia orgánica es referencial; verificar mediante análisis periódicos de suelo.')
-                        with st.expander('Ver fundamento técnico del cálculo', expanded=False):
-                            st.write('Este escenario acumula aportes teóricos de compost y poda. No predice el valor real de materia orgánica: pueden existir pérdidas por mineralización y otros procesos, y no todo el carbono aportado se incorpora necesariamente a 0–20 cm.')
-                        st.caption('Poda: referencia exploratoria de Schneidewind et al. (2019), Bolivia. Conversión C→M.O.: factor convencional 1.724. Estabilizaciones de 20 %: supuestos editables sin validación local. Compost: composición declarada en etiqueta DEVIDA.')
-                        st.markdown('**🌿 Beneficios potenciales del incremento de materia orgánica**')
-                        st.markdown('''- **CIC:** puede mejorar la capacidad del suelo para retener nutrientes.
-- **Nitrógeno:** aumenta potencialmente la reserva orgánica; su disponibilidad depende de la mineralización.
-- **Fósforo, potasio, calcio y magnesio:** puede favorecer su reciclaje o retención, según el suelo.
-- **Aluminio:** los compuestos orgánicos pueden disminuir su toxicidad, sin garantizar una reducción de la saturación de Al.
-- **Estructura y agua:** puede favorecer la agregación, la infiltración y la retención de humedad.''')
-                        st.caption('Estos beneficios son posibles, no aumentos cuantificados ni garantizados. SIFERT no modifica automáticamente CIC, N, P, K, pH ni saturación de Al; se requieren nuevos análisis para comprobar cambios.')
-            st.info('El compost registrado se considera una sola vez en el balance NPK, utilizando composición y disponibilidad anuales estimadas y editables en la sección de fertilización.')
+                    cao_pct = col_ca.number_input('CaO del producto (%) según ficha', min_value=0.0, max_value=100.0,
+                        value=0.0, step=0.5, key='enm_cao_pct_cal_camg')
+                    mgo_pct = col_mg.number_input('MgO del producto (%) según ficha', min_value=0.0, max_value=100.0,
+                        value=0.0, step=0.5, key='enm_mgo_pct_cal_camg')
+                if cao_pct + mgo_pct > 100:
+                    st.error('CaO + MgO supera 100 %. Revise la ficha técnica del producto.')
+                    cao_pct, mgo_pct = 0.0, 0.0
+                ca_total_aportado = dosis_real_enm * cao_pct / 100 * (40.078 / 56.077)
+                mg_total_aportado = dosis_real_enm * mgo_pct / 100 * (24.305 / 40.304)
+                st.caption(f'Aporte químico potencial (no disponibilidad inmediata): Ca {ca_total_aportado:.2f} y Mg {mg_total_aportado:.2f} kg/ha.')
+            # Los objetivos son los puntos medios de los intervalos de referencia para cacao:
+            # Ca 4–5 y Mg 1–1.5 cmol(+)/kg. La diferencia de reservas no es una
+            # dosis de fertilizante ni puede reducirse automáticamente con el aporte total.
+            masa_camg = 2_000_000 * float(datos.get('dap') or 0.0)
+            filas_camg = []
+            for nutr, meta, factor_mgkg, aporte_kg in (
+                ('Ca', 4.5, 200.39, ca_total_aportado),
+                ('Mg', 1.25, 121.53, mg_total_aportado)):
+                analisis = datos.get(nutr.lower())
+                if analisis is None or masa_camg <= 0:
+                    filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': 'Sin análisis',
+                        'Referencia (cmol(+)/kg)': meta, 'Déficit inicial teórico (kg/ha)': 'No calculable',
+                        'Aporte potencial de enmienda (kg/ha)': round(aporte_kg,2)})
+                    continue
+                deficit_inicial = max(0.0, (meta - float(analisis)) * factor_mgkg * masa_camg / 1_000_000)
+                filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': round(float(analisis),3),
+                    'Referencia (cmol(+)/kg)': meta, 'Déficit inicial teórico (kg/ha)': round(deficit_inicial,2),
+                    'Aporte potencial de enmienda (kg/ha)': round(aporte_kg,2)})
+            st.dataframe(pd.DataFrame(filas_camg), hide_index=True, use_container_width=True)
+            st.caption('INIA (2025): neutralización del aluminio, pp. 91–99; evaluación de Ca, pp. 100–104. El aporte potencial NO se resta del déficit intercambiable sin análisis posterior del suelo.')
+            st.caption('Si Mg permanece bajo tras el encalado, evaluar una fuente complementaria como Magnocal según su composición y un nuevo análisis. No se calcula dosis automática.')
+
+            st.subheader('5. Compost aplicado y manejo de residuos de poda')
+            st.caption('INIA: 2–5 kg/planta como referencia orientativa, no dosis obligatoria. El técnico registra la dosis real que aplica el agricultor.')
+            mo_val = datos.get('mo')
+            if mo_val is not None:
+                st.metric('Materia orgánica actual del suelo', f'{mo_val:.2f} %')
+            st.caption('Meta orientativa de recuperación progresiva de materia orgánica: 4 %. No se calcula una dosis automática para alcanzar esa meta.')
+            plantas_compost = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
+            area_compost = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
+            c1, c2 = st.columns(2)
+            dosis_compost = c1.number_input('Compost aplicado (kg/planta/año)', min_value=0.0, max_value=100.0, value=0.0, step=0.5, key='compost_dosis_real')
+            saco_compost = c2.number_input('Presentación del compost (kg/saco)', min_value=1.0, value=50.0, key='saco_compost_proyeccion')
+            kg_compost_ha_anual = dosis_compost * plantas_compost
+            kg_compost_parcela_anual = kg_compost_ha_anual * area_compost
+            r1, r2, r3 = st.columns(3)
+            r1.metric('Compost por hectárea', f'{kg_compost_ha_anual:,.1f} kg')
+            r2.metric('Compost en la parcela', f'{kg_compost_parcela_anual:,.1f} kg')
+            r3.metric('Sacos para la parcela', f'{math.ceil(kg_compost_parcela_anual/saco_compost):,}')
+            st.markdown('**Residuos de poda: práctica habitual de campo**')
+            st.caption('Cada planta conserva sus hojas y ramas de poda cortadas en trozos pequeños debajo de su propia copa. Esta cobertura contribuye al reciclaje gradual de nutrientes y a la protección del suelo.')
+            st.caption('Por falta de mediciones locales de biomasa y estabilización, los residuos de poda NO se descuentan del balance NPK ni se convierten en un incremento numérico de materia orgánica. Se elimina el supuesto del 20 %.')
+            st.caption('El NPK del compost aplicado sí se calcula con la dosis ingresada y la disponibilidad del primer año; no se duplica en el balance mineral.')
 
             st.subheader('6. Balance nutricional NPK · simulación técnica preliminar')
             st.caption('Referencia bibliográfica: INIA (2025).')
@@ -1080,13 +1072,17 @@ with secciones[1]:
                     org_n=co_n.number_input('Disponibilidad anual N orgánico (%)',0,100,30,5,key='org_dispon_n')/100
                     org_p=co_p.number_input('Disponibilidad anual P₂O₅ orgánico (%)',0,100,30,5,key='org_dispon_p')/100
                     org_k=co_k.number_input('Disponibilidad anual K₂O orgánico (%)',0,100,70,5,key='org_dispon_k')/100
-                    st.info('Nota técnica: Coeficientes referenciales de disponibilidad anual para simulación. El INIA reconoce la liberación gradual de nutrientes del compost; sin embargo, los porcentajes específicos de N (30 %), P₂O₅ (30 %) y K₂O (70 %) no han sido validados para el compost utilizado por DEVIDA. Los valores son editables.')
-                    st.markdown('**Compost registrado en el módulo de materia orgánica**')
+                    st.caption('Estos porcentajes editables corresponden únicamente a otros fertilizantes orgánicos del catálogo, no al compost DEVIDA registrado arriba.')
+                    st.markdown('**Compost DEVIDA: disponibilidad aprobada para el primer año**')
                     st.caption('Etiqueta del compost: N 0.3–1.5 %, P 0.1–1.0 % y K 0.3–1.0 % (elementales). Valores iniciales dentro de esos rangos; edítelos según el análisis del lote. No son porcentajes garantizados de disponibilidad.')
                     c1,c2,c3=st.columns(3)
                     comp_n=c1.number_input('N elemental del compost (%)',0.0,20.0,0.9,0.1,key='compost_n_v67')/100
                     comp_p=c2.number_input('P elemental del compost (%)',0.0,20.0,0.55,0.05,key='compost_p_v67')/100*2.291
                     comp_k=c3.number_input('K elemental del compost (%)',0.0,20.0,0.65,0.05,key='compost_k_v67')/100*1.205
+                # El compost DEVIDA tiene factores propios aprobados; no confundirlos con otros orgánicos.
+                compost_disponibilidad = {'N':0.05, 'P₂O₅':0.40, 'K₂O':0.85}
+                st.caption('Compost DEVIDA: N 5 %, P₂O₅ 40 %, K₂O 85 % disponibles el primer año (coeficientes referenciales, no análisis del lote).')
+                st.caption('Confirmar si los porcentajes de la etiqueta están expresados en base húmeda o seca; hasta entonces el cálculo asume producto tal como se aplica.')
                 minerales_efectivos={x:dict(v) for x,v in minerales.items()}
                 for x in organicos:
                     for nutriente,factor in [('N',org_n),('P₂O₅',org_p),('K₂O',org_k)]:
@@ -1102,7 +1098,7 @@ with secciones[1]:
                 # NPK del compost: se trae del módulo de materia orgánica, sin duplicar el compost como fertilizante seleccionable.
                 compost_kg_ha=float(st.session_state.get('compost_dosis_real',0.0))*plantas
                 compost_total={ 'N':compost_kg_ha*comp_n, 'P₂O₅':compost_kg_ha*comp_p, 'K₂O':compost_kg_ha*comp_k }
-                compost_aprovechable={k:compost_total[k]*f for k,f in [('N',org_n),('P₂O₅',org_p),('K₂O',org_k)]}
+                compost_aprovechable={k:compost_total[k]*compost_disponibilidad[k] for k in ('N','P₂O₅','K₂O')}
                 st.caption(f'Compost del módulo anterior: {compost_kg_ha:,.2f} kg/ha/año. Aporte estimado disponible: N {compost_aprovechable["N"]:.2f}, P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}, K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha/año.')
                 st.caption('Compost: el aporte aprovechable se descuenta una sola vez del requerimiento del cultivo. La etiqueta declara N, P y K elementales; P y K se convierten a P₂O₅ y K₂O para compararlos con los fertilizantes. Valores referenciales sujetos a análisis, humedad y mineralización.')
                 st.markdown('**Balance NPK: suelo y compost**')
@@ -1183,53 +1179,6 @@ with secciones[1]:
                         'Diferencia (kg/ha)':r['Diferencia (kg/ha)'],'Estado':r['Estado']})
                 st.dataframe(pd.DataFrame(filas_unificadas),hide_index=True,use_container_width=True)
                 st.caption('Diferencia = aporte aprovechable del fertilizante − necesidad restante tras descontar suelo y compost. Las eficiencias minerales se aplican una sola vez al aporte; los orgánicos emplean disponibilidad anual estimada.')
-                st.markdown('**Balance complementario de calcio y magnesio (Ca/Mg)**')
-                st.caption('Enfoque INIA (2025): evaluar Ca y Mg intercambiables frente a valores de referencia; el encalado se calcula por neutralización de aluminio. No se presume disponibilidad inmediata de la enmienda.')
-                enm_aplicada = st.checkbox('Sí aplicó (cal o dolomita)', value=False, key='enm_aplicada_v72')
-                ca_total_aportado = 0.0
-                mg_total_aportado = 0.0
-                if enm_aplicada and (producto_enc == 'No aplicar' or kg_ha_encalado_calculado is None):
-                    st.warning('Seleccione una enmienda y complete los datos necesarios para obtener su dosis.')
-                elif enm_aplicada:
-                    dosis_real_enm = float(kg_ha_encalado_calculado)
-                    st.caption(f'Enmienda: {producto_enc}. Dosis tomada automáticamente del cálculo de encalado: {dosis_real_enm:,.2f} kg/ha.')
-                    col_ca, col_mg = st.columns(2)
-                    if producto_enc == 'Dolomita':
-                        cao_pct = col_ca.number_input('CaO del producto (%)', min_value=0.0, max_value=100.0,
-                            value=30.0, step=0.5, key='enm_cao_pct_camg')
-                        mgo_pct = col_mg.number_input('MgO del producto (%)', min_value=0.0, max_value=100.0,
-                            value=21.5, step=0.5, key='enm_mgo_pct_camg')
-                    else:
-                        cao_pct = col_ca.number_input('CaO del producto (%) según ficha', min_value=0.0, max_value=100.0,
-                            value=0.0, step=0.5, key='enm_cao_pct_cal_camg')
-                        mgo_pct = col_mg.number_input('MgO del producto (%) según ficha', min_value=0.0, max_value=100.0,
-                            value=0.0, step=0.5, key='enm_mgo_pct_cal_camg')
-                    if cao_pct + mgo_pct > 100:
-                        st.error('CaO + MgO supera 100 %. Revise la ficha técnica del producto.')
-                        cao_pct, mgo_pct = 0.0, 0.0
-                    ca_total_aportado = dosis_real_enm * cao_pct / 100 * (40.078 / 56.077)
-                    mg_total_aportado = dosis_real_enm * mgo_pct / 100 * (24.305 / 40.304)
-                    st.caption(f'Aporte químico potencial (no disponibilidad inmediata): Ca {ca_total_aportado:.2f} y Mg {mg_total_aportado:.2f} kg/ha.')
-                # Los objetivos son los puntos medios de los intervalos de referencia para cacao:
-                # Ca 4–5 y Mg 1–1.5 cmol(+)/kg. La diferencia de reservas no es una
-                # dosis de fertilizante ni puede reducirse automáticamente con el aporte total.
-                filas_camg = []
-                for nutr, meta, factor_mgkg, aporte_kg in (
-                    ('Ca', 4.5, 200.39, ca_total_aportado),
-                    ('Mg', 1.25, 121.53, mg_total_aportado)):
-                    analisis = datos.get(nutr.lower())
-                    if analisis is None:
-                        filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': 'Sin análisis',
-                            'Referencia (cmol(+)/kg)': meta, 'Déficit inicial teórico (kg/ha)': 'No calculable',
-                            'Aporte potencial de enmienda (kg/ha)': round(aporte_kg,2)})
-                        continue
-                    deficit_inicial = max(0.0, (meta - float(analisis)) * factor_mgkg * masa / 1_000_000)
-                    filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': round(float(analisis),3),
-                        'Referencia (cmol(+)/kg)': meta, 'Déficit inicial teórico (kg/ha)': round(deficit_inicial,2),
-                        'Aporte potencial de enmienda (kg/ha)': round(aporte_kg,2)})
-                st.dataframe(pd.DataFrame(filas_camg), hide_index=True, use_container_width=True)
-                st.caption('INIA (2025): neutralización del aluminio, pp. 91–99; evaluación de Ca, pp. 100–104. El aporte potencial NO se resta del déficit intercambiable sin análisis posterior del suelo.')
-                st.caption('Si Mg permanece bajo tras el encalado, evaluar una fuente complementaria como Magnocal según su composición y un nuevo análisis. No se calcula dosis automática.')
                 # Distribución operativa: 50 %, 32 %, 18 % por producto.
                 filas_detalle=[]
                 for x in usados:
