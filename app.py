@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V11.5 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V12.0 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -166,7 +166,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V11.9 · Balance NPK y Ca/Mg · Proyección referencial de M.O. · Simulación técnica')
+st.caption('V12.0 · Balance NPK y Ca/Mg · Proyección referencial de M.O. · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -607,6 +607,35 @@ with secciones[0]:
     c1,c2,c3=st.columns(3)
     codigo=c1.text_input('Código único (evite DNI)', disabled=productor_existente_id is not None, key='registro_codigo')
     nombre=c2.text_input('Nombre o identificación interna', key='registro_nombre')
+    # Guardado independiente del nombre: no requiere modificar ni crear un análisis.
+    # Evita que un fallo de validación del formulario analítico impida renombrar.
+    if productor_existente_id is not None:
+        if st.button('💾 Guardar cambio de nombre', key='guardar_nombre_independiente',
+                     help='Actualiza solamente el nombre del productor existente; conserva todos sus análisis.'):
+            nuevo_nombre = str(st.session_state.get('registro_nombre', '')).strip()
+            if not nuevo_nombre:
+                st.error('Escriba un nombre antes de guardar.')
+            else:
+                try:
+                    with connect() as conn:
+                        cur = conn.cursor()
+                        sql = ('UPDATE participantes SET nombre=%s WHERE id=%s' if IS_POSTGRES
+                               else 'UPDATE participantes SET nombre=? WHERE id=?')
+                        cur.execute(sql, (nuevo_nombre, int(productor_existente_id)))
+                        if cur.rowcount != 1:
+                            raise RuntimeError('No se encontró el productor para actualizar.')
+                    comprobacion = execute('SELECT nombre FROM participantes WHERE id=?',
+                                           (int(productor_existente_id),), True)
+                    if comprobacion.empty or str(comprobacion.iloc[0]['nombre']).strip() != nuevo_nombre:
+                        raise RuntimeError('La lectura de Neon no confirmó el nuevo nombre.')
+                    st.session_state['_productor_evaluacion_anterior'] = int(productor_existente_id)
+                    st.session_state['_selector_inicio_objetivo'] = int(productor_existente_id)
+                    st.session_state['_selector_inicio_previo'] = '__refrescar_datos_guardados__'
+                    st.session_state['_actualizacion_exitosa'] = True
+                    st.session_state['_ultimo_guardado_mensaje'] = True
+                    st.rerun()
+                except Exception as error_nombre:
+                    st.error(f'No se pudo actualizar el nombre en Neon: {error_nombre}')
     caserio=c3.text_input('Caserío', key='registro_caserio')
     area=c1.number_input('Área (ha)', min_value=0.0, key='registro_area')
     plantas=c2.number_input('Plantas por ha', min_value=1, key='registro_plantas')
@@ -970,7 +999,7 @@ with secciones[1]:
             delta_mo_pct = (mo_estable_compost + mo_estable_poda) / masa_mo * 100.0 if masa_mo > 0 else 0.0
             proyeccion_mo = [
                 {'Indicador':'M.O. inicial del suelo', 'Resultado':f'{mo_val:.4f} %' if mo_val is not None else 'Sin análisis'},
-                {'Indicador':'Aporte estimado de compost + poda', 'Resultado':f'+{delta_mo_pct:.4f} puntos %'},
+                {'Indicador':'Incremento estimado de M.O. por compost y residuos de poda', 'Resultado':f'+{delta_mo_pct:.4f} puntos %'},
                 {'Indicador':'M.O. final proyectada', 'Resultado':f'{mo_val+delta_mo_pct:.4f} %' if mo_val is not None else 'Sin análisis'}]
             st.dataframe(pd.DataFrame(proyeccion_mo), hide_index=True, use_container_width=True)
             st.caption(f'Base de cálculo: 0–20 cm, 1 ha completa y densidad aparente {dap_mo:.2f} g/cm³; biomasa de poda 8,900 kg frescos/ha/año a 1,100 plantas, 57 % materia seca, 45 % C. El 20 % inicial de permanencia es SOLO un supuesto editable, no una tasa validada. No se descuentan nutrientes de poda del NPK. Confirmar cambios mediante análisis de suelo posteriores.')
@@ -1252,23 +1281,14 @@ with secciones[1]:
                 st.dataframe(pd.DataFrame(filas_camg_integrado),hide_index=True,use_container_width=True)
                 st.caption(f'Área de anillos: {min(area_camg,10000):,.1f} m²/ha de plantación · profundidad {prof_enc:g} cm. El Mg objetivo 1.25 cmol(+)/kg aún requiere validación. Solo se descuenta la enmienda cuando se declara aplicada.')
                 st.caption('El aporte químico potencial de fertilizantes y enmiendas no implica que todo se incorpore al Mg/Ca intercambiable del suelo. No sumar nuevamente kieserita en Enmienda.')
-                st.markdown('**Exportación referencial y aporte de micronutrientes**')
-                st.caption('Exportación de grano seco basada en Malavolta et al. (1984). No equivale a requerimiento total ni a dosis recomendada. Sin análisis de suelo o foliar no se diagnostica déficit.')
-                rendimiento_micro = float(rendimiento or 0.0)
-                micro_export_mg_kg = {'Cu':16.0,'Zn':47.0,'Mn':28.0,'B':12.0}
-                filas_micro=[]
-                for elem,concentracion in micro_export_mg_kg.items():
-                    aporte_gramos=0.0
-                    for nombre_micro,(elemento,porcentaje) in micro_contenidos.items():
-                        if elemento==elem and nombre_micro in fuentes:
-                            kg_producto = float(plan.get(nombre_micro,0.0)) / area_real
-                            aporte_gramos += kg_producto*porcentaje/100.0*1000.0
-                    filas_micro.append({'Nutriente':elem,
-                        'Exportación referencial (g/ha)':round(rendimiento_micro*concentracion/1000.0,2) if rendimiento_micro>0 else 'Sin rendimiento',
-                        'Aporte fertilizante (g/ha)':round(aporte_gramos,2),
-                        'Estado':'Sin diagnóstico'})
-                st.dataframe(pd.DataFrame(filas_micro),hide_index=True,use_container_width=True)
-                st.caption('Cu, Zn, Mn y B: cantidades manuales, sin prescripción automática ni tolerancia ±5 %. El Mg del sulfato de magnesio se contabiliza en el balance Ca/Mg.')
+                # Los aportes de Cu, Zn, Mn y B se calculan desde los productos
+                # seleccionados; no se presenta una tabla de exportación que
+                # podría confundirse con una prescripción de fertilización.
+                micro_aportes_g_ha = {'Cu': 0.0, 'Zn': 0.0, 'Mn': 0.0, 'B': 0.0}
+                for nombre_micro, (elemento, porcentaje) in micro_contenidos.items():
+                    if nombre_micro in fuentes:
+                        micro_aportes_g_ha[elemento] += (float(plan.get(nombre_micro, 0.0)) /
+                            area_real) * porcentaje / 100.0 * 1000.0
                 # Distribución operativa: 50 %, 32 %, 18 % por producto.
                 filas_detalle=[]
                 for x in usados:
@@ -1276,7 +1296,6 @@ with secciones[1]:
                     a,b,c=total*0.50,total*0.32,total*0.18
                     filas_detalle.append((x,total,a,b,c))
                 # No agregar automáticamente micronutrientes sin análisis ni diagnóstico.
-                st.caption('Micronutrientes: no se agregan automáticamente; confirmar necesidad con análisis y asesoría, especialmente Cu y B.')
                 st.markdown('**Fertilizantes requeridos y distribución en tres abonamientos**')
                 filas_compra=[]
                 for x,total,a,b,c in filas_detalle:
