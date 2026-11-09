@@ -166,7 +166,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V10.0 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V10.3 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -476,15 +476,42 @@ with secciones[0]:
     opciones_inicio.update({f"{r['codigo']} · {r['nombre']}": int(r['id']) for _, r in registros_inicio.iterrows()})
     seleccion_inicio = st.selectbox('Productor para registrar o consultar', list(opciones_inicio), key='selector_inicio')
     productor_existente_id = opciones_inicio[seleccion_inicio]
+    # Hidratar todos los widgets desde la base de datos al cambiar la selección.
+    # Se hace antes de instanciar cualquier widget y se conserva lo editado durante reruns.
+    fila_productor = (registros_inicio[registros_inicio['id'] == productor_existente_id].iloc[0]
+                      if productor_existente_id is not None else None)
     if st.session_state.get('_selector_inicio_previo') != seleccion_inicio:
         st.session_state['_selector_inicio_previo'] = seleccion_inicio
-        for k in ('codigo','nombre','caserio','area','plantas','edad','manejo','distrito','provincia','etapa','ingeniero','retiro'):
-            st.session_state.pop('registro_' + k, None)
+        st.session_state['_datos_productor_cargado'] = productor_existente_id
+        mapeo = {'codigo':'codigo','nombre':'nombre','caserio':'caserio','area':'area_ha',
+                 'plantas':'plantas_ha','edad':'edad_anios','manejo':'manejo_cascaras',
+                 'distrito':'distrito','provincia':'provincia','etapa':'etapa',
+                 'ingeniero':'ingeniero','retiro':'retiro_pct'}
+        predeterminados = {'codigo':'','nombre':'','caserio':'','area':1.0,'plantas':1100,
+                           'edad':5.0,'manejo':'Permanecen en la parcela','distrito':'',
+                           'provincia':'Leoncio Prado','etapa':'No especificada',
+                           'ingeniero':'','retiro':0.0}
+        for widget, columna in mapeo.items():
+            valor = fila_productor.get(columna) if fila_productor is not None else None
+            if valor is None or pd.isna(valor):
+                valor = predeterminados[widget]
+            if widget == 'plantas':
+                valor = int(valor)
+            elif widget in ('area','edad','retiro'):
+                valor = float(valor)
+            else:
+                valor = str(valor)
+            st.session_state['registro_' + widget] = valor
         for k in FIELD_KEYS:
             st.session_state.pop('dato_' + k, None)
         st.session_state.pop('evaluacion_pendiente', None)
         st.session_state.pop('_consulta_id_cargado', None)
-    # Elegir explícitamente uno de los análisis del productor, sin asumir que el último es el correcto.
+        st.session_state.pop('selector_analisis_inicio', None)
+        st.session_state.pop('_historial_productor_previo', None)
+        st.session_state.pop('_analisis_inicio_previo', None)
+        # El rerun asegura que Streamlit reconstruya widgets con valores hidratados.
+        st.rerun()
+    # Elegir explícitamente uno de los análisis del productor.
     analisis_inicio_id = None
     if productor_existente_id is not None:
         historial_inicio = execute('SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC, id DESC',
@@ -492,8 +519,14 @@ with secciones[0]:
         opciones_historial = {'➕ Nuevo análisis para este productor': None}
         for numero, (_, fila_h) in enumerate(historial_inicio.iterrows(), start=1):
             opciones_historial[f"{fila_h['fecha']} · Análisis {numero} (registro {int(fila_h['id'])})"] = int(fila_h['id'])
+        # Al cambiar de productor, cargar inicialmente su análisis más reciente.
+        if st.session_state.get('_historial_productor_previo') != productor_existente_id:
+            st.session_state['_historial_productor_previo'] = productor_existente_id
+            st.session_state.pop('selector_analisis_inicio', None)
         etiqueta_historial = st.selectbox('Seleccione el análisis de suelo del productor',
-                                         list(opciones_historial), key='selector_analisis_inicio')
+                                         list(opciones_historial),
+                                         index=1 if len(opciones_historial) > 1 else 0,
+                                         key='selector_analisis_inicio')
         analisis_inicio_id = opciones_historial[etiqueta_historial]
     if st.session_state.get('_analisis_inicio_previo') != (productor_existente_id, analisis_inicio_id):
         st.session_state['_analisis_inicio_previo'] = (productor_existente_id, analisis_inicio_id)
@@ -534,26 +567,25 @@ with secciones[0]:
         v = registro_actual.get(nombre)
         return predeterminado if pd.isna(v) or v is None else v
     c1,c2,c3=st.columns(3)
-    codigo=c1.text_input('Código único (evite DNI)', value=str(campo_actual('codigo')),
-                         disabled=productor_existente_id is not None, key='registro_codigo')
-    nombre=c2.text_input('Nombre o identificación interna', value=str(campo_actual('nombre')), key='registro_nombre')
-    caserio=c3.text_input('Caserío', value=str(campo_actual('caserio')), key='registro_caserio')
-    area=c1.number_input('Área (ha)', min_value=0.0, value=float(campo_actual('area_ha',1.0)), key='registro_area')
-    plantas=c2.number_input('Plantas por ha', min_value=1, value=int(campo_actual('plantas_ha',1100)), key='registro_plantas')
-    edad=c3.number_input('Edad del cacao (años)', min_value=0.0, value=float(campo_actual('edad_anios',5.0)), key='registro_edad')
+    codigo=c1.text_input('Código único (evite DNI)', disabled=productor_existente_id is not None, key='registro_codigo')
+    nombre=c2.text_input('Nombre o identificación interna', key='registro_nombre')
+    caserio=c3.text_input('Caserío', key='registro_caserio')
+    area=c1.number_input('Área (ha)', min_value=0.0, key='registro_area')
+    plantas=c2.number_input('Plantas por ha', min_value=1, key='registro_plantas')
+    edad=c3.number_input('Edad del cacao (años)', min_value=0.0, key='registro_edad')
     st.markdown('**Datos complementarios del productor y parcela para la ficha PDF**')
     c4,c5,c6=st.columns(3)
     manejos=['Permanecen en la parcela','Se retiran completamente','Retiro parcial']
     manejo_actual=str(campo_actual('manejo_cascaras', manejos[0]))
-    manejo=c4.selectbox('Manejo de cáscaras', manejos, index=manejos.index(manejo_actual) if manejo_actual in manejos else 0, key='registro_manejo')
-    distrito=c5.text_input('Distrito', value=str(campo_actual('distrito')), key='registro_distrito')
-    provincia=c6.text_input('Provincia', value=str(campo_actual('provincia','Leoncio Prado')), key='registro_provincia')
+    manejo=c4.selectbox('Manejo de cáscaras', manejos, key='registro_manejo')
+    distrito=c5.text_input('Distrito', key='registro_distrito')
+    provincia=c6.text_input('Provincia', key='registro_provincia')
     c7,c8=st.columns([1,2])
     etapas=['No especificada','Crecimiento','Producción']
     etapa_actual=str(campo_actual('etapa', etapas[0]))
-    etapa=c7.selectbox('Etapa del cultivo', etapas, index=etapas.index(etapa_actual) if etapa_actual in etapas else 0, key='registro_etapa')
-    ingeniero=c8.text_input('Responsable técnico', value=str(campo_actual('ingeniero')), key='registro_ingeniero')
-    retiro=c4.number_input('Porcentaje retirado (%)', min_value=0.0, max_value=100.0, value=float(campo_actual('retiro_pct',50.0)), step=5.0, key='registro_retiro') if manejo=='Retiro parcial' else (100.0 if manejo=='Se retiran completamente' else 0.0)
+    etapa=c7.selectbox('Etapa del cultivo', etapas, key='registro_etapa')
+    ingeniero=c8.text_input('Responsable técnico', key='registro_ingeniero')
+    retiro=c4.number_input('Porcentaje retirado (%)', min_value=0.0, max_value=100.0, step=5.0, key='registro_retiro') if manejo=='Retiro parcial' else (100.0 if manejo=='Se retiran completamente' else 0.0)
     st.caption('Complete los datos del productor y el análisis de suelo. Ambos se guardarán con el único botón al final del formulario.')
     st.markdown('<div class="sifert-suelo-marker sifert-hero suelo"><div><h2>🌱 Evaluación de suelo y fertilización</h2><p>Análisis químico · balance NPK · plan de abonamiento</p></div><span class="art">🪴🔬</span></div>', unsafe_allow_html=True)
     # No seleccionar automáticamente el último productor ni cargar su análisis en un formulario nuevo.
