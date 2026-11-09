@@ -1,9 +1,10 @@
-"""SIFERT CACAO DIGITAL V12.0 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V12.2 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
 import pandas as pd
 import math
+import json
 
 def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra, gramos, ficha=None):
     """Genera la ficha final de fertilización en PDF, sin alterar los cálculos."""
@@ -432,6 +433,14 @@ def init_db():
             dosis_recomendada REAL, dosis_real REAL, unidad TEXT,
             area_ha REAL, observaciones TEXT,
             FOREIGN KEY(participante_id) REFERENCES participantes(id))''')
+        # Configuración de fertilización persistida por análisis, sin duplicar el análisis.
+        cur.execute(f'''CREATE TABLE IF NOT EXISTS configuraciones_fertilizacion (
+            analisis_id INTEGER PRIMARY KEY,
+            participante_id INTEGER NOT NULL,
+            configuracion TEXT NOT NULL,
+            actualizado TEXT NOT NULL,
+            FOREIGN KEY(analisis_id) REFERENCES analisis(id),
+            FOREIGN KEY(participante_id) REFERENCES participantes(id))''')
         # Migración no destructiva para participantes existentes.
         nuevas = {'manejo_cascaras':'TEXT', 'retiro_pct':'REAL', 'meta_kg_ha':'REAL', 'dni':'TEXT', 'distrito':'TEXT', 'provincia':'TEXT', 'parcela':'TEXT', 'etapa':'TEXT', 'ingeniero':'TEXT', 'cip':'TEXT'}
         if IS_POSTGRES:
@@ -469,6 +478,49 @@ def init_db():
 if not st.session_state.get('_esquema_db_inicializado_v111', False):
     init_db()
     st.session_state['_esquema_db_inicializado_v111'] = True
+# Guardar solo controles de cálculo, nunca el nombre del productor ni sus análisis.
+CLAVES_CALCULO_FIJAS = {
+    'encalado_radio_int','encalado_radio_ext','encalado_prof',
+    'encalado_producto','encalado_prnt','encalado_meta_al',
+    'enm_aplicada_v72','enm_cao_pct_camg','enm_mgo_pct_camg',
+    'enm_cao_pct_cal_camg','enm_mgo_pct_cal_camg',
+    'compost_dosis_real','saco_compost_proyeccion',
+    'mo_ret_compost_v118','mo_ret_poda_v118',
+    'org_dispon_n','org_dispon_p','org_dispon_k',
+    'compost_n_v67','compost_p_v67','compost_k_v67',
+}
+PREFIJOS_CALCULO = ('check_fuente_v62_', 'peso_v69_', 'sacos_v69_', 'micro_porcentaje_v119_')
+
+def es_clave_calculo(clave):
+    return clave in CLAVES_CALCULO_FIJAS or clave.startswith(PREFIJOS_CALCULO)
+
+def cargar_calculos(analisis_id, participante_id):
+    resultado = execute('SELECT configuracion FROM configuraciones_fertilizacion WHERE analisis_id=? AND participante_id=?',
+                        (int(analisis_id), int(participante_id)), True)
+    if resultado.empty:
+        return {}
+    configuracion = json.loads(resultado.iloc[0]['configuracion'])
+    if not isinstance(configuracion, dict):
+        raise ValueError('La configuración guardada no tiene el formato esperado.')
+    return {k:v for k,v in configuracion.items() if es_clave_calculo(k) and isinstance(v,(str,int,float,bool))}
+
+def guardar_calculos(analisis_id, participante_id):
+    configuracion = {k:v for k,v in st.session_state.items()
+                     if es_clave_calculo(k) and isinstance(v,(str,int,float,bool))}
+    # Una fila por análisis: reescribir el mismo registro al volver a guardar.
+    execute('''INSERT INTO configuraciones_fertilizacion
+        (analisis_id, participante_id, configuracion, actualizado)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT (analisis_id) DO UPDATE SET
+        participante_id=excluded.participante_id,
+        configuracion=excluded.configuracion,
+        actualizado=excluded.actualizado''',
+        (int(analisis_id), int(participante_id), json.dumps(configuracion,ensure_ascii=False), date.today().isoformat()))
+    comprobacion = cargar_calculos(analisis_id, participante_id)
+    if comprobacion != configuracion:
+        raise RuntimeError('No se pudo verificar el guardado de la configuración.')
+    return len(configuracion)
+
 FIELD_KEYS = [c[0] for c in CAMPOS]
 
 def participantes():
@@ -562,6 +614,16 @@ with secciones[0]:
         analisis_inicio_id = opciones_historial[etiqueta_historial]
     if st.session_state.get('_analisis_inicio_previo') != (productor_existente_id, analisis_inicio_id):
         st.session_state['_analisis_inicio_previo'] = (productor_existente_id, analisis_inicio_id)
+        # Eliminar la configuración anterior ANTES de crear los widgets del nuevo análisis.
+        for clave_calculo in list(st.session_state.keys()):
+            if es_clave_calculo(clave_calculo):
+                del st.session_state[clave_calculo]
+        st.session_state.pop('_encalado_tipo_anterior', None)
+        if analisis_inicio_id is not None:
+            try:
+                st.session_state.update(cargar_calculos(analisis_inicio_id, productor_existente_id))
+            except Exception as exc:
+                st.error(f'No se pudo recuperar la fertilización guardada: {exc}')
         for k in FIELD_KEYS:
             st.session_state.pop('dato_' + k, None)
         for k in ('fecha_evaluacion','meta_evaluacion','laboratorio_evaluacion','metodo_fosforo_evaluacion','dap_evaluacion','dap_origen_evaluacion'):
@@ -878,7 +940,7 @@ with secciones[1]:
             prnt_inicial = 108.0 if producto_enc == 'Dolomita' else 135.0
             if st.session_state.get('_encalado_tipo_anterior') != producto_enc:
                 st.session_state['_encalado_tipo_anterior'] = producto_enc
-                st.session_state['encalado_prnt'] = prnt_inicial
+                st.session_state.setdefault('encalado_prnt', prnt_inicial)
             prnt_pct = e2.number_input('PRNT del producto (%)', min_value=1.0, max_value=250.0,
                                        value=prnt_inicial, step=1.0, key='encalado_prnt',
                                        disabled=producto_enc == 'No aplicar')
@@ -1347,6 +1409,18 @@ with secciones[1]:
                 except ImportError:
                     st.error('Para descargar PDF, agregue reportlab a requirements.txt en GitHub.')
                 st.warning('Simulación técnica preliminar. No aplicar sin validar análisis de suelo, composición de productos y recomendaciones locales.')
+            st.divider()
+            st.markdown('**Guardar cálculos de fertilización**')
+            st.caption('Guarda en Neon los fertilizantes seleccionados, sacos, presentaciones, compost, enmienda y parámetros de simulación del análisis actual. Al regresar se restaurarán los mismos valores.')
+            if analisis_inicio_id is not None and pid_guardar is not None:
+                if st.button('💾 Guardar cálculos de fertilización', key='guardar_configuracion_fertilizacion_v122', type='primary'):
+                    try:
+                        cantidad_guardada = guardar_calculos(analisis_inicio_id, pid_guardar)
+                        st.success(f'Cálculos guardados y verificados en la base de datos ({cantidad_guardada} parámetros).')
+                    except Exception as exc:
+                        st.error(f'No se guardaron los cálculos: {exc}')
+            else:
+                st.info('Para guardar los cálculos, primero seleccione y guarde un análisis de suelo en Registro.')
             st.caption('Encalado: se presenta por separado del balance NPK. La confirmación de aplicación no implica disponibilidad inmediata de Ca/Mg.')
         except ValueError as e:
             st.session_state.pop('evaluacion_pendiente', None)
