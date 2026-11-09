@@ -60,7 +60,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     contenido.append(tabla_ejecutiva(resumen_compra, [ancho_util*.62, ancho_util*.19, ancho_util*.19]))
     contenido.append(Paragraph('2. CANTIDAD PARA CADA ABONAMIENTO', styles['EjecutivoSub']))
     contenido.append(Paragraph('Distribución propuesta: <b>primera aplicación 50 %</b>, '
-                              '<b>segunda 30 %</b> y <b>tercera 20 %</b>. '
+                              '<b>segunda 32 %</b> y <b>tercera 18 %</b>. '
                               'Las fechas deben definirse según las condiciones de la parcela.', styles['EjecutivoNota']))
     filas_uso = [['Producto', '1.º (kg/parcela)', '2.º (kg/parcela)', '3.º (kg/parcela)']]
     for r in compras_limpias:
@@ -466,7 +466,9 @@ def init_db():
                 if campo not in {r[1] for r in cur.fetchall()}:
                     cur.execute(f'ALTER TABLE analisis ADD COLUMN {campo} TEXT')
 
-init_db()
+if not st.session_state.get('_esquema_db_inicializado_v111', False):
+    init_db()
+    st.session_state['_esquema_db_inicializado_v111'] = True
 FIELD_KEYS = [c[0] for c in CAMPOS]
 
 def participantes():
@@ -831,7 +833,29 @@ with secciones[1]:
                                        disabled=producto_enc == 'No aplicar')
             prnt = prnt_pct / 100.0
             st.caption('PRNT inicial referencial y editable: dolomita 108 %; cal agrícola 135 %. Reemplace por el valor de la ficha técnica de su producto.')
-            sat_meta = st.number_input('Saturación de aluminio objetivo (%)', min_value=0.0, max_value=40.0, value=20.0, step=1.0, key='encalado_meta_al')
+            # Mostrar siempre el valor medido y la meta separadamente.
+            # Corregir el estado persistente de versiones anteriores que dejaba la meta en 0 %.
+            sat_actual = datos.get('sat_al')
+            if sat_actual is None and datos.get('al') is not None and datos.get('cice') and datos['cice'] > 0:
+                sat_actual = 100.0 * datos['al'] / datos['cice']
+            if st.session_state.get('encalado_meta_al') is not None:
+                try:
+                    meta_previa = float(st.session_state['encalado_meta_al'])
+                except (TypeError, ValueError):
+                    meta_previa = 20.0
+                if not (0.0 < meta_previa <= 100.0):
+                    st.session_state['encalado_meta_al'] = 20.0
+            col_actual_al, col_meta_al = st.columns(2)
+            col_actual_al.metric('Saturación de aluminio actual (análisis)',
+                f'{sat_actual:.2f} %' if sat_actual is not None else 'Sin análisis')
+            sat_meta = col_meta_al.number_input('Saturación de aluminio objetivo (%)',
+                min_value=1.0, max_value=100.0, value=20.0, step=1.0, key='encalado_meta_al')
+            if sat_actual is not None:
+                diferencia_sat = max(0.0, sat_actual - sat_meta)
+                st.caption(f'Reducción requerida: {diferencia_sat:.2f} puntos porcentuales. '
+                           'La dosis se recalcula al cambiar el objetivo; 20 % es la meta inicial editable.')
+                if sat_actual <= sat_meta:
+                    st.info('La saturación actual ya está en la meta o por debajo; no hay exceso de aluminio por neutralizar con este criterio.')
             if relacion is not None:
                 st.info(f'Relación Ca/Mg obligatoria: {relacion:.2f}:1. La selección debe considerar también Mg absoluto, Ca absoluto y necesidad de encalado.')
             if producto_enc == 'No aplicar':
@@ -857,7 +881,7 @@ with secciones[1]:
                     sacos = math.ceil(kg_parcela / 50)
                     st.dataframe(pd.DataFrame([{'Producto':producto_enc, 'Ca/Mg':round(relacion,2), 'Exceso Al (cmol(+)/kg)':round(exceso_al,3), 'kg/ha':round(kg_ha,2), 'kg/parcela':round(kg_parcela,2), 'g/planta':round(g_planta,1), 'Sacos de 50 kg':sacos}]), hide_index=True, use_container_width=True)
                     st.caption(f'Área tratada: {area_ha:,.1f} m²/ha. Masa de suelo: {masa_suelo:,.0f} kg/ha. Equivalente CaCO₃: {kg_equiv:,.1f} kg/ha. Ajuste por PRNT: {prnt:.2f}.')
-                    st.caption('Referencia metodológica: INIA (2025), Manual técnico de encalado y fertilización para café y cacao, pp. 91–99 (neutralización de aluminio). Cálculo de SIFERT: simulación pendiente de contrastar con el ejemplo del manual.')
+                    st.caption('Referencia metodológica: INIA (2025), Manual técnico de encalado y fertilización para café y cacao, pp. 91–99 (neutralización de aluminio). Cálculo de SIFERT: estimación referencial; validar la dosis con el ejemplo del manual antes de aplicarla.')
                     if producto_enc.startswith('Dolomita'):
                         st.caption(f'Aporte químico teórico de la dolomita (sin estimar disponibilidad): CaO {kg_ha*0.30:.2f} kg/ha; MgO {kg_ha*0.215:.2f} kg/ha. Porcentajes centrales de la ficha ODINSU (CaO 28–32 %, MgO 20–23 %).')
                     else:
@@ -1081,9 +1105,9 @@ with secciones[1]:
                 compost_aprovechable={k:compost_total[k]*f for k,f in [('N',org_n),('P₂O₅',org_p),('K₂O',org_k)]}
                 st.caption(f'Compost del módulo anterior: {compost_kg_ha:,.2f} kg/ha/año. Aporte estimado disponible: N {compost_aprovechable["N"]:.2f}, P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}, K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha/año.')
                 st.caption('Compost: el aporte aprovechable se descuenta una sola vez del requerimiento del cultivo. La etiqueta declara N, P y K elementales; P y K se convierten a P₂O₅ y K₂O para compararlos con los fertilizantes. Valores referenciales sujetos a análisis, humedad y mineralización.')
-                st.markdown('**Balance NPK: suelo, compost y cáscaras**')
+                st.markdown('**Balance NPK: suelo y compost**')
                 st.markdown('**Balance complementario de calcio y magnesio (Ca/Mg)**')
-                st.caption('Se diferencia la dosis recomendada de la realmente aplicada. El descuento depende de la composición del producto y de una fracción de disponibilidad estimada, no validada localmente.')
+                st.caption('Solo se descuenta el aporte estimado disponible de una enmienda realmente aplicada; la dosis simulada no se descuenta.')
                 enm_aplicada = st.checkbox('Sí aplicó (cal o dolomita)', value=False, key='enm_aplicada_v72')
                 enm_ca_kg_ha = 0.0
                 enm_mg_kg_ha = 0.0
@@ -1094,7 +1118,8 @@ with secciones[1]:
                 elif enm_aplicada:
                     st.caption(f'Enmienda: {producto_enc}. Dosis simulada: {kg_ha_encalado_calculado:,.2f} kg/ha. Confirme la cantidad realmente aplicada.')
                     dosis_real_enm = st.number_input('Dosis realmente aplicada (kg/ha)', min_value=0.0,
-                        value=float(round(kg_ha_encalado_calculado, 2)), step=10.0, key='enm_dosis_real_camg')
+                        value=0.0, step=10.0, key='enm_dosis_real_camg',
+                        help='Ingrese lo efectivamente aplicado, no la dosis simulada.')
                     col_ca, col_mg = st.columns(2)
                     if producto_enc == 'Dolomita':
                         cao_pct = col_ca.number_input('CaO del producto (%)', min_value=0.0, max_value=100.0,
@@ -1117,7 +1142,7 @@ with secciones[1]:
                     enm_mg_kg_ha = mg_total_aportado * fraccion_enm
                     st.caption(f'Aporte total potencial: Ca {ca_total_aportado:.2f} y Mg {mg_total_aportado:.2f} kg/ha. '
                                f'Aporte estimado disponible: Ca {enm_ca_kg_ha:.2f} y Mg {enm_mg_kg_ha:.2f} kg/ha.')
-                    st.caption('La fracción inicia en 0 % por falta de calibración local: solo cambie este valor con un criterio técnico sustentado. La aplicación no garantiza disponibilidad inmediata.')
+                    st.caption('Con disponibilidad 0 % no se descuenta Ca ni Mg. Modifique el porcentaje solo con sustento técnico; marcar aplicación no demuestra disponibilidad inmediata.')
                 # Objetivos de concentración intercambiable (INIA 2025, tabla 27):
                 # Ca 4–5 y Mg 1–1.5 cmol(+)/kg. No confundir stock con extracción anual.
                 # El balance es un indicador teórico de corrección, no dosis de fertilizante.
@@ -1143,18 +1168,8 @@ with secciones[1]:
                 st.caption('Si persiste déficit de Mg, evaluar un suplemento como Magnocal solo tras confirmar su composición, la disponibilidad y la necesidad agronómica. No se genera dosis automática.')
                 st.caption('Nota: kg/ha representa un déficit teórico de reserva intercambiable en 0–20 cm; no equivale a requerimiento anual ni demuestra cambio real del análisis de suelo.')
                 masa_suelo = masa
-                # Reciclaje potencial de cáscaras por t de cacao seco; NO se confunde con disponibilidad anual.
-                factor_cascaras = 0.0
-                if fila_parcela is not None:
-                    manejo_actual = str(fila_parcela.get('manejo_cascaras') or '')
-                    if manejo_actual == 'Permanecen en la parcela':
-                        factor_cascaras = 1.0
-                    elif manejo_actual == 'Retiro parcial':
-                        retiro_actual = fila_parcela.get('retiro_pct')
-                        factor_cascaras = max(0.0, 1.0 - float(retiro_actual)/100.0) if pd.notna(retiro_actual) else 0.0
-                potencial_cascaras = {k: rendimiento/1000.0 * coef * factor_cascaras
-                                      for k,coef in {'N':2.0,'P₂O₅':5.0,'K₂O':24.0}.items()}
-                st.caption('Cáscaras: reciclaje POTENCIAL estimado por tonelada de cacao seco (N 2, P₂O₅ 5, K₂O 24 kg/t), proporcional a la fracción que permanece. No se descuenta del déficit efectivo sin coeficiente de liberación validado.')
+                # Por decisión del usuario, las cáscaras no se incluyen en el balance.
+                potencial_cascaras = {'N': 0.0, 'P₂O₅': 0.0, 'K₂O': 0.0}
                 resumen_descuento=[]
                 for nutr in ('N','P₂O₅','K₂O'):
                     if nutr in ('N','P₂O₅','K₂O'):
@@ -1177,10 +1192,9 @@ with secciones[1]:
                         'Requerimiento / objetivo (kg/ha)':round(objetivo_nutr,2),
                         'Resultado del suelo (kg/ha)':round(suelo_nutr,2) if suelo_nutr is not None else 'Sin análisis',
                         'Aporte compost (kg/ha)':round(compost_nutr,2) if nutr in ('N','P₂O₅','K₂O') else 'Sin análisis',
-                        'Cáscaras: aporte potencial (kg/ha)':round(potencial_cascaras[nutr],2),
-                        'Necesidad restante / diferencia (kg/ha)':round(restante,2) if restante is not None else 'No calculable'})
+                                                'Necesidad restante / diferencia (kg/ha)':round(restante,2) if restante is not None else 'No calculable'})
                 st.dataframe(pd.DataFrame(resumen_descuento),hide_index=True,use_container_width=True)
-                st.caption('Balance NPK: el compost se descuenta una sola vez. Las cáscaras se muestran como aporte potencial, sin descuento efectivo hasta validar su liberación. El encalado se presenta por separado.')
+                st.caption('Balance NPK: el compost se descuenta una sola vez. Las cáscaras no se consideran. El encalado se presenta por separado.')
                 st.markdown('**Fertilizantes seleccionados y balance nutricional**')
                 st.caption('Cambie los sacos o el peso de presentación: el balance, el total y la ficha PDF se actualizan automáticamente.')
                 # Los number_input están fuera de st.form: cada edición produce un rerun
@@ -1230,16 +1244,16 @@ with secciones[1]:
                         'Diferencia (kg/ha)':r['Diferencia (kg/ha)'],'Estado':r['Estado']})
                 st.dataframe(pd.DataFrame(filas_unificadas),hide_index=True,use_container_width=True)
                 st.caption('Diferencia = aporte aprovechable del fertilizante − necesidad restante tras descontar suelo y compost. Las eficiencias minerales se aplican una sola vez al aporte; los orgánicos emplean disponibilidad anual estimada.')
-                # Distribución operativa: 50 %, 30 %, 20 % por producto.
+                # Distribución operativa: 50 %, 32 %, 18 % por producto.
                 filas_detalle=[]
                 for x in usados:
                     total=plan[x]
-                    a,b,c=total*0.50,total*0.30,total*0.20
+                    a,b,c=total*0.50,total*0.32,total*0.18
                     filas_detalle.append((x,total,a,b,c))
                 for nombre,a,b,c in micro_ref:
                     if nombre in usados: continue
                     total_micro=(a+b+c)*area_real
-                    filas_detalle.append((nombre,total_micro,total_micro*0.50,total_micro*0.30,total_micro*0.20))
+                    filas_detalle.append((nombre,total_micro,total_micro*0.50,total_micro*0.32,total_micro*0.18))
                 st.warning('Microelementos y sulfato de magnesio: dosis referenciales, no derivadas del análisis. Confirmar necesidad antes de aplicar, especialmente Cu y B.')
                 st.markdown('**Fertilizantes requeridos y distribución en tres abonamientos**')
                 filas_compra=[]
@@ -1257,7 +1271,7 @@ with secciones[1]:
                     '2.º (g/planta)':round(sum(r[3] for r in filas_detalle)*1000/total_plantas,2),
                     '3.º (g/planta)':round(sum(r[4] for r in filas_detalle)*1000/total_plantas,2)}]
                 st.dataframe(pd.DataFrame(filas_gramos),hide_index=True,use_container_width=True)
-                st.caption('Distribución operativa 50 % / 30 % / 20 % para cada producto. Validar dosis, compatibilidad y necesidades específicas de micronutrientes antes de aplicar.')
+                st.caption('Distribución operativa 50 % / 32 % / 18 % para cada producto. Validar dosis, compatibilidad y necesidades específicas de micronutrientes antes de aplicar.')
                 productor_pdf = str(fila_parcela['nombre']) if fila_parcela is not None else 'Sin participante seleccionado'
                 def valor_pdf_parcela(campo):
                     if fila_parcela is None:
