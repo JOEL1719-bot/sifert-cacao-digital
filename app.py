@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V12.6 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V12.9 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -228,7 +228,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V12.4 · Balance NPK y Ca/Mg · Proyección referencial de M.O. · Simulación técnica')
+st.caption('V12.9 · Balance NPK y Ca/Mg · Proyección referencial de M.O. · Simulación técnica')
 st.markdown('\n<style>\n.sifert-mobile-field-label { display:none; }\n@media (max-width:767px) { .sifert-mobile-field-label { display:block; font-size:.83rem; font-weight:600; color:#244b38; margin:0 0 .1rem; } }\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n/* V12.4: vista compacta para teléfonos; los campos nunca se recortan. */\n@media (max-width: 767px) {\n  .block-container { padding: 2.9rem .55rem 1.5rem !important; max-width:100% !important; }\n  div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),\n  div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) { padding:.55rem !important; border-radius:12px !important; }\n  div[data-testid="stHorizontalBlock"] { flex-direction:column !important; gap:.45rem !important; align-items:stretch !important; }\n  div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] { width:100% !important; min-width:0 !important; flex:1 1 auto !important; }\n  div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] { align-items:stretch !important; }\n  div[data-testid="stMetric"] { padding:.5rem !important; }\n  div[data-testid="stMetricValue"] { font-size:clamp(1.15rem,5.4vw,1.65rem) !important; overflow-wrap:anywhere; }\n  div[data-testid="stDataFrame"] { max-width:100% !important; overflow-x:auto !important; }\n  div[data-testid="stDataFrame"] [data-testid="stDataFrameResizable"] { max-width:100% !important; }\n  div[data-baseweb="tab-list"] { overflow-x:auto !important; flex-wrap:nowrap !important; }\n  button[data-baseweb="tab"] { white-space:nowrap !important; padding:8px 10px !important; font-size:.84rem !important; }\n  h1 { font-size:1.45rem !important; }\n  h2 { font-size:1.22rem !important; }\n  h3 { font-size:1.05rem !important; line-height:1.3 !important; }\n  .sifert-hero { padding:11px !important; }\n  .sifert-hero .art { display:none !important; }\n  .sifert-hero p { display:none !important; }\n  /* Ocultar solamente leyendas informativas; alertas, controles y resultados permanecen. */\n  div[data-baseweb="tab-panel"] [data-testid="stCaptionContainer"] { display:none !important; }\n  div[data-baseweb="tab-panel"] [data-testid="stExpander"] [data-testid="stCaptionContainer"] { display:block !important; }\n  div[data-testid="stNumberInput"] input { min-width:0 !important; }\n  div[data-testid="stButton"] button, div[data-testid="stFormSubmitButton"] button { max-width:100% !important; white-space:normal !important; }\n}\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -473,6 +473,34 @@ def execute(query, params=(), fetch=False):
         cur.execute(query.replace('?', '%s') if IS_POSTGRES else query, params)
         if fetch:
             return pd.DataFrame(cur.fetchall(), columns=[d[0] for d in cur.description])
+
+
+def eliminar_analisis_con_configuracion(analisis_id, participante_id):
+    """Borrado atómico y restringido al propietario; sin cambiar esquema Neon."""
+    with connect() as conn:
+        cur = conn.cursor()
+        sql = 'SELECT id FROM analisis WHERE id=? AND participante_id=?'
+        cur.execute(sql.replace('?', '%s') if IS_POSTGRES else sql,
+                    (int(analisis_id), int(participante_id)))
+        if cur.fetchone() is None:
+            raise ValueError('El análisis ya no existe o no pertenece al productor seleccionado.')
+        sql = 'DELETE FROM configuraciones_fertilizacion WHERE analisis_id=? AND participante_id=?'
+        cur.execute(sql.replace('?', '%s') if IS_POSTGRES else sql,
+                    (int(analisis_id), int(participante_id)))
+        sql = 'DELETE FROM analisis WHERE id=? AND participante_id=?'
+        cur.execute(sql.replace('?', '%s') if IS_POSTGRES else sql,
+                    (int(analisis_id), int(participante_id)))
+        if cur.rowcount != 1:
+            raise RuntimeError('No se pudo completar la eliminación del análisis.')
+    # Invalidar las referencias en memoria para evitar mostrar resultados antiguos.
+    for clave in ('evaluacion_pendiente', '_analisis_inicio_previo',
+                  '_historial_productor_previo', '_consulta_id_cargado',
+                  'selector_analisis_inicio'):
+        st.session_state.pop(clave, None)
+    for clave in list(st.session_state.keys()):
+        if es_clave_calculo(clave):
+            st.session_state.pop(clave, None)
+
 
 def init_db():
     ident = 'BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY' if IS_POSTGRES else 'INTEGER PRIMARY KEY AUTOINCREMENT'
@@ -893,6 +921,7 @@ with secciones[0]:
 
 
 with secciones[1]:
+    st.info('Si cambió la etapa o la edad del cultivo en Registro, pulse «Guardar productor y análisis» antes de consultar estos resultados.')
     st.markdown('<div class="sifert-suelo-marker sifert-hero suelo"><div><h2>🌱 Resultados del suelo y fertilización</h2><p>Diagnóstico químico · balance NPK · plan de abonamiento</p></div><span class="art">🪴🔬</span></div>', unsafe_allow_html=True)
     # Resultados sincronizados con la selección de Registro; sin segundo selector.
     pid_guardar = st.session_state.get('_productor_evaluacion_anterior')
@@ -1178,17 +1207,21 @@ with secciones[1]:
                     }
                     st.success(f'Cacao en crecimiento · año {anio_crecimiento}: demanda vegetativa estimada por biomasa y edad, ajustada a {densidad_balance:,} plantas/ha.')
                     st.caption('Fuente: Vasquez-Zambrano et al. (2025), European Journal of Agronomy, DOI: 10.1016/j.eja.2024.127463. Demanda por inmovilización vegetativa, NO dosis de fertilizante validada para Leoncio Prado.')
+                elif etapa_balance == 'Crecimiento':
+                    demanda = None
+                    st.error('Etapa antigua «Crecimiento»: actualice el registro a 1.er o 2.º año y guarde antes de calcular.')
+                elif etapa_balance in ('No especificada', ''):
+                    demanda = None
+                    st.error('Seleccione Crecimiento – 1.er año, Crecimiento – 2.º año o Producción en Registro, guarde los cambios y vuelva a Resultados. No se aplicará un modelo por defecto.')
                 elif etapa_balance == 'Producción' and rendimiento <= 0:
                     demanda = None
                     st.error('En Producción ingrese una meta de cacao seco mayor que cero.')
-                else:
+                elif etapa_balance == 'Producción':
                     # INIA (2025), tabla 28: extracción elemental N=70, P=16, K=90 kg/t de cacao seco.
                     # Convertir P y K a óxidos antes de compararlos con oferta y fertilizantes.
                     demanda = {'N': 70*rendimiento/1000,
                                'P₂O₅': 16*2.29*rendimiento/1000,
                                'K₂O': 90*1.205*rendimiento/1000}
-                    if etapa_balance in ('No especificada', ''):
-                        st.warning('Etapa no especificada: se aplica provisionalmente el modelo de producción. Confirme la etapa antes de usar el resultado.')
                 if demanda is None:
                     st.stop()
                 eficiencia = {'N':0.60,'P₂O₅':0.25,'K₂O':0.70}
@@ -1579,15 +1612,31 @@ with secciones[2]:
         if df.empty:
             st.info('No hay análisis guardados para este participante.')
         else:
-            st.caption('Análisis registrados. Pulse ✕ a la derecha del análisis que desea eliminar. La eliminación es definitiva.')
+            st.caption('Análisis registrados. Pulse ✕ para seleccionar el análisis. La eliminación exige confirmación y también borra sus cálculos guardados.')
             for _, registro in df.iterrows():
                 c_fecha, c_detalle, c_borrar = st.columns([2, 6, 1], vertical_alignment='center')
                 c_fecha.write(str(registro['fecha']))
                 c_detalle.write(f"Análisis {int(registro['id'])} · pH: {registro['ph'] if pd.notna(registro['ph']) else '—'} · M.O.: {registro['mo'] if pd.notna(registro['mo']) else '—'} %")
-                if c_borrar.button('✕', key=f"borrar_analisis_{int(registro['id'])}", help='Eliminar definitivamente este análisis'):
-                    execute('DELETE FROM analisis WHERE id=? AND participante_id=?', (int(registro['id']), pid))
-                    st.success('Análisis eliminado.')
-                    st.rerun()
+                if c_borrar.button('✕', key=f"borrar_analisis_{int(registro['id'])}", help='Seleccionar análisis para eliminar; requiere confirmación'):
+                    st.session_state['analisis_borrado_pendiente_v129'] = (int(pid), int(registro['id']))
+            pendiente = st.session_state.get('analisis_borrado_pendiente_v129')
+            if pendiente and int(pendiente[0]) == int(pid):
+                with st.container(border=True):
+                    st.warning(f'Va a eliminar definitivamente el análisis {pendiente[1]} y su configuración de fertilización guardada. Esta acción no se puede deshacer.')
+                    confirma_borrado = st.checkbox('Confirmo la eliminación del análisis y sus cálculos', key='confirmar_borrado_v129')
+                    if st.button('Eliminar análisis seleccionado', disabled=not confirma_borrado, key='ejecutar_borrado_v129'):
+                        try:
+                            eliminar_analisis_con_configuracion(pendiente[1], pid)
+                            st.session_state.pop('analisis_borrado_pendiente_v129', None)
+                            st.session_state.pop('confirmar_borrado_v129', None)
+                            st.success('Análisis y configuración vinculada eliminados.')
+                            st.rerun()
+                        except Exception as exc:
+                            st.error(f'No se pudo eliminar el análisis: {exc}')
+                    if st.button('Cancelar eliminación', key='cancelar_borrado_v129'):
+                        st.session_state.pop('analisis_borrado_pendiente_v129', None)
+                        st.session_state.pop('confirmar_borrado_v129', None)
+                        st.rerun()
             with st.expander('Ver todos los resultados del laboratorio'):
                 columnas_ocultas = ['id', 'participante_id']
                 tabla_ajustada(df.drop(columns=columnas_ocultas, errors='ignore'), hide_index=True, use_container_width=True)
@@ -1618,10 +1667,15 @@ with secciones[2]:
                     st.error(str(e))
             with st.expander('Eliminar análisis'):
                 confirmar=st.checkbox('Confirmo la eliminación definitiva')
+                st.warning('Se eliminará también la configuración de fertilización vinculada. Esta acción es irreversible.')
                 if st.button('Eliminar definitivamente',disabled=not confirmar):
-                    execute('DELETE FROM analisis WHERE id=? AND participante_id=?',(aid,pid))
-                    st.success('Análisis eliminado.')
-                    st.rerun()
+                    try:
+                        eliminar_analisis_con_configuracion(aid, pid)
+                        st.session_state.pop('analisis_borrado_pendiente_v129', None)
+                        st.success('Análisis y configuración vinculada eliminados.')
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(f'No se pudo eliminar el análisis: {exc}')
 
 with secciones[3]:
     st.subheader('Comparación histórica de análisis')
