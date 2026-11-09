@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V13.2 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V13.3 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -59,20 +59,25 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         return escape(str(valor)).replace('₂', '<sub>2</sub>').replace('₅', '<sub>5</sub>')
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=15*mm,
-                            rightMargin=15*mm, topMargin=14*mm, bottomMargin=14*mm)
+                            rightMargin=15*mm, topMargin=9*mm, bottomMargin=12*mm)
     styles = getSampleStyleSheet()
     for estilo in styles.byName.values():
         estilo.fontName = fuente_bold if estilo.name.startswith('Heading') or estilo.name == 'Title' else fuente_pdf
     styles.add(ParagraphStyle(name='CeldaSifert', parent=styles['Normal'], fontName=fuente_pdf, fontSize=7.4, leading=9.5))
+    styles.add(ParagraphStyle(name='SifertPie', parent=styles['Normal'], fontName=fuente_pdf, fontSize=7, leading=9, textColor=colors.HexColor('#63796F')))
     styles.add(ParagraphStyle(name='CabSifert', parent=styles['CeldaSifert'], textColor=colors.white))
-    styles.add(ParagraphStyle(name='TitSifert', parent=styles['Heading1'], fontName=fuente_bold, fontSize=16, leading=19, spaceAfter=10))
+    styles.add(ParagraphStyle(name='TitSifert', parent=styles['Heading1'], fontName=fuente_bold, fontSize=14, leading=17, spaceAfter=5))
     from reportlab.platypus import PageBreak
     from reportlab.lib.enums import TA_LEFT
     styles.add(ParagraphStyle(name='EjecutivoTitulo', parent=styles['Heading1'], fontName=fuente_bold, fontSize=20, leading=25,
                               textColor=colors.HexColor('#14543B'), spaceAfter=12))
-    styles.add(ParagraphStyle(name='EjecutivoSub', parent=styles['Heading2'], fontName=fuente_bold, fontSize=12, leading=15,
-                              textColor=colors.HexColor('#14543B'), spaceBefore=12, spaceAfter=6))
+    styles.add(ParagraphStyle(name='EjecutivoSub', parent=styles['Heading2'], fontName=fuente_bold, fontSize=11, leading=13,
+                              textColor=colors.HexColor('#14543B'), spaceBefore=7, spaceAfter=4))
     styles.add(ParagraphStyle(name='EjecutivoNota', parent=styles['Normal'], fontName=fuente_pdf, fontSize=9, leading=13))
+    styles['Heading2'].fontSize=10
+    styles['Heading2'].leading=12
+    styles['Heading2'].spaceBefore=6
+    styles['Heading2'].spaceAfter=4
     contenido = [Paragraph('PLAN DE FERTILIZACIÓN DEL CACAO', styles['EjecutivoTitulo']),
                  Paragraph('GUÍA PRÁCTICA PARA EL PRODUCTOR | SIFERT CACAO DIGITAL', styles['Normal']),
                  Spacer(1, 5*mm),
@@ -101,7 +106,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                                ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#F5F9F4')]),
                                ('LINEBELOW',(0,0),(-1,-1),.3,colors.HexColor('#CEDCD1')),
                                ('VALIGN',(0,0),(-1,-1),'TOP'),
-                               ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6)]))
+                               ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
         return t
     ancho_util = landscape(A4)[0]-30*mm
     contenido.append(tabla_ejecutiva(resumen_compra, [ancho_util*.52, ancho_util*.21, ancho_util*.27]))
@@ -120,7 +125,8 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     else:
         contenido.append(Paragraph('No se registraron enmiendas ni compost.', styles['EjecutivoNota']))
 
-    contenido.append(Paragraph('2. CANTIDAD PARA CADA ABONAMIENTO', styles['EjecutivoSub']))
+    contenido.append(PageBreak())
+    contenido.append(Paragraph('2. PROGRAMA DE ABONAMIENTO | 50 % · 32 % · 18 %', styles['EjecutivoSub']))
     contenido.append(Paragraph('Distribución propuesta: <b>primera aplicación 50 %</b>, '
                               '<b>segunda 32 %</b> y <b>tercera 18 %</b>. '
                               'Las fechas deben definirse según las condiciones de la parcela.', styles['EjecutivoNota']))
@@ -145,18 +151,18 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                               'el responsable técnico debe validar las dosis, los productos, el análisis de suelo '
                               'y la necesidad de micronutrientes. No mezcle ni aplique productos sin asesoría.',
                               styles['EjecutivoNota']))
-    contenido.append(Spacer(1, 6*mm))
+    contenido.append(Spacer(1, 3*mm))
     contenido.append(Paragraph('<b>Responsable técnico:</b> '+escape(str(ficha.get('ingeniero') or 'Por completar')),
                               styles['EjecutivoNota']))
-    contenido.append(Spacer(1, 8*mm))
+    contenido.append(Spacer(1, 4*mm))
     contenido.append(Paragraph('_______________________________  Firma del responsable técnico', styles['EjecutivoNota']))
     contenido.append(PageBreak())
-    contenido.append(Paragraph('ANEXO TÉCNICO | Sustento de la recomendación', styles['TitSifert']))
+    contenido.append(Paragraph('ANEXO TÉCNICO | Análisis del suelo y parcela', styles['TitSifert']))
     contenido.append(Paragraph(f'<b>Productor:</b> {escape(str(productor))}   |   '
                                f'<b>Fecha del análisis:</b> {escape(str(fecha_analisis))}   |   '
                                f'<b>Área:</b> {area_ha:,.2f} ha   |   '
                                f'<b>Plantas:</b> {int(plantas):,}', styles['Normal']))
-    contenido.append(Spacer(1, 8*mm))
+    contenido.append(Spacer(1, 4*mm))
     def ficha_valor(clave):
         valor = ficha.get(clave, '')
         if valor is None or (isinstance(valor, float) and pd.isna(valor)):
@@ -169,7 +175,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         for i in range(0, len(campos), 2):
             fila = []
             for etiqueta, clave in campos[i:i+2]:
-                fila.extend([Paragraph('<b>'+escape(etiqueta)+'</b>', styles['CeldaSifert']),
+                fila.extend([Paragraph('<b>'+texto_quimico(etiqueta)+'</b>', styles['CeldaSifert']),
                              Paragraph(texto_quimico(ficha_valor(clave)), styles['CeldaSifert'])])
             while len(fila) < 4:
                 fila.append('')
@@ -179,7 +185,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         tabla.setStyle(TableStyle([('GRID',(0,0),(-1,-1),.25,colors.HexColor('#CBD5D1')),
                                    ('VALIGN',(0,0),(-1,-1),'TOP'),('BACKGROUND',(0,0),(0,-1),colors.HexColor('#F0F5F3')),
                                    ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#F0F5F3')),
-                                   ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
+                                   ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
         contenido.append(tabla)
         contenido.append(Spacer(1, 4*mm))
 
@@ -212,11 +218,13 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
             ('GRID',(0,0),(-1,-1),0.3,colors.HexColor('#CBD5D1')),
             ('VALIGN',(0,0),(-1,-1),'TOP'),
             ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
-            ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6),
+            ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4),
         ]))
         contenido.append(tabla)
-        contenido.append(Spacer(1, 6*mm))
+        contenido.append(Spacer(1, 3*mm))
 
+    contenido.append(PageBreak())
+    contenido.append(Paragraph('ANEXO TÉCNICO | Balances nutricionales', styles['TitSifert']))
     if ficha.get('balance_origen_npk'):
         agregar_tabla('Origen de la necesidad NPK (kg/ha)', pd.DataFrame(ficha['balance_origen_npk']))
         contenido.append(Paragraph('Necesidad restante = máximo de cero y (requerimiento - suelo - compost). '
@@ -233,13 +241,23 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     contenido.append(Paragraph('Nota del anexo: simulación técnica preliminar. Validar los resultados del análisis, la composición '
                                'de los productos y las recomendaciones agronómicas locales antes de aplicar.',
                                styles['Normal']))
-    doc.build(contenido)
+    def pie_pagina(canvas, documento):
+        canvas.saveState()
+        w, h = landscape(A4)
+        canvas.setStrokeColor(colors.HexColor('#C9DED1'))
+        canvas.line(15*mm, 12*mm, w-15*mm, 12*mm)
+        canvas.setFont(fuente_pdf, 7.3)
+        canvas.setFillColor(colors.HexColor('#4C6B5B'))
+        canvas.drawString(15*mm, 8*mm, 'SIFERT CACAO DIGITAL  |  Plan técnico referencial')
+        canvas.drawRightString(w-15*mm, 8*mm, f'Página {documento.page} de 4')
+        canvas.restoreState()
+    doc.build(contenido, onFirstPage=pie_pagina, onLaterPages=pie_pagina)
     return buf.getvalue()
 
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V13.0 · Balance NPK y Ca/Mg · Proyección referencial de M.O. · Simulación técnica')
+st.caption('Elaborado por Joel F. Gonzales Rodriguez')
 st.markdown('\n<style>\n.sifert-mobile-field-label { display:none; }\n@media (max-width:767px) { .sifert-mobile-field-label { display:block; font-size:.83rem; font-weight:600; color:#244b38; margin:0 0 .1rem; } }\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n/* V12.4: vista compacta para teléfonos; los campos nunca se recortan. */\n@media (max-width: 767px) {\n  .block-container { padding: 2.9rem .55rem 1.5rem !important; max-width:100% !important; }\n  div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),\n  div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) { padding:.55rem !important; border-radius:12px !important; }\n  div[data-testid="stHorizontalBlock"] { flex-direction:column !important; gap:.45rem !important; align-items:stretch !important; }\n  div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] { width:100% !important; min-width:0 !important; flex:1 1 auto !important; }\n  div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] { align-items:stretch !important; }\n  div[data-testid="stMetric"] { padding:.5rem !important; }\n  div[data-testid="stMetricValue"] { font-size:clamp(1.15rem,5.4vw,1.65rem) !important; overflow-wrap:anywhere; }\n  div[data-testid="stDataFrame"] { max-width:100% !important; overflow-x:auto !important; }\n  div[data-testid="stDataFrame"] [data-testid="stDataFrameResizable"] { max-width:100% !important; }\n  div[data-baseweb="tab-list"] { overflow-x:auto !important; flex-wrap:nowrap !important; }\n  button[data-baseweb="tab"] { white-space:nowrap !important; padding:8px 10px !important; font-size:.84rem !important; }\n  h1 { font-size:1.45rem !important; }\n  h2 { font-size:1.22rem !important; }\n  h3 { font-size:1.05rem !important; line-height:1.3 !important; }\n  .sifert-hero { padding:11px !important; }\n  .sifert-hero .art { display:none !important; }\n  .sifert-hero p { display:none !important; }\n  /* Ocultar solamente leyendas informativas; alertas, controles y resultados permanecen. */\n  div[data-baseweb="tab-panel"] [data-testid="stCaptionContainer"] { display:none !important; }\n  div[data-baseweb="tab-panel"] [data-testid="stExpander"] [data-testid="stCaptionContainer"] { display:block !important; }\n  div[data-testid="stNumberInput"] input { min-width:0 !important; }\n  div[data-testid="stButton"] button, div[data-testid="stFormSubmitButton"] button { max-width:100% !important; white-space:normal !important; }\n}\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -1340,7 +1358,7 @@ with secciones[1]:
                 compost_aprovechable={k:compost_total[k]*compost_disponibilidad[k] for k in ('N','P₂O₅','K₂O')}
                 st.caption(f'Compost del módulo anterior: {compost_kg_ha:,.2f} kg/ha/año. Aporte estimado disponible: N {compost_aprovechable["N"]:.2f}, P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}, K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha/año.')
                 st.caption('Compost: el aporte aprovechable se descuenta una sola vez del requerimiento del cultivo. La etiqueta declara N, P y K elementales; P y K se convierten a P₂O₅ y K₂O para compararlos con los fertilizantes. Valores referenciales sujetos a análisis, humedad y mineralización.')
-                st.markdown('**Balance NPK: suelo y compost**')
+                st.markdown('**Balance NPK: requerimiento y aportes estimados del suelo y compost**')
                 masa_suelo = masa
                 # Por decisión del usuario, las cáscaras no se incluyen en el balance.
                 potencial_cascaras = {'N': 0.0, 'P₂O₅': 0.0, 'K₂O': 0.0}
@@ -1412,7 +1430,7 @@ with secciones[1]:
                 st.caption(f'Aporte aprovechable del compost: N {compost_aprovechable["N"]:.2f}; '
                            f'P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}; '
                            f'K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha. Ya descontado en la necesidad.')
-                st.markdown('**Balance nutricional NPK (kg/ha)**')
+                st.markdown('**Balance de los fertilizantes seleccionados (kg/ha)**')
                 if all(r['Necesidad de fertilización (kg/ha)'] == 0 for r in filas_balance):
                     st.info('La necesidad restante es cero porque los aportes estimados del suelo y compost cubren matemáticamente la demanda. No significa que el suelo haya sido calibrado ni que se deba omitir fertilización sin criterio técnico.')
                 filas_balance_pantalla = [{
