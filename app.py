@@ -359,8 +359,9 @@ def clasificar(k, v, metodo_p='Bray I'):
         if v > 100: return 'Revisar resultado'
         return 'Adecuado para cacao (<20 %)' if v < 20 else 'Supera el límite adecuado para cacao (≥20 %)'
     if k == 'p':
-        if metodo_p == 'Olsen':
-            return 'Pendiente de validar rangos Olsen'
+        if metodo_p in ('Olsen modificado', 'Olsen'):
+            # UNAS (2008): intervalos operativos continuos; >40 es extensión acordada.
+            return 'Muy bajo' if v < 5 else 'Bajo' if v <= 15 else 'Normal' if v <= 30 else 'Alto' if v <= 40 else 'Muy alto'
         return 'Bajo' if v < 15 else 'Medio' if v <= 30 else 'Alto'
     if k == 'k_cmol':
         return 'Muy bajo' if v < 0.20 else 'Bajo' if v <= 0.30 else 'Medio' if v <= 0.60 else 'Alto'
@@ -579,7 +580,7 @@ with secciones[0]:
             coincidencia_lab = re.search(r'laboratorio:\s*([^;]+)', observacion_h, flags=re.IGNORECASE)
             lab_h = fila_h.get('laboratorio')
             st.session_state['laboratorio_evaluacion'] = (str(lab_h).strip() if pd.notna(lab_h) and str(lab_h).strip() else (coincidencia_lab.group(1).strip() if coincidencia_lab else ''))
-            st.session_state['metodo_fosforo_evaluacion'] = str(fila_h.get('metodo_fosforo')) if pd.notna(fila_h.get('metodo_fosforo')) and fila_h.get('metodo_fosforo') in ('Bray I','Olsen') else 'Bray I'
+            st.session_state['metodo_fosforo_evaluacion'] = ('Olsen modificado' if fila_h.get('metodo_fosforo') == 'Olsen' else str(fila_h.get('metodo_fosforo')) if pd.notna(fila_h.get('metodo_fosforo')) and fila_h.get('metodo_fosforo') in ('Bray I','Olsen modificado') else 'Bray I')
             st.session_state['evaluacion_pendiente'] = {
                 'datos': {k: (float(fila_h[k]) if pd.notna(fila_h[k]) else None) for k in FIELD_KEYS},
                 'rendimiento': st.session_state['meta_evaluacion'],
@@ -648,13 +649,13 @@ with secciones[0]:
                     datos_texto[clave] = sub_p.text_input('Fósforo disponible (ppm)',
                         placeholder='No medido', key='dato_p')
                     metodo_fosforo = sub_metodo.selectbox('Método de fósforo',
-                        ['Bray I', 'Olsen'], key='metodo_fosforo_evaluacion',
+                        ['Bray I', 'Olsen modificado'], key='metodo_fosforo_evaluacion',
                         help='Seleccione el método reportado por el laboratorio; no se deduce del pH.')
                 else:
                     datos_texto[clave] = columna.text_input(f'{nombre} ({unidad})' if unidad else nombre,
                         placeholder='No medido: dejar vacío', key='dato_'+clave)
-        if metodo_fosforo == 'Olsen':
-            st.caption('Olsen: rangos de clasificación pendientes de validación documental.')
+        # La escala Olsen modificado está documentada en la tabla UNAS (2008),
+        # excepto >40 ppm, ampliación operativa solicitada por el usuario.
         st.caption('Densidad aparente referencial automática: 1.33 g/cm³ (0–20 cm).')
         calcular = st.form_submit_button('💾 Guardar productor y análisis de suelo' if analisis_inicio_id is None else '💾 Actualizar productor y análisis seleccionado', type='primary', use_container_width=True)
 
@@ -754,7 +755,7 @@ with secciones[1]:
             }
             metodo_p_resultado = st.session_state['evaluacion_pendiente'].get('metodo_fosforo', 'Bray I')
             fuentes_inia['p'] = ('INIA (2025), tabla 11 (Bray I)' if metodo_p_resultado == 'Bray I'
-                                 else 'Olsen: fuente y rangos pendientes de validación')
+                                 else 'UNAS (2008), Olsen modificado; >40: criterio operativo')
             # Mostrar solo indicadores con interpretación agronómica orientativa.
             # Los demás resultados permanecen en datos para verificaciones internas.
             indicadores_visibles = {'ph', 'mo', 'n', 'p', 'k_cmol', 'ca', 'mg', 'sat_al'}
@@ -776,7 +777,7 @@ with secciones[1]:
                 sat_calculada = datos['al'] / datos['cice'] * 100
                 if datos['sat_al'] is not None and abs(sat_calculada - datos['sat_al']) > 0.5:
                     st.warning(f'Compruebe la saturación de aluminio: Al/CICe × 100 = {sat_calculada:.2f} %, frente al {datos["sat_al"]:.2f} % ingresado. Verifique la metodología del laboratorio.')
-            st.caption('Referencias: INIA (2025), tablas 11, 15 y 27. Bray I: <15 bajo, 15–30 medio, >30 alto; Olsen: interpretación pendiente de validar. Los rangos adecuados para cacao no equivalen a una escala general de fertilidad. Confirme el método analítico del laboratorio.')
+            st.caption('Fósforo: Bray I — INIA (2025), tabla 11; Olsen modificado — UNAS (2008), con >40 ppm como ampliación operativa. Otros indicadores: INIA (2025), tablas 5, 7, 9, 15 y 27.')
             ph, al, mg = datos['ph'], datos['sat_al'], datos['mg']
             if ph is not None and (ph < 5.5 or (al is not None and al >= 20)):
                 st.warning('Suelo ácido o con señal de aluminio: conviene evaluar una corrección de acidez con asistencia técnica. No se calcula dosis de cal o dolomita sin datos adicionales.')
@@ -855,7 +856,8 @@ with secciones[1]:
                     g_planta = kg_ha * 1000 / plantas_encalado
                     sacos = math.ceil(kg_parcela / 50)
                     st.dataframe(pd.DataFrame([{'Producto':producto_enc, 'Ca/Mg':round(relacion,2), 'Exceso Al (cmol(+)/kg)':round(exceso_al,3), 'kg/ha':round(kg_ha,2), 'kg/parcela':round(kg_parcela,2), 'g/planta':round(g_planta,1), 'Sacos de 50 kg':sacos}]), hide_index=True, use_container_width=True)
-                    st.caption(f'Área tratada: {area_ha:,.1f} m²/ha. Masa de suelo: {masa_suelo:,.0f} kg/ha. Equivalente CaCO₃: {kg_equiv:,.1f} kg/ha. Ajuste por PRNT referencial: {prnt:.2f}.')
+                    st.caption(f'Área tratada: {area_ha:,.1f} m²/ha. Masa de suelo: {masa_suelo:,.0f} kg/ha. Equivalente CaCO₃: {kg_equiv:,.1f} kg/ha. Ajuste por PRNT: {prnt:.2f}.')
+                    st.caption('Referencia metodológica: INIA (2025), Manual técnico de encalado y fertilización para café y cacao, pp. 91–99 (neutralización de aluminio). Cálculo de SIFERT: simulación pendiente de contrastar con el ejemplo del manual.')
                     if producto_enc.startswith('Dolomita'):
                         st.caption(f'Aporte químico teórico de la dolomita (sin estimar disponibilidad): CaO {kg_ha*0.30:.2f} kg/ha; MgO {kg_ha*0.215:.2f} kg/ha. Porcentajes centrales de la ficha ODINSU (CaO 28–32 %, MgO 20–23 %).')
                     else:
@@ -1138,39 +1140,24 @@ with secciones[1]:
                 st.dataframe(pd.DataFrame(resumen_descuento),hide_index=True,use_container_width=True)
                 st.caption('Balance NPK: el compost se descuenta una sola vez. Las cáscaras se muestran como aporte potencial, sin descuento efectivo hasta validar su liberación. El encalado se presenta por separado.')
                 st.markdown('**Fertilizantes seleccionados y balance nutricional**')
-                st.caption('Ingrese la presentación y el número de sacos. Al terminar, pulse «Actualizar cálculo de fertilizantes» para aplicar los cambios sin recálculos por cada clic.')
-                # Entradas nativas: cada fertilizante conserva sus propios valores en session_state.
-                # Evita que st.data_editor reinicie ediciones al reconstruir el DataFrame.
+                st.caption('Cambie los sacos o el peso de presentación: el balance, el total y la ficha PDF se actualizan automáticamente.')
+                # Los number_input están fuera de st.form: cada edición produce un rerun
+                # y recalcula inmediatamente todo el balance sin botón de confirmación.
                 plan={}
                 presentaciones={}
                 if fuentes:
-                    # Los controles dentro del formulario no disparan un rerun por cada +/-.
-                    # Al confirmar se actualizan juntos el balance, las compras y el PDF.
-                    with st.form('form_fertilizantes_v98', clear_on_submit=False):
-                        cab=st.columns([4,2,2,2])
-                        for col,titulo in zip(cab,['**Fertilizante**','**Presentación (kg/saco)**','**Sacos (editar)**','**Total (kg)**']):
-                            col.markdown(titulo)
-                        for indice,x in enumerate(fuentes):
-                            c_nombre,c_peso,c_sacos,c_total=st.columns([4,2,2,2],vertical_alignment='center')
-                            c_nombre.write(x)
-                            peso=c_peso.number_input('Presentación de '+x,min_value=0.1,value=50.0,step=1.0,format='%.2f',key='peso_v69_'+x,label_visibility='collapsed')
-                            sacos=c_sacos.number_input('Sacos de '+x,min_value=0.0,value=0.0,step=0.5,format='%.2f',key='sacos_v69_'+x,label_visibility='collapsed')
-                            presentaciones[x]=peso
-                            plan[x]=peso*sacos
-                            c_total.write(f'{plan[x]:,.2f}')
-                        confirmar_fertilizantes=st.form_submit_button('🔄 Actualizar cálculo de fertilizantes',type='primary',use_container_width=True)
-                    # Durante otros reruns conservar el último plan confirmado,
-                    # para que la tabla y el PDF no reflejen cambios sin confirmar.
-                    if confirmar_fertilizantes:
-                        st.session_state['plan_confirmado_v98']=dict(plan)
-                        st.session_state['presentaciones_confirmadas_v98']=dict(presentaciones)
-                    plan_guardado=st.session_state.get('plan_confirmado_v98',{})
-                    pesos_guardados=st.session_state.get('presentaciones_confirmadas_v98',{})
-                    plan={x:float(plan_guardado.get(x,0.0)) for x in fuentes}
-                    presentaciones={x:float(pesos_guardados.get(x,50.0)) for x in fuentes}
-                    st.markdown(f'**TOTAL DE FERTILIZANTES CONFIRMADOS: {sum(plan.values()):,.2f} kg**')
-                    if not confirmar_fertilizantes and not plan_guardado:
-                        st.info('Después de ingresar los sacos, pulse «Actualizar cálculo de fertilizantes» para ver el balance y el PDF actualizados.')
+                    cab=st.columns([4,2,2,2])
+                    for col,titulo in zip(cab,['**Fertilizante**','**Presentación (kg/saco)**','**Sacos (editar)**','**Total (kg)**']):
+                        col.markdown(titulo)
+                    for indice,x in enumerate(fuentes):
+                        c_nombre,c_peso,c_sacos,c_total=st.columns([4,2,2,2],vertical_alignment='center')
+                        c_nombre.write(x)
+                        peso=c_peso.number_input('Presentación de '+x,min_value=0.1,value=50.0,step=1.0,format='%.2f',key='peso_v69_'+x,label_visibility='collapsed')
+                        sacos=c_sacos.number_input('Sacos de '+x,min_value=0.0,value=0.0,step=0.5,format='%.2f',key='sacos_v69_'+x,label_visibility='collapsed')
+                        presentaciones[x]=peso
+                        plan[x]=peso*sacos
+                        c_total.write(f'{plan[x]:,.2f}')
+                    st.markdown(f'**TOTAL DE FERTILIZANTES: {sum(plan.values()):,.2f} kg**')
                 else:
                     st.info('Seleccione al menos un fertilizante. El aporte del compost se mostrará en el balance aun sin productos seleccionados.')
                 usados=[x for x in fuentes if plan.get(x,0)>0]
