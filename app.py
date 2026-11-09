@@ -166,7 +166,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V9.7 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V9.9 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -470,45 +470,49 @@ with secciones[0]:
     st.markdown('<div class="sifert-inicio-marker sifert-hero inicio"><div><h2>🌿 Registro de productores de cacao</h2><p>Datos de la parcela y del responsable técnico</p></div><span class="art">🌳🍫</span></div>', unsafe_allow_html=True)
     st.subheader('1. Registrar participante y datos de la parcela')
     st.caption('Registre los datos del productor y, a continuación, complete su análisis de suelo.')
-    with st.form('nuevo_participante'):
-        c1,c2,c3=st.columns(3)
-        codigo=c1.text_input('Código único (evite DNI)')
-        nombre=c2.text_input('Nombre o identificación interna')
-        caserio=c3.text_input('Caserío')
-        area=c1.number_input('Área (ha)', min_value=0.0, value=1.0)
-        plantas=c2.number_input('Plantas por ha', min_value=1, value=1100)
-        edad=c3.number_input('Edad del cacao (años)', min_value=0.0, value=5.0)
-        st.markdown('**Datos complementarios del productor y parcela para la ficha PDF**')
-        c4,c5,c6=st.columns(3)
-        manejo=c4.selectbox('Manejo de cáscaras', ['Permanecen en la parcela','Se retiran completamente','Retiro parcial'])
-        distrito=c5.text_input('Distrito')
-        provincia=c6.text_input('Provincia', value='Leoncio Prado')
-        c7,c8=st.columns([1,2])
-        etapa=c7.selectbox('Etapa del cultivo', ['No especificada','Crecimiento','Producción'])
-        ingeniero=c8.text_input('Responsable técnico')
-        retiro=c4.number_input('Porcentaje retirado (%)', min_value=0.0, max_value=100.0, value=50.0, step=5.0) if manejo=='Retiro parcial' else (100.0 if manejo=='Se retiran completamente' else 0.0)
-        crear=st.form_submit_button('Guardar participante')
-    if crear:
-        try:
-            if not codigo.strip() or not nombre.strip():
-                raise ValueError('Código y nombre son obligatorios.')
-            existente = execute('SELECT id FROM participantes WHERE codigo=?', (codigo.strip(),), True)
-            existente_meta = execute('SELECT meta_kg_ha FROM participantes WHERE codigo=?', (codigo.strip(),), True)
-            if existente.empty:
-                execute('INSERT INTO participantes(codigo,nombre,caserio,area_ha,plantas_ha,edad_anios,manejo_cascaras,retiro_pct,meta_kg_ha,creado,dni,distrito,provincia,parcela,etapa,ingeniero,cip) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                        (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,1000.0,date.today().isoformat(),'',distrito.strip(),provincia.strip(),'',etapa,ingeniero.strip(),''))
-                st.success('Participante guardado.')
-            else:
-                execute('UPDATE participantes SET nombre=?, caserio=?, area_ha=?, plantas_ha=?, edad_anios=?, manejo_cascaras=?, retiro_pct=?, meta_kg_ha=?, distrito=?, provincia=?, etapa=?, ingeniero=? WHERE codigo=?',
-                        (nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,float(existente_meta.iloc[0]['meta_kg_ha']) if not existente_meta.empty and pd.notna(existente_meta.iloc[0]['meta_kg_ha']) else 1000.0,distrito.strip(),provincia.strip(),etapa,ingeniero.strip(),codigo.strip()))
-                st.success('Datos del participante actualizados.')
-            nuevo_registro = execute('SELECT id FROM participantes WHERE codigo=?', (codigo.strip(),), True)
-            if not nuevo_registro.empty:
-                st.session_state['_participante_registro_actual'] = int(nuevo_registro.iloc[0]['id'])
-            st.rerun()
-        except Exception as e:
-            st.error(str(e))
-    st.caption('Si el código ya existe, Guardar participante actualizará sus datos sin duplicarlo. La meta de producción se ingresa en Evaluar suelo.')
+    # Al abrir la aplicación, iniciar con un formulario nuevo y sin propietario implícito.
+    registros_inicio = participantes()
+    opciones_inicio = {'➕ Nuevo productor y nuevo análisis': None}
+    opciones_inicio.update({f"{r['codigo']} · {r['nombre']}": int(r['id']) for _, r in registros_inicio.iterrows()})
+    seleccion_inicio = st.selectbox('Productor para registrar o consultar', list(opciones_inicio), key='selector_inicio')
+    productor_existente_id = opciones_inicio[seleccion_inicio]
+    if st.session_state.get('_selector_inicio_previo') != seleccion_inicio:
+        st.session_state['_selector_inicio_previo'] = seleccion_inicio
+        for k in ('codigo','nombre','caserio','area','plantas','edad','manejo','distrito','provincia','etapa','ingeniero','retiro'):
+            st.session_state.pop('registro_' + k, None)
+        for k in FIELD_KEYS:
+            st.session_state.pop('dato_' + k, None)
+        st.session_state.pop('evaluacion_pendiente', None)
+        st.session_state.pop('_consulta_id_cargado', None)
+    registro_actual = (registros_inicio[registros_inicio['id'] == productor_existente_id].iloc[0]
+                       if productor_existente_id is not None else None)
+    def campo_actual(nombre, predeterminado=''):
+        if registro_actual is None:
+            return predeterminado
+        v = registro_actual.get(nombre)
+        return predeterminado if pd.isna(v) or v is None else v
+    c1,c2,c3=st.columns(3)
+    codigo=c1.text_input('Código único (evite DNI)', value=str(campo_actual('codigo')),
+                         disabled=productor_existente_id is not None, key='registro_codigo')
+    nombre=c2.text_input('Nombre o identificación interna', value=str(campo_actual('nombre')), key='registro_nombre')
+    caserio=c3.text_input('Caserío', value=str(campo_actual('caserio')), key='registro_caserio')
+    area=c1.number_input('Área (ha)', min_value=0.0, value=float(campo_actual('area_ha',1.0)), key='registro_area')
+    plantas=c2.number_input('Plantas por ha', min_value=1, value=int(campo_actual('plantas_ha',1100)), key='registro_plantas')
+    edad=c3.number_input('Edad del cacao (años)', min_value=0.0, value=float(campo_actual('edad_anios',5.0)), key='registro_edad')
+    st.markdown('**Datos complementarios del productor y parcela para la ficha PDF**')
+    c4,c5,c6=st.columns(3)
+    manejos=['Permanecen en la parcela','Se retiran completamente','Retiro parcial']
+    manejo_actual=str(campo_actual('manejo_cascaras', manejos[0]))
+    manejo=c4.selectbox('Manejo de cáscaras', manejos, index=manejos.index(manejo_actual) if manejo_actual in manejos else 0, key='registro_manejo')
+    distrito=c5.text_input('Distrito', value=str(campo_actual('distrito')), key='registro_distrito')
+    provincia=c6.text_input('Provincia', value=str(campo_actual('provincia','Leoncio Prado')), key='registro_provincia')
+    c7,c8=st.columns([1,2])
+    etapas=['No especificada','Crecimiento','Producción']
+    etapa_actual=str(campo_actual('etapa', etapas[0]))
+    etapa=c7.selectbox('Etapa del cultivo', etapas, index=etapas.index(etapa_actual) if etapa_actual in etapas else 0, key='registro_etapa')
+    ingeniero=c8.text_input('Responsable técnico', value=str(campo_actual('ingeniero')), key='registro_ingeniero')
+    retiro=c4.number_input('Porcentaje retirado (%)', min_value=0.0, max_value=100.0, value=float(campo_actual('retiro_pct',50.0)), step=5.0, key='registro_retiro') if manejo=='Retiro parcial' else (100.0 if manejo=='Se retiran completamente' else 0.0)
+    st.caption('Complete los datos del productor y el análisis de suelo. Ambos se guardarán con el único botón al final del formulario.')
     st.subheader('Participantes registrados')
     df_participantes = participantes()
     if df_participantes.empty:
@@ -596,72 +600,12 @@ with secciones[0]:
 
 
     st.markdown('<div class="sifert-suelo-marker sifert-hero suelo"><div><h2>🌱 Evaluación de suelo y fertilización</h2><p>Análisis químico · balance NPK · plan de abonamiento</p></div><span class="art">🪴🔬</span></div>', unsafe_allow_html=True)
-    p_guardar = participantes()
-    # Sin desplegable duplicado: usar el participante que se acaba de guardar.
-    # En sesiones nuevas, usar el registro más reciente como selección inicial.
-    pid_guardar = st.session_state.get('_participante_registro_actual')
-    if not p_guardar.empty:
-        ids_validos = set(p_guardar['id'].astype(int).tolist())
-        if pid_guardar not in ids_validos:
-            ultimo_registrado = execute('SELECT id FROM participantes ORDER BY id DESC LIMIT 1', fetch=True)
-            pid_guardar = int(ultimo_registrado.iloc[0]['id']) if not ultimo_registrado.empty else None
-            st.session_state['_participante_registro_actual'] = pid_guardar
-    else:
-        pid_guardar = None
-    if pid_guardar is not None:
-        fila_activa = p_guardar[p_guardar['id'] == pid_guardar].iloc[0]
-        st.caption(f"Análisis vinculado a: {fila_activa['codigo']} · {fila_activa['nombre']}. Para cambiar de productor, registre o actualice su código en el formulario superior.")
-    else:
-        st.info('Registre primero los datos del productor para asociar el análisis.')
-    # Al cambiar de productor, recuperar automáticamente su último análisis.
-    # Los campos se actualizan ANTES de crear los widgets de Streamlit.
-    anterior = st.session_state.get('_productor_evaluacion_anterior', '__inicial__')
-    if anterior != pid_guardar:
-        st.session_state['_productor_evaluacion_anterior'] = pid_guardar
-        st.session_state.pop('evaluacion_pendiente', None)
-        st.session_state['meta_evaluacion'] = 1000.0
-        for clave in FIELD_KEYS:
-            st.session_state['dato_' + clave] = ''
-        if pid_guardar is not None:
-            ultimos = execute('SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC LIMIT 1', (pid_guardar,), True)
-            if not ultimos.empty:
-                ultimo = ultimos.iloc[0]
-                if 'meta_produccion' in ultimo and pd.notna(ultimo['meta_produccion']):
-                    st.session_state['meta_evaluacion'] = float(ultimo['meta_produccion'])
-                for clave in FIELD_KEYS:
-                    v = ultimo[clave]
-                    st.session_state['dato_' + clave] = f'{float(v):g}' if pd.notna(v) else ''
-                st.session_state['_analisis_cargado'] = f"Último análisis cargado: {ultimo['fecha']} (registro {int(ultimo['id'])})"
-            else:
-                st.session_state['_analisis_cargado'] = 'Este participante todavía no tiene análisis guardados.'
-            fila_meta = p_guardar[p_guardar['id'] == pid_guardar].iloc[0]
-        else:
-            st.session_state['_analisis_cargado'] = ''
-
-    # Recuperación adicional: si la selección no cambió pero los campos están vacíos
-    # (por ejemplo, al volver desde «Análisis guardados»), restaurar el último análisis.
-    # Nunca sobrescribir datos que el usuario ya está editando.
-    if pid_guardar is not None and all(
-        str(st.session_state.get('dato_' + clave, '')).strip() == '' for clave in FIELD_KEYS
-    ):
-        ultimos_recuperacion = execute(
-            'SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC LIMIT 1',
-            (pid_guardar,), True
-        )
-        if not ultimos_recuperacion.empty:
-            ultimo_recuperado = ultimos_recuperacion.iloc[0]
-            for clave in FIELD_KEYS:
-                valor_recuperado = ultimo_recuperado[clave]
-                st.session_state['dato_' + clave] = (
-                    f'{float(valor_recuperado):g}' if pd.notna(valor_recuperado) else ''
-                )
-            if ('meta_produccion' in ultimo_recuperado
-                    and pd.notna(ultimo_recuperado['meta_produccion'])):
-                st.session_state['meta_evaluacion'] = float(ultimo_recuperado['meta_produccion'])
-            st.session_state['_analisis_cargado'] = (
-                f"Análisis recuperado automáticamente: {ultimo_recuperado['fecha']} "
-                f"(registro {int(ultimo_recuperado['id'])})"
-            )
+    # No seleccionar automáticamente el último productor ni cargar su análisis en un formulario nuevo.
+    pid_guardar = productor_existente_id
+    st.session_state['_productor_evaluacion_anterior'] = pid_guardar
+    st.session_state.setdefault('meta_evaluacion', 1000.0)
+    for clave in FIELD_KEYS:
+        st.session_state.setdefault('dato_' + clave, '')
 
     # Datos generales del análisis, antes de los resultados del laboratorio.
     st.markdown('### Datos generales del análisis de suelo')
@@ -679,37 +623,76 @@ with secciones[0]:
                 datos_texto[clave] = columna.text_input(f'{nombre} ({unidad})' if unidad else nombre,
                                                        placeholder='No medido: dejar vacío', key='dato_'+clave)
         st.caption('Densidad aparente referencial automática: 1.33 g/cm³ (0–20 cm).')
-        calcular = st.form_submit_button('💾 Guardar análisis y calcular resultados', type='primary', use_container_width=True)
+        calcular = st.form_submit_button('💾 Guardar productor y análisis de suelo', type='primary', use_container_width=True)
 
     if calcular:
         try:
-            if pid_guardar is None:
-                raise ValueError('Primero registre y seleccione un participante para guardar su análisis.')
-            valores = {clave: leer_numero(datos_texto[clave], nombre) for clave, nombre, _ in CAMPOS}
+            if not codigo.strip() or not nombre.strip():
+                raise ValueError('Complete el código y el nombre del productor.')
+            valores = {clave: leer_numero(datos_texto[clave], etiqueta) for clave, etiqueta, _ in CAMPOS}
             if not any(v is not None for v in valores.values()):
-                raise ValueError('Ingrese al menos un resultado del laboratorio. No se guardan análisis vacíos.')
+                raise ValueError('Ingrese al menos un resultado del laboratorio.')
             for clave in ('mo','n','sat_al','arena','limo','arcilla'):
-                if valores[clave] is not None and valores[clave] > 100:
-                    raise ValueError(f'{clave}: el porcentaje no puede superar 100.')
+                if valores[clave] is not None and not 0 <= valores[clave] <= 100:
+                    raise ValueError(f'{clave}: porcentaje fuera de 0–100.')
             if valores['ph'] is not None and not (0 < valores['ph'] <= 14):
                 raise ValueError('El pH debe estar entre 0 y 14.')
-            columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['dap','textura','observaciones','meta_produccion']
-            parametros = [pid_guardar, fecha_guardar.isoformat()] + [valores[k] for k in FIELD_KEYS] + [
-                1.33, textura_usda(valores['arena'],valores['limo'],valores['arcilla']),
-                f'Meta de evaluación: {rendimiento:g} kg/ha/año; laboratorio: {laboratorio_analisis}', float(rendimiento)]
-            execute(f"INSERT INTO analisis({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})", parametros)
+            # Guardar productor y análisis en una sola transacción: sin registros parciales.
+            with connect() as conn:
+                cur = conn.cursor()
+                q = lambda sql: sql.replace('?', '%s') if IS_POSTGRES else sql
+                cur.execute(q('SELECT id FROM participantes WHERE codigo=?'), (codigo.strip(),))
+                anterior = cur.fetchone()
+                if anterior:
+                    pid_guardar = int(anterior[0])
+                    cur.execute(q('UPDATE participantes SET nombre=?,caserio=?,area_ha=?,plantas_ha=?,edad_anios=?,manejo_cascaras=?,retiro_pct=?,meta_kg_ha=?,distrito=?,provincia=?,etapa=?,ingeniero=? WHERE id=?'),
+                        (nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,float(rendimiento),distrito.strip(),provincia.strip(),etapa,ingeniero.strip(),pid_guardar))
+                else:
+                    cur.execute(q('INSERT INTO participantes(codigo,nombre,caserio,area_ha,plantas_ha,edad_anios,manejo_cascaras,retiro_pct,meta_kg_ha,creado,dni,distrito,provincia,parcela,etapa,ingeniero,cip) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'),
+                        (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,float(rendimiento),date.today().isoformat(),'',distrito.strip(),provincia.strip(),'',etapa,ingeniero.strip(),''))
+                    cur.execute(q('SELECT id FROM participantes WHERE codigo=?'), (codigo.strip(),))
+                    pid_guardar = int(cur.fetchone()[0])
+                columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['dap','textura','observaciones','meta_produccion']
+                parametros = [pid_guardar, fecha_guardar.isoformat()] + [valores[k] for k in FIELD_KEYS] + [
+                    1.33, textura_usda(valores['arena'],valores['limo'],valores['arcilla']),
+                    f'Meta de evaluación: {rendimiento:g} kg/ha/año; laboratorio: {laboratorio_analisis}', float(rendimiento)]
+                cur.execute(q(f"INSERT INTO analisis({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})"), parametros)
+            st.session_state['_productor_evaluacion_anterior'] = pid_guardar
             st.session_state['evaluacion_pendiente'] = {
                 'datos': valores.copy(), 'rendimiento': float(rendimiento),
                 'participante_id': pid_guardar, 'fecha': fecha_guardar.isoformat(),
                 'laboratorio': laboratorio_analisis}
-            st.success('Análisis guardado en la base de datos. Abra la segunda pestaña «Resultados del suelo» para ver el diagnóstico y el plan de fertilización.')
+            st.success('Productor y análisis guardados juntos. Consulte los resultados en la segunda pestaña.')
         except Exception as e:
-            st.error(f'No se guardó el análisis: {e}')
+            st.error(f'No se pudo guardar: {e}')
 
 
 with secciones[1]:
     st.markdown('<div class="sifert-suelo-marker sifert-hero suelo"><div><h2>🌱 Resultados del suelo y fertilización</h2><p>Diagnóstico químico · balance NPK · plan de abonamiento</p></div><span class="art">🪴🔬</span></div>', unsafe_allow_html=True)
-    pid_guardar = st.session_state.get('_productor_evaluacion_anterior')
+    registros_resultados = participantes()
+    if not registros_resultados.empty:
+        opciones_res = {f"{r['codigo']} · {r['nombre']}": int(r['id']) for _, r in registros_resultados.iterrows()}
+        etiqueta_res = st.selectbox('Consultar productor guardado', list(opciones_res), index=None,
+                                    placeholder='Seleccione un productor para ver sus resultados', key='consulta_productor')
+        pid_consulta = opciones_res[etiqueta_res] if etiqueta_res else None
+        if pid_consulta is not None:
+            analisis_disponibles = execute('SELECT * FROM analisis WHERE participante_id=? ORDER BY fecha DESC,id DESC', (pid_consulta,), True)
+            if not analisis_disponibles.empty:
+                opciones_analisis = {f"{r['fecha']} · Análisis {i+1}": i for i, (_,r) in enumerate(analisis_disponibles.iterrows())}
+                etiqueta_analisis = st.selectbox('Análisis guardado', list(opciones_analisis), key='consulta_analisis')
+                registro_analisis = analisis_disponibles.iloc[opciones_analisis[etiqueta_analisis]]
+                identificador = int(registro_analisis['id'])
+                if st.session_state.get('_consulta_id_cargado') != identificador:
+                    st.session_state['_consulta_id_cargado'] = identificador
+                    st.session_state['_productor_evaluacion_anterior'] = pid_consulta
+                    st.session_state['evaluacion_pendiente'] = {
+                        'datos': {k: (float(registro_analisis[k]) if pd.notna(registro_analisis[k]) else None) for k in FIELD_KEYS},
+                        'rendimiento': float(registro_analisis['meta_produccion']) if pd.notna(registro_analisis.get('meta_produccion')) else 1000.0,
+                        'participante_id': pid_consulta, 'fecha': str(registro_analisis['fecha']),
+                        'laboratorio': ''}
+            else:
+                st.info('Este productor todavía no tiene análisis registrados.')
+    pid_guardar = pid_consulta if not registros_resultados.empty and pid_consulta is not None else st.session_state.get('_productor_evaluacion_anterior')
     fecha_guardar = date.fromisoformat(st.session_state['evaluacion_pendiente']['fecha']) if st.session_state.get('evaluacion_pendiente') else date.today()
     laboratorio_analisis = st.session_state.get('evaluacion_pendiente', {}).get('laboratorio', '')
     rendimiento = st.session_state.get('evaluacion_pendiente', {}).get('rendimiento', 1000.0)
@@ -774,23 +757,8 @@ with secciones[1]:
                 st.caption(f'Ca: {ca_val:g} cmol(+)/kg · Mg: {mg_val:g} cmol(+)/kg. Una relación por sí sola no determina el producto.')
             else:
                 st.info('Para evaluar Ca/Mg ingrese calcio y magnesio intercambiables; Mg debe ser mayor que cero.')
-            # Criterios de cribado orientativos; no son una prescripción validada del INIA.
-            # Exigir datos completos y coherentes antes de emitir una categoría.
-            if any(v is None for v in (ph_val, sat_val, ca_val, mg_val)):
-                st.info('**DATOS INSUFICIENTES:** ingrese pH, saturación de aluminio, calcio y magnesio para orientar la enmienda.')
-            elif not (0 <= sat_val <= 100 and ca_val >= 0 and mg_val >= 0 and 0 < ph_val <= 14):
-                st.error('**DATOS INCONSISTENTES:** revise pH, saturación de aluminio, calcio y magnesio.')
-            elif ph_val >= 5.5 and sat_val < 20:
-                st.success('**NO REQUIERE ENMIENDA según este diagnóstico preliminar.** La acidez y la saturación de aluminio no activan los criterios de revisión de encalado.')
-            elif mg_val < 0.5:
-                st.warning('**DOLOMITA (opción orientativa).** El suelo presenta acidez o aluminio elevado y magnesio bajo. Confirme la composición de la dolomita y la necesidad de encalado antes de aplicar.')
-            elif mg_val >= 1.0:
-                st.warning('**CAL AGRÍCOLA (opción orientativa).** El suelo presenta acidez o aluminio elevado y el magnesio no está bajo según el criterio provisional. Confirme la composición del producto antes de aplicar.')
-            else:
-                st.info('**TIPO DE ENMIENDA POR CONFIRMAR.** Hay indicios de acidez, pero el nivel intermedio de magnesio requiere revisión técnica para elegir entre cal agrícola y dolomita.')
-            st.caption('Criterios provisionales de orientación: pH < 5.5 o saturación de Al ≥ 20 % para revisar encalado; Mg < 0.5 cmol(+)/kg para orientar dolomita y Mg ≥ 1.0 para orientar cal agrícola. No equivalen a una recomendación de dosis ni a umbrales certificados por INIA.')
-            st.caption('Referencia: enfoque de neutralización de Al intercambiable. Esta simulación estequiométrica NO equivale a una dosis de campo validada por INIA; verificar método y respuesta local antes de aplicar.')
-            st.caption('PRNT de referencia: dolomita 108 % y cal agrícola 135 %. Verificar en la ficha técnica del producto; no son valores certificados aquí.')
+            st.caption('Valores orientativos para cacao (verificar método analítico y rangos INIA 2025): pH 5.5–6.5; saturación Al < 20 %; Ca 4–5 y Mg 1.0–1.5 cmol(+)/kg. La relación Ca/Mg es complementaria.')
+            st.info('El técnico selecciona la enmienda según su evaluación de campo y la ficha técnica del producto.')
             plantas_encalado = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
             area_encalado = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
             import math
@@ -801,12 +769,22 @@ with secciones[1]:
             prof_enc = ec3.number_input('Profundidad de suelo considerada (cm)', min_value=1.0, max_value=40.0, value=20.0, step=1.0, key='encalado_prof')
             e1, e2 = st.columns(2)
             kg_ha_encalado_calculado = None
-            producto_enc = e1.selectbox('Enmienda para simular', ['Dolomita (PRNT 108 %)', 'Cal agrícola (PRNT 135 %)'], key='encalado_producto')
-            sat_meta = e2.number_input('Saturación de aluminio objetivo (%)', min_value=0.0, max_value=40.0, value=20.0, step=1.0, key='encalado_meta_al')
-            prnt = 1.08 if producto_enc.startswith('Dolomita') else 1.35
+            producto_enc = e1.selectbox('Tipo de enmienda', ['Dolomita', 'Cal agrícola', 'No aplicar'], key='encalado_producto')
+            prnt_inicial = 108.0 if producto_enc == 'Dolomita' else 135.0
+            if st.session_state.get('_encalado_tipo_anterior') != producto_enc:
+                st.session_state['_encalado_tipo_anterior'] = producto_enc
+                st.session_state['encalado_prnt'] = prnt_inicial
+            prnt_pct = e2.number_input('PRNT del producto (%)', min_value=1.0, max_value=250.0,
+                                       value=prnt_inicial, step=1.0, key='encalado_prnt',
+                                       disabled=producto_enc == 'No aplicar')
+            prnt = prnt_pct / 100.0
+            st.caption('PRNT inicial referencial y editable: dolomita 108 %; cal agrícola 135 %. Reemplace por el valor de la ficha técnica de su producto.')
+            sat_meta = st.number_input('Saturación de aluminio objetivo (%)', min_value=0.0, max_value=40.0, value=20.0, step=1.0, key='encalado_meta_al')
             if relacion is not None:
                 st.info(f'Relación Ca/Mg obligatoria: {relacion:.2f}:1. La selección debe considerar también Mg absoluto, Ca absoluto y necesidad de encalado.')
-            if radio_ext <= radio_int:
+            if producto_enc == 'No aplicar':
+                st.info('No se calculará dosis de encalado porque el técnico seleccionó No aplicar.')
+            elif radio_ext <= radio_int:
                 st.error('El radio exterior debe superar el radio interior.')
             elif any(datos.get(k) is None for k in ('al','cice','ca','mg')) or datos['cice'] <= 0 or datos['dap'] <= 0 or relacion is None:
                 st.warning('Para calcular, ingrese Al intercambiable, CICe, densidad aparente, Ca y Mg.')
@@ -1073,24 +1051,39 @@ with secciones[1]:
                 st.dataframe(pd.DataFrame(resumen_descuento),hide_index=True,use_container_width=True)
                 st.caption('Balance NPK: el compost se descuenta una sola vez. Las cáscaras se muestran como aporte potencial, sin descuento efectivo hasta validar su liberación. El encalado se presenta por separado.')
                 st.markdown('**Fertilizantes seleccionados y balance nutricional**')
-                st.caption('Ingrese la presentación y el número de sacos directamente en cada fila. El compost se incorpora automáticamente al balance.')
+                st.caption('Ingrese la presentación y el número de sacos. Al terminar, pulse «Actualizar cálculo de fertilizantes» para aplicar los cambios sin recálculos por cada clic.')
                 # Entradas nativas: cada fertilizante conserva sus propios valores en session_state.
                 # Evita que st.data_editor reinicie ediciones al reconstruir el DataFrame.
                 plan={}
                 presentaciones={}
                 if fuentes:
-                    cab=st.columns([4,2,2,2])
-                    for col,titulo in zip(cab,['**Fertilizante**','**Presentación (kg/saco)**','**Sacos (editar)**','**Total (kg)**']):
-                        col.markdown(titulo)
-                    for indice,x in enumerate(fuentes):
-                        c_nombre,c_peso,c_sacos,c_total=st.columns([4,2,2,2],vertical_alignment='center')
-                        c_nombre.write(x)
-                        peso=c_peso.number_input('Presentación de '+x,min_value=0.1,value=50.0,step=1.0,format='%.2f',key='peso_v69_'+x,label_visibility='collapsed')
-                        sacos=c_sacos.number_input('Sacos de '+x,min_value=0.0,value=0.0,step=0.5,format='%.2f',key='sacos_v69_'+x,label_visibility='collapsed')
-                        presentaciones[x]=peso
-                        plan[x]=peso*sacos
-                        c_total.write(f'{plan[x]:,.2f}')
-                    st.markdown(f'**TOTAL DE FERTILIZANTES: {sum(plan.values()):,.2f} kg**')
+                    # Los controles dentro del formulario no disparan un rerun por cada +/-.
+                    # Al confirmar se actualizan juntos el balance, las compras y el PDF.
+                    with st.form('form_fertilizantes_v98', clear_on_submit=False):
+                        cab=st.columns([4,2,2,2])
+                        for col,titulo in zip(cab,['**Fertilizante**','**Presentación (kg/saco)**','**Sacos (editar)**','**Total (kg)**']):
+                            col.markdown(titulo)
+                        for indice,x in enumerate(fuentes):
+                            c_nombre,c_peso,c_sacos,c_total=st.columns([4,2,2,2],vertical_alignment='center')
+                            c_nombre.write(x)
+                            peso=c_peso.number_input('Presentación de '+x,min_value=0.1,value=50.0,step=1.0,format='%.2f',key='peso_v69_'+x,label_visibility='collapsed')
+                            sacos=c_sacos.number_input('Sacos de '+x,min_value=0.0,value=0.0,step=0.5,format='%.2f',key='sacos_v69_'+x,label_visibility='collapsed')
+                            presentaciones[x]=peso
+                            plan[x]=peso*sacos
+                            c_total.write(f'{plan[x]:,.2f}')
+                        confirmar_fertilizantes=st.form_submit_button('🔄 Actualizar cálculo de fertilizantes',type='primary',use_container_width=True)
+                    # Durante otros reruns conservar el último plan confirmado,
+                    # para que la tabla y el PDF no reflejen cambios sin confirmar.
+                    if confirmar_fertilizantes:
+                        st.session_state['plan_confirmado_v98']=dict(plan)
+                        st.session_state['presentaciones_confirmadas_v98']=dict(presentaciones)
+                    plan_guardado=st.session_state.get('plan_confirmado_v98',{})
+                    pesos_guardados=st.session_state.get('presentaciones_confirmadas_v98',{})
+                    plan={x:float(plan_guardado.get(x,0.0)) for x in fuentes}
+                    presentaciones={x:float(pesos_guardados.get(x,50.0)) for x in fuentes}
+                    st.markdown(f'**TOTAL DE FERTILIZANTES CONFIRMADOS: {sum(plan.values()):,.2f} kg**')
+                    if not confirmar_fertilizantes and not plan_guardado:
+                        st.info('Después de ingresar los sacos, pulse «Actualizar cálculo de fertilizantes» para ver el balance y el PDF actualizados.')
                 else:
                     st.info('Seleccione al menos un fertilizante. El aporte del compost se mostrará en el balance aun sin productos seleccionados.')
                 usados=[x for x in fuentes if plan.get(x,0)>0]
@@ -1186,7 +1179,7 @@ with secciones[1]:
             st.error(str(e))
 
     with st.expander('Información técnica y fuentes de referencia'):
-        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- Densidad aparente fija referencial: 1.33 g/cm³ (0–20 cm); no equivale a medición de laboratorio.\n\n**Para guardar un análisis, complete los datos en la primera pestaña y pulse «Guardar análisis y calcular resultados».  Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
+        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- Densidad aparente fija referencial: 1.33 g/cm³ (0–20 cm); no equivale a medición de laboratorio.\n\n**Para guardar productor y análisis juntos, complete el formulario de la primera pestaña y pulse «Guardar productor y análisis».  Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
 
 
 with secciones[2]:
