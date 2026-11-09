@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V13.0 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V13.1 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -79,20 +79,20 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                  Paragraph('<b>Productor:</b> '+escape(str(productor))+'  |  <b>Área:</b> '+f'{area_ha:,.2f}'+
                            ' ha  |  <b>Plantas en la parcela:</b> '+str(int(plantas))+'  |  <b>Fecha del análisis:</b> '+escape(str(fecha_analisis)), styles['EjecutivoNota']),
                  Spacer(1, 5*mm),
-                 Paragraph('1. FERTILIZANTES QUE DEBE COMPRAR', styles['EjecutivoSub'])]
+                 Paragraph('1. FERTILIZANTES SELECCIONADOS PARA APLICACIÓN', styles['EjecutivoSub'])]
     # Separar fertilizantes de las aplicaciones independientes en la ficha.
     filas_fert = [r for r in compra if str(r.get('Fertilizante','')).upper() not in ('TOTAL GENERAL', 'SUBTOTAL FERTILIZANTES')
                   and '(enmienda)' not in str(r.get('Fertilizante','')).lower()
                   and not str(r.get('Fertilizante','')).lower().startswith('compost (')]
     filas_enmiendas = [r for r in compra if '(enmienda)' in str(r.get('Fertilizante','')).lower()
                        or str(r.get('Fertilizante','')).lower().startswith('compost (')]
-    resumen_compra = [['Fertilizante', 'Cantidad a aplicar (kg)', 'Sacos enteros para comprar / kg']]
+    resumen_compra = [['Fertilizante', 'Cantidad a aplicar (kg)', 'Sacos seleccionados / kg']]
     for r in filas_fert:
-        resumen_compra.append([str(r.get('Fertilizante','')), str(r.get('Comprar (kg)','')),
+        resumen_compra.append([str(r.get('Fertilizante','')), str(r.get('Cantidad (kg)','')),
                                str(r.get('Sacos / kg',''))])
     subtotal = next((r for r in compra if str(r.get('Fertilizante','')).upper() == 'SUBTOTAL FERTILIZANTES'), None)
     if subtotal:
-        resumen_compra.append(['SUBTOTAL FERTILIZANTES', str(subtotal.get('Comprar (kg)','')),
+        resumen_compra.append(['SUBTOTAL FERTILIZANTES', str(subtotal.get('Cantidad (kg)','')),
                                'Ver productos'])
     def tabla_ejecutiva(filas, anchos):
         t = Table([[Paragraph(texto_quimico(c), styles['CeldaSifert']) for c in fila] for fila in filas],
@@ -105,14 +105,12 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         return t
     ancho_util = landscape(A4)[0]-30*mm
     contenido.append(tabla_ejecutiva(resumen_compra, [ancho_util*.52, ancho_util*.21, ancho_util*.27]))
-    contenido.append(Paragraph('Los sacos indicados son unidades enteras para compra (redondeo hacia arriba); '
-                              'la cantidad a aplicar puede utilizar solo una parte del último saco. '
-                              'La presentación de cada producto es la ingresada por el técnico.', styles['EjecutivoNota']))
+    contenido.append(Paragraph('Los sacos indicados corresponden a la cantidad exacta seleccionada por el técnico, incluso fracciones de saco. La presentación de cada producto es la registrada en SIFERT.', styles['EjecutivoNota']))
     contenido.append(Paragraph('ENMIENDAS Y COMPOST: DOSIS DE APLICACIÓN', styles['EjecutivoSub']))
     filas_enmiendas_pdf = [['Producto', 'Cantidad (kg/parcela)', 'Sacos / kg', 'Dosis (g/planta)', 'Aplicación']]
     for r in filas_enmiendas:
         nombre = str(r.get('Fertilizante','')).replace(' (enmienda)', '').replace(' (aplicación independiente)', '')
-        cantidad = float(r.get('Comprar (kg)',0) or 0)
+        cantidad = float(r.get('Cantidad (kg)',0) or 0)
         dosis = cantidad * 1000.0 / max(float(plantas),1.0)
         filas_enmiendas_pdf.append([nombre, f'{cantidad:,.2f}', str(r.get('Sacos / kg','')),
                                    f'{dosis:,.1f}', 'Independiente'])
@@ -1409,30 +1407,8 @@ with secciones[1]:
                     estado='Equilibrado' if abs(diferencia)<=tolerancia else ('Exceso' if diferencia>0 else 'Déficit')
                     filas_balance.append({'Nutriente':k,'Necesidad de nutrientes (kg/ha)':round(objetivo_comercial,2),
                         'Aporte del fertilizante (kg/ha)':round(aporte,2),'Diferencia (kg/ha)':round(diferencia,2),'Estado':estado})
-                # V12.7: separar productos y balance NPK para evitar columnas vacías
-                # y facilitar la lectura en pantallas de celular.
-                filas_productos = []
-                for producto in usados:
-                    peso_producto = float(presentaciones[producto])
-                    kg_producto = float(plan[producto])
-                    filas_productos.append({
-                        'Fertilizante': producto,
-                        'Presentación (kg/saco)': round(peso_producto, 2),
-                        'Sacos': round(kg_producto / peso_producto, 2) if peso_producto else 0,
-                        'Total (kg)': round(kg_producto, 2),
-                    })
-                if compost_kg_ha > 0:
-                    filas_productos.append({
-                        'Fertilizante': 'Compost (automático)',
-                        'Presentación (kg/saco)': None,
-                        'Sacos': None,
-                        'Total (kg)': round(compost_kg_ha * area_real, 2),
-                    })
-                st.markdown('**Productos aplicados**')
-                if filas_productos:
-                    tabla_ajustada(pd.DataFrame(filas_productos), hide_index=True, use_container_width=True)
-                else:
-                    st.caption('No hay productos con cantidad aplicada.')
+                # V13.1: se elimina la tabla redundante 'Productos aplicados'.
+                # La seleccion editable y el cuadro de distribucion ya muestran esas cantidades.
                 st.caption(f'Aporte aprovechable del compost: N {compost_aprovechable["N"]:.2f}; '
                            f'P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}; '
                            f'K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha. Ya descontado en la necesidad.')
@@ -1518,17 +1494,18 @@ with secciones[1]:
                     # Los sulfatos en cantidades pequeñas se expresan en kg, no sacos ficticios.
                     if micronutriente or (presentacion <= 1.0):
                         return f'{cantidad:g} kg'
-                    n_sacos = math.ceil(cantidad / max(presentacion, 0.001))
-                    return f'{n_sacos} saco' + ('s' if n_sacos != 1 else '')
+                    n_sacos = cantidad / max(presentacion, 0.001)
+                    texto = f'{n_sacos:.2f}'.rstrip('0').rstrip('.')
+                    return f'{texto} saco' + ('s' if abs(n_sacos - 1.0) > 1e-9 else '')
                 for x,total,a,b,c in filas_detalle:
                     peso=presentaciones.get(x,50.)
                     es_micro = x.startswith(('Sulfato de cobre', 'Sulfato de zinc', 'Sulfato de manganeso'))
-                    filas_compra.append({'Fertilizante':x,'Comprar (kg)':round(total,2),
+                    filas_compra.append({'Fertilizante':x,'Cantidad (kg)':round(total,2),
                         'Sacos / kg':formato_compra(total,peso,es_micro),
                         '1.º abonamiento (kg)':round(a,2),'2.º abonamiento (kg)':round(b,2),'3.º abonamiento (kg)':round(c,2)})
                 total_fertilizantes = sum(r[1] for r in filas_detalle)
                 # Cuadro 1: solo fertilizantes y sus tres aplicaciones.
-                filas_compra.append({'Fertilizante':'TOTAL FERTILIZANTES','Comprar (kg)':round(total_fertilizantes,2),
+                filas_compra.append({'Fertilizante':'TOTAL FERTILIZANTES','Cantidad (kg)':round(total_fertilizantes,2),
                     'Sacos / kg':'Ver productos','1.º abonamiento (kg)':round(sum(r[2] for r in filas_detalle),2),
                     '2.º abonamiento (kg)':round(sum(r[3] for r in filas_detalle),2),
                     '3.º abonamiento (kg)':round(sum(r[4] for r in filas_detalle),2)})
@@ -1541,14 +1518,14 @@ with secciones[1]:
                 if kg_enmienda_parcela > 0:
                     filas_enmiendas.append({'Producto':producto_enc,
                         'Cantidad (kg/parcela)':round(kg_enmienda_parcela,2),
-                        'Sacos / kg':formato_compra(kg_enmienda_parcela,50.0),
+                        'Sacos / kg':f'{math.ceil(kg_enmienda_parcela / 50)} sacos' if kg_enmienda_parcela > 0 else '—',
                         'Dosis (g/planta)':round(kg_enmienda_parcela*1000/max(total_plantas,1),1),
                         'Aplicación':'Independiente'})
                 if kg_compost_parcela > 0:
                     peso_compost = float(st.session_state.get('saco_compost_proyeccion',50.0) or 50.0)
                     filas_enmiendas.append({'Producto':'Compost',
                         'Cantidad (kg/parcela)':round(kg_compost_parcela,2),
-                        'Sacos / kg':formato_compra(kg_compost_parcela,peso_compost),
+                        'Sacos / kg':f'{math.ceil(kg_compost_parcela / max(peso_compost, 0.001))} sacos' if kg_compost_parcela > 0 else '—',
                         'Dosis (g/planta)':round(kg_compost_parcela*1000/max(total_plantas,1),1),
                         'Aplicación':'Independiente'})
                 st.markdown('**Enmiendas y compost: dosis de aplicación**')
@@ -1561,12 +1538,12 @@ with secciones[1]:
                 # Se mantiene estructura de compra para la ficha PDF y anexos existentes.
                 filas_compra_pdf = [r for r in filas_compra if r['Fertilizante'] != 'TOTAL FERTILIZANTES']
                 filas_compra_pdf.append({'Fertilizante':'SUBTOTAL FERTILIZANTES',
-                    'Comprar (kg)':round(total_fertilizantes,2),'Sacos / kg':'Ver productos'})
+                    'Cantidad (kg)':round(total_fertilizantes,2),'Sacos / kg':'Ver productos'})
                 for r in filas_enmiendas:
                     filas_compra_pdf.append({'Fertilizante':r['Producto']+' (enmienda)' if r['Producto']!='Compost' else 'Compost (aplicación independiente)',
-                        'Comprar (kg)':r['Cantidad (kg/parcela)'],'Sacos / kg':r['Sacos / kg']})
+                        'Cantidad (kg)':r['Cantidad (kg/parcela)'],'Sacos / kg':r['Sacos / kg']})
                 filas_compra_pdf.append({'Fertilizante':'TOTAL GENERAL',
-                    'Comprar (kg)':round(total_fertilizantes+kg_enmienda_parcela+kg_compost_parcela,2),
+                    'Cantidad (kg)':round(total_fertilizantes+kg_enmienda_parcela+kg_compost_parcela,2),
                     'Sacos / kg':'Ver productos'})
                 st.markdown('**Dosis en gramos por planta y abonamiento**')
                 filas_gramos=[{'Fertilizante':'TOTAL','1.º (g/planta)':round(sum(r[2] for r in filas_detalle)*1000/total_plantas,2),
