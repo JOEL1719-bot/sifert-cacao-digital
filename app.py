@@ -986,7 +986,11 @@ with secciones[1]:
                     demanda = None
                     st.error('En Producción ingrese una meta de cacao seco mayor que cero.')
                 else:
-                    demanda = {'N': 70*rendimiento/1000, 'P₂O₅': 16*rendimiento/1000, 'K₂O': 90*rendimiento/1000}
+                    # INIA (2025), tabla 28: extracción elemental N=70, P=16, K=90 kg/t de cacao seco.
+                    # Convertir P y K a óxidos antes de compararlos con oferta y fertilizantes.
+                    demanda = {'N': 70*rendimiento/1000,
+                               'P₂O₅': 16*2.29*rendimiento/1000,
+                               'K₂O': 90*1.205*rendimiento/1000}
                     if etapa_balance == 'No especificada':
                         st.warning('Etapa no especificada: se aplica provisionalmente el modelo de producción. Confirme la etapa antes de usar el resultado.')
                 if demanda is None:
