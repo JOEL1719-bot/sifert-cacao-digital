@@ -500,6 +500,8 @@ with secciones[0]:
             if identificador == objetivo:
                 st.session_state['selector_inicio'] = etiqueta
                 break
+    if st.session_state.pop('_ultimo_guardado_mensaje', None):
+        st.success('Cambios guardados. Productor y laboratorio sincronizados con la base de datos.')
     seleccion_inicio = st.selectbox('Productor para registrar o consultar', list(opciones_inicio), key='selector_inicio')
     productor_existente_id = opciones_inicio[seleccion_inicio]
     # Hidratar todos los widgets desde la base de datos al cambiar la selección.
@@ -575,7 +577,8 @@ with secciones[0]:
             import re
             observacion_h = str(fila_h.get('observaciones') or '')
             coincidencia_lab = re.search(r'laboratorio:\s*([^;]+)', observacion_h, flags=re.IGNORECASE)
-            st.session_state['laboratorio_evaluacion'] = (str(fila_h.get('laboratorio')) if pd.notna(fila_h.get('laboratorio')) else (coincidencia_lab.group(1).strip() if coincidencia_lab else ''))
+            lab_h = fila_h.get('laboratorio')
+            st.session_state['laboratorio_evaluacion'] = (str(lab_h).strip() if pd.notna(lab_h) and str(lab_h).strip() else (coincidencia_lab.group(1).strip() if coincidencia_lab else ''))
             st.session_state['metodo_fosforo_evaluacion'] = str(fila_h.get('metodo_fosforo')) if pd.notna(fila_h.get('metodo_fosforo')) and fila_h.get('metodo_fosforo') in ('Bray I','Olsen') else 'Bray I'
             st.session_state['evaluacion_pendiente'] = {
                 'datos': {k: (float(fila_h[k]) if pd.notna(fila_h[k]) else None) for k in FIELD_KEYS},
@@ -631,20 +634,27 @@ with secciones[0]:
     if etapa == 'Crecimiento':
         st.caption('Crecimiento: la meta de cosecha no interviene en la demanda vegetativa de los dos primeros años.')
     laboratorio_analisis = col_lab.text_input('Laboratorio del análisis de suelo', key='laboratorio_evaluacion')
-    metodo_fosforo = st.selectbox('Método de fósforo disponible (según informe del laboratorio)',
-        ['Bray I', 'Olsen'], key='metodo_fosforo_evaluacion',
-        help='Bray I suele emplearse en suelos ácidos; Olsen en suelos neutros o alcalinos. Seleccione el método realmente reportado por el laboratorio.')
-    if metodo_fosforo == 'Olsen':
-        st.info('Los rangos de Olsen aún requieren validación documental. Se guardará el método, pero no se asignará una categoría de fósforo no verificada.')
     with st.form('evaluacion'):
         st.subheader('1. Copie los valores de su análisis de suelo')
         st.caption('Si el laboratorio no midió un indicador, déjelo vacío. No coloque cero para representar un dato faltante.')
         datos_texto = {}
+        # El método analítico se ubica exactamente al costado del valor P.
+        # Ambos widgets pertenecen al mismo formulario y se guardan conjuntamente.
         for j in range(0, len(CAMPOS), 3):
             columnas = st.columns(3)
             for columna, (clave, nombre, unidad) in zip(columnas, CAMPOS[j:j+3]):
-                datos_texto[clave] = columna.text_input(f'{nombre} ({unidad})' if unidad else nombre,
-                                                       placeholder='No medido: dejar vacío', key='dato_'+clave)
+                if clave == 'p':
+                    sub_p, sub_metodo = columna.columns([1, 1.15])
+                    datos_texto[clave] = sub_p.text_input('Fósforo disponible (ppm)',
+                        placeholder='No medido', key='dato_p')
+                    metodo_fosforo = sub_metodo.selectbox('Método de fósforo',
+                        ['Bray I', 'Olsen'], key='metodo_fosforo_evaluacion',
+                        help='Seleccione el método reportado por el laboratorio; no se deduce del pH.')
+                else:
+                    datos_texto[clave] = columna.text_input(f'{nombre} ({unidad})' if unidad else nombre,
+                        placeholder='No medido: dejar vacío', key='dato_'+clave)
+        if metodo_fosforo == 'Olsen':
+            st.caption('Olsen: rangos de clasificación pendientes de validación documental.')
         st.caption('Densidad aparente referencial automática: 1.33 g/cm³ (0–20 cm).')
         calcular = st.form_submit_button('💾 Guardar productor y análisis de suelo' if analisis_inicio_id is None else '💾 Actualizar productor y análisis seleccionado', type='primary', use_container_width=True)
 
@@ -694,7 +704,12 @@ with secciones[0]:
             # Sincronizar inmediatamente el selector tras actualizar el nombre en Neon.
             st.session_state['_selector_inicio_previo'] = pid_guardar
             st.session_state['_actualizacion_exitosa'] = True
-            st.success('Datos actualizados correctamente. Consulte los resultados en la segunda pestaña.' if analisis_inicio_id is not None else 'Productor y análisis guardados juntos. Consulte los resultados en la segunda pestaña.')
+            # Forzar reconstrucción del selector desde Neon tras confirmar COMMIT.
+            # El análisis existente mantiene su ID; no se inserta un duplicado.
+            st.session_state['_ultimo_guardado_mensaje'] = (
+                'Productor, laboratorio y análisis actualizados en la base de datos.'
+                if analisis_inicio_id is not None else 'Productor y análisis guardados en la base de datos.')
+            st.rerun()
         except Exception as e:
             st.error(f'No se pudo guardar: {e}')
 
