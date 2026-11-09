@@ -166,7 +166,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V11.8 · Balance NPK y Ca/Mg · Proyección referencial de M.O. · Simulación técnica')
+st.caption('V11.9 · Balance NPK y Ca/Mg · Proyección referencial de M.O. · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -192,7 +192,7 @@ CAMPOS = [
 # Biblioteca inicial recuperada de SIFERT V6 (26 entradas) + MOLIMAX 20-20-20.
 # Valores porcentuales son los almacenados en V6; comprobar etiqueta antes de prescribir.
 # Ca y Mg de V6 no se convierten automáticamente a CaO/MgO.
-BIBLIOTECA_V6 = [('Urea (46-0-0)', 'N', 46, 0, 0, 0, 0, 0), ('Nitrato de amonio (33-0-0)', 'N', 33, 0, 0, 0, 0, 0), ('Fosfato diamónico (18-46-0)', 'P', 18, 46, 0, 0, 0, 0), ('Fosfato monoamónico (11-52-0)', 'P', 11, 52, 0, 0, 0, 0), ('Superfosfato triple (0-46-0 + 14% Ca)', 'P', 0, 46, 0, 14, 0, 0), ('NPK soluble (20-20-20)', 'P', 20, 20, 20, 0, 0, 0), ('Cloruro de potasio (0-0-60)', 'K', 0, 0, 60, 0, 0, 0), ('Nitrato de potasio (13-0-46)', 'K', 13, 0, 46, 0, 0, 0), ('Guano de isla (10-10-2; referencial)', 'Org', 10, 10, 2, 0, 0, 0), ('Gallinaza compostada (2.5-2.5-2; referencial)', 'Org', 2.5, 2.5, 2, 0, 0, 0), ('Humus de lombriz (1.5-1-1; referencial)', 'Org', 1.5, 1, 1, 0, 0, 0), ('Roca fosfórica (0-28-0 + 30% Ca; referencial)', 'Natural', 0, 28, 0, 30, 0, 0), ('Sulfato de potasio (0-0-50 + 18% S)', 'Natural', 0, 0, 50, 0, 0, 18), ('Sulfato de magnesio (0-0-0 + 9.6% Mg + 13% S)', 'Natural', 0, 0, 0, 0, 9.6, 13), ('Kieserita (27% MgO + 22% S; referencial)', 'Natural', 0, 0, 0, 0, 27*24.305/40.304, 22), ('Sulfato de potasio y magnesio (0-0-22 + 11% Mg + 22% S)', 'Natural', 0, 0, 22, 0, 11, 22), ('Sulfato de cobre (0-0-0; CuSO4·5H2O)', 'Micro', 0, 0, 0, 0, 0, 0), ('Sulfato de zinc (0-0-0; Zn)', 'Micro', 0, 0, 0, 0, 0, 0), ('Sulfato de manganeso (0-0-0; Mn)', 'Micro', 0, 0, 0, 0, 0, 0), ('Ulexita (0-0-0; 10–13% B)', 'Micro', 0, 0, 0, 0, 0, 0)]
+BIBLIOTECA_V6 = [('Urea (46-0-0)', 'N', 46, 0, 0, 0, 0, 0), ('Nitrato de amonio (33-0-0)', 'N', 33, 0, 0, 0, 0, 0), ('Fosfato diamónico (18-46-0)', 'P', 18, 46, 0, 0, 0, 0), ('Fosfato monoamónico (11-52-0)', 'P', 11, 52, 0, 0, 0, 0), ('Superfosfato triple (0-46-0 + 14% Ca)', 'P', 0, 46, 0, 14, 0, 0), ('NPK soluble (20-20-20)', 'P', 20, 20, 20, 0, 0, 0), ('Cloruro de potasio (0-0-60)', 'K', 0, 0, 60, 0, 0, 0), ('Nitrato de potasio (13-0-46)', 'K', 13, 0, 46, 0, 0, 0), ('Guano de isla (10-10-2; referencial)', 'Org', 10, 10, 2, 0, 0, 0), ('Gallinaza compostada (2.5-2.5-2; referencial)', 'Org', 2.5, 2.5, 2, 0, 0, 0), ('Humus de lombriz (1.5-1-1; referencial)', 'Org', 1.5, 1, 1, 0, 0, 0), ('Roca fosfórica (0-28-0 + 30% Ca; referencial)', 'Natural', 0, 28, 0, 30, 0, 0), ('Sulfato de potasio (0-0-50 + 18% S)', 'Natural', 0, 0, 50, 0, 0, 18), ('Sulfato de magnesio (0-0-0 + 9.6% Mg + 13% S)', 'Micro', 0, 0, 0, 0, 9.6, 13), ('Kieserita (27% MgO + 22% S; referencial)', 'Natural', 0, 0, 0, 0, 27*24.305/40.304, 22), ('Sulfato de potasio y magnesio (0-0-22 + 11% Mg + 22% S)', 'Natural', 0, 0, 22, 0, 11, 22), ('Sulfato de cobre (0-0-0; CuSO4·5H2O)', 'Micro', 0, 0, 0, 0, 0, 0), ('Sulfato de zinc (ZnSO4·7H2O)', 'Micro', 0, 0, 0, 0, 0, 0), ('Sulfato de manganeso (MnSO4·H2O)', 'Micro', 0, 0, 0, 0, 0, 0), ('Ulexita (8.1% B elemental; referencial)', 'Natural', 0, 0, 0, 0, 0, 0)]
 
 # Ficha comercial ODINSU: los porcentajes de CaO/MgO y carbonatos son
 # declaraciones en formas químicas distintas; no sumarlos. PRNT no acreditado.
@@ -969,16 +969,9 @@ with secciones[1]:
             masa_mo = 10000.0 * 0.20 * dap_mo * 1000.0
             delta_mo_pct = (mo_estable_compost + mo_estable_poda) / masa_mo * 100.0 if masa_mo > 0 else 0.0
             proyeccion_mo = [
-                {'Indicador':'M.O. inicial del suelo (%)','Valor':f'{mo_val:.3f}' if mo_val is not None else 'Sin análisis'},
-                {'Indicador':'Meta orientativa de M.O. (%)','Valor':'4.000'},
-                {'Indicador':'Compost aplicado (kg/ha/año)','Valor':f'{kg_compost_ha_anual:,.2f}'},
-                {'Indicador':'M.O. contenida en compost (kg/ha; 30 % ref.)','Valor':f'{mo_compost_bruta:,.2f}'},
-                {'Indicador':'M.O. hipotéticamente retenida del compost (kg/ha)','Valor':f'{mo_estable_compost:,.2f}'},
-                {'Indicador':'Residuos de poda frescos (kg/ha/año; ref.)','Valor':f'{poda_fresca_ha:,.2f}'},
-                {'Indicador':'Biomasa seca de poda (kg/ha/año; 57 % ref.)','Valor':f'{poda_seca_ha:,.2f}'},
-                {'Indicador':'M.O. hipotéticamente estabilizada de poda (kg/ha)','Valor':f'{mo_estable_poda:,.2f}'},
-                {'Indicador':'Incremento hipotético anual M.O. (puntos %)','Valor':f'{delta_mo_pct:.4f}'},
-                {'Indicador':'M.O. final simulada (%)','Valor':f'{mo_val+delta_mo_pct:.4f}' if mo_val is not None else 'Sin análisis'}]
+                {'Indicador':'M.O. inicial del suelo', 'Resultado':f'{mo_val:.4f} %' if mo_val is not None else 'Sin análisis'},
+                {'Indicador':'Aporte estimado de compost + poda', 'Resultado':f'+{delta_mo_pct:.4f} puntos %'},
+                {'Indicador':'M.O. final proyectada', 'Resultado':f'{mo_val+delta_mo_pct:.4f} %' if mo_val is not None else 'Sin análisis'}]
             st.dataframe(pd.DataFrame(proyeccion_mo), hide_index=True, use_container_width=True)
             st.caption(f'Base de cálculo: 0–20 cm, 1 ha completa y densidad aparente {dap_mo:.2f} g/cm³; biomasa de poda 8,900 kg frescos/ha/año a 1,100 plantas, 57 % materia seca, 45 % C. El 20 % inicial de permanencia es SOLO un supuesto editable, no una tasa validada. No se descuentan nutrientes de poda del NPK. Confirmar cambios mediante análisis de suelo posteriores.')
             st.markdown('**Residuos de poda: práctica habitual de campo**')
@@ -1055,11 +1048,6 @@ with secciones[1]:
 
                 # Las dosis complementarias son referenciales y se presentan en la tabla
                 # de fertilizantes, nunca como una segunda prescripción independiente.
-                micro_ref = [('Sulfato de cobre (0-0-0; CuSO4·5H2O)', 2., 0., 0.),
-                             ('Sulfato de zinc (0-0-0; Zn)', 3., 0., 0.),
-                             ('Sulfato de magnesio (0-0-0 + 9.6% Mg + 13% S)', 5., 0., 0.),
-                             ('Sulfato de manganeso (0-0-0; Mn)', 1., 0., 0.),
-                             ('Ulexita (0-0-0; 10–13% B)', 30., 20., 0.)]
                 st.subheader('7. Fertilización NPK y microelementos en tres abonamientos')
                 st.caption('El balance compara nutrientes aprovechables: suelo + compost + fertilizantes. Las eficiencias minerales se aplican una sola vez a su aporte; los orgánicos utilizan sus factores propios de disponibilidad.')
                 area_real = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
@@ -1090,8 +1078,8 @@ with secciones[1]:
                 st.markdown('**Selección manual de fertilizantes**')
                 st.caption('Marque los productos que utilizará; luego edite la presentación y cantidad de sacos en la tabla única. El balance NPK se actualiza al cambiar los datos.')
                 minerales = {x:v for x,v in catalogo.items()
-                    if v['tipo'] not in ('Enm','Otro','Ca','Mg','Micro')
-                    and (any(v[k] > 0 for k in ('N','P₂O₅','K₂O')) or (v['tipo']=='Natural' and (v.get('Ca_reportado',0)>0 or v.get('Mg_reportado',0)>0)))}
+                    if v['tipo'] not in ('Enm','Otro','Ca','Mg')
+                    and (any(v[k] > 0 for k in ('N','P₂O₅','K₂O')) or (v['tipo'] in ('Natural','Micro') and (v.get('Ca_reportado',0)>0 or v.get('Mg_reportado',0)>0)) or v['tipo']=='Micro' or x.startswith('Ulexita'))}
                 organicos = [x for x,v in minerales.items() if v['tipo'] == 'Org']
                 with st.expander('🌿 Composición y disponibilidad estimada de nutrientes orgánicos (editar)', expanded=False):
                     st.caption('Valores de simulación: sustituir por análisis del producto cuando exista. Los porcentajes de disponibilidad no son mediciones del lote.')
@@ -1114,9 +1102,20 @@ with secciones[1]:
                 for x in organicos:
                     for nutriente,factor in [('N',org_n),('P₂O₅',org_p),('K₂O',org_k)]:
                         minerales_efectivos[x][nutriente]*=factor
+                # Contenido elemental referencial, editable según la etiqueta comercial.
+                # Las formas hidratadas indicadas en el catálogo determinan el porcentaje.
+                micro_contenidos = {
+                    'Sulfato de cobre (0-0-0; CuSO4·5H2O)': ('Cu',25.45),
+                    'Sulfato de zinc (ZnSO4·7H2O)': ('Zn',22.74),
+                    'Sulfato de manganeso (MnSO4·H2O)': ('Mn',32.50),
+                    'Ulexita (8.1% B elemental; referencial)': ('B',8.10),
+                }
+                with st.expander('Composición elemental de microelementos (editable según etiqueta)',expanded=False):
+                    for nom,(elemento,valor_ref) in micro_contenidos.items():
+                        micro_contenidos[nom]=(elemento,st.number_input(f'{elemento} elemental (%) · {nom}',min_value=0.0,max_value=100.0,value=valor_ref,step=0.1,key='micro_porcentaje_v119_'+nom))
                 fuentes=[]
-                cols=st.columns(2)
-                for col,titulo,tipos in [(cols[0],'QUÍMICOS',('N','P','K','Personalizado')),(cols[1],'ORGÁNICOS / MINERALES NATURALES',('Org','Natural'))]:
+                cols=st.columns(3)
+                for col,titulo,tipos in [(cols[0],'QUÍMICOS',('N','P','K','Personalizado')),(cols[1],'ORGÁNICOS / MINERALES NATURALES',('Org','Natural')),(cols[2],'MICROELEMENTOS',('Micro',))]:
                     with col:
                         st.markdown('**'+titulo+'**')
                         for producto,comp in minerales.items():
@@ -1245,18 +1244,31 @@ with secciones[1]:
                         'Nutriente':nutr,
                         'Suelo (cmol(+)/kg)':round(float(medido),3) if medido is not None else 'Sin análisis',
                         'Objetivo provisional (cmol(+)/kg)':meta,
-                        'Déficit localizado teórico (kg/ha)':round(deficit,2) if deficit is not None else 'No calculable',
+                        'Déficit localizado (kg/ha)':round(deficit,2) if deficit is not None else 'No calculable',
                         'Aporte enmienda (kg/ha)':round(aporte_enmienda,2),
                         'Aporte fertilizantes (kg/ha)':round(aporte_fert,2),
                         'Diferencia (kg/ha)':round(aporte_enmienda+aporte_fert-deficit,2) if deficit is not None else 'No calculable',
-                        'Estado': ('Sin análisis' if deficit is None else ('Excedente teórico' if deficit <= 0 and aporte_enmienda+aporte_fert > 0 else ('Sin déficit' if deficit <= 0 else ('Equilibrado' if abs(aporte_enmienda+aporte_fert-deficit) <= deficit*0.05 else ('Exceso' if aporte_enmienda+aporte_fert > deficit else 'Déficit')))))})
+                        'Estado': ('Sin análisis' if deficit is None else ('Excedente' if deficit <= 0 and aporte_enmienda+aporte_fert > 0 else ('Sin déficit' if deficit <= 0 else ('Equilibrado' if abs(aporte_enmienda+aporte_fert-deficit) <= deficit*0.05 else ('Exceso' if aporte_enmienda+aporte_fert > deficit else 'Déficit')))))})
                 st.dataframe(pd.DataFrame(filas_camg_integrado),hide_index=True,use_container_width=True)
                 st.caption(f'Área de anillos: {min(area_camg,10000):,.1f} m²/ha de plantación · profundidad {prof_enc:g} cm. El Mg objetivo 1.25 cmol(+)/kg aún requiere validación. Solo se descuenta la enmienda cuando se declara aplicada.')
-                if detalle_aportes_camg:
-                    with st.expander('Ver aportes de Ca/Mg por fertilizante'):
-                        st.dataframe(pd.DataFrame(detalle_aportes_camg),hide_index=True,use_container_width=True)
-                st.caption(f'Kieserita seleccionada: Mg elemental {aportes_fert_kies_mg:.2f} kg/ha; S referencial {aportes_fert_kies_s:.2f} kg/ha. La cantidad proviene de los sacos seleccionados arriba, sin ingreso duplicado. Se asume aplicación en los anillos evaluados; si se distribuye fuera de ellos, el descuento no es válido.')
                 st.caption('El aporte químico potencial de fertilizantes y enmiendas no implica que todo se incorpore al Mg/Ca intercambiable del suelo. No sumar nuevamente kieserita en Enmienda.')
+                st.markdown('**Exportación referencial y aporte de micronutrientes**')
+                st.caption('Exportación de grano seco basada en Malavolta et al. (1984). No equivale a requerimiento total ni a dosis recomendada. Sin análisis de suelo o foliar no se diagnostica déficit.')
+                rendimiento_micro = float(rendimiento or 0.0)
+                micro_export_mg_kg = {'Cu':16.0,'Zn':47.0,'Mn':28.0,'B':12.0}
+                filas_micro=[]
+                for elem,concentracion in micro_export_mg_kg.items():
+                    aporte_gramos=0.0
+                    for nombre_micro,(elemento,porcentaje) in micro_contenidos.items():
+                        if elemento==elem and nombre_micro in fuentes:
+                            kg_producto = float(plan.get(nombre_micro,0.0)) / area_real
+                            aporte_gramos += kg_producto*porcentaje/100.0*1000.0
+                    filas_micro.append({'Nutriente':elem,
+                        'Exportación referencial (g/ha)':round(rendimiento_micro*concentracion/1000.0,2) if rendimiento_micro>0 else 'Sin rendimiento',
+                        'Aporte fertilizante (g/ha)':round(aporte_gramos,2),
+                        'Estado':'Sin diagnóstico'})
+                st.dataframe(pd.DataFrame(filas_micro),hide_index=True,use_container_width=True)
+                st.caption('Cu, Zn, Mn y B: cantidades manuales, sin prescripción automática ni tolerancia ±5 %. El Mg del sulfato de magnesio se contabiliza en el balance Ca/Mg.')
                 # Distribución operativa: 50 %, 32 %, 18 % por producto.
                 filas_detalle=[]
                 for x in usados:
