@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V13.3 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V13.4 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -63,7 +63,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     styles = getSampleStyleSheet()
     for estilo in styles.byName.values():
         estilo.fontName = fuente_bold if estilo.name.startswith('Heading') or estilo.name == 'Title' else fuente_pdf
-    styles.add(ParagraphStyle(name='CeldaSifert', parent=styles['Normal'], fontName=fuente_pdf, fontSize=7.4, leading=9.5))
+    styles.add(ParagraphStyle(name='CeldaSifert', parent=styles['Normal'], fontName=fuente_pdf, fontSize=8.1, leading=10.5))
     styles.add(ParagraphStyle(name='SifertPie', parent=styles['Normal'], fontName=fuente_pdf, fontSize=7, leading=9, textColor=colors.HexColor('#63796F')))
     styles.add(ParagraphStyle(name='CabSifert', parent=styles['CeldaSifert'], textColor=colors.white))
     styles.add(ParagraphStyle(name='TitSifert', parent=styles['Heading1'], fontName=fuente_bold, fontSize=14, leading=17, spaceAfter=5))
@@ -71,9 +71,9 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     from reportlab.lib.enums import TA_LEFT
     styles.add(ParagraphStyle(name='EjecutivoTitulo', parent=styles['Heading1'], fontName=fuente_bold, fontSize=20, leading=25,
                               textColor=colors.HexColor('#14543B'), spaceAfter=12))
-    styles.add(ParagraphStyle(name='EjecutivoSub', parent=styles['Heading2'], fontName=fuente_bold, fontSize=11, leading=13,
+    styles.add(ParagraphStyle(name='EjecutivoSub', parent=styles['Heading2'], fontName=fuente_bold, fontSize=11.5, leading=14,
                               textColor=colors.HexColor('#14543B'), spaceBefore=7, spaceAfter=4))
-    styles.add(ParagraphStyle(name='EjecutivoNota', parent=styles['Normal'], fontName=fuente_pdf, fontSize=9, leading=13))
+    styles.add(ParagraphStyle(name='EjecutivoNota', parent=styles['Normal'], fontName=fuente_pdf, fontSize=9, leading=12))
     styles['Heading2'].fontSize=10
     styles['Heading2'].leading=12
     styles['Heading2'].spaceBefore=6
@@ -98,7 +98,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     subtotal = next((r for r in compra if str(r.get('Fertilizante','')).upper() == 'SUBTOTAL FERTILIZANTES'), None)
     if subtotal:
         resumen_compra.append(['SUBTOTAL FERTILIZANTES', str(subtotal.get('Cantidad (kg)','')),
-                               'Ver productos'])
+                               '—'])
     def tabla_ejecutiva(filas, anchos):
         t = Table([[Paragraph(texto_quimico(c), styles['CeldaSifert']) for c in fila] for fila in filas],
                   colWidths=anchos, repeatRows=1, hAlign='LEFT')
@@ -106,7 +106,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                                ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#F5F9F4')]),
                                ('LINEBELOW',(0,0),(-1,-1),.3,colors.HexColor('#CEDCD1')),
                                ('VALIGN',(0,0),(-1,-1),'TOP'),
-                               ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
+                               ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
         return t
     ancho_util = landscape(A4)[0]-30*mm
     contenido.append(tabla_ejecutiva(resumen_compra, [ancho_util*.52, ancho_util*.21, ancho_util*.27]))
@@ -125,6 +125,12 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     else:
         contenido.append(Paragraph('No se registraron enmiendas ni compost.', styles['EjecutivoNota']))
 
+    contenido.append(Spacer(1, 3*mm))
+    contenido.append(Paragraph('CÓMO UTILIZAR ESTA FICHA', styles['EjecutivoSub']))
+    contenido.append(Paragraph('Las cantidades de fertilizantes corresponden a la parcela indicada. '
+                              'Los sacos pueden incluir fracciones, porque representan lo que se aplicará, '
+                              'no necesariamente la cantidad de envases enteros que se comprarán. '
+                              'La dolomita y el compost se aplican de manera independiente.', styles['EjecutivoNota']))
     contenido.append(PageBreak())
     contenido.append(Paragraph('2. PROGRAMA DE ABONAMIENTO | 50 % · 32 % · 18 %', styles['EjecutivoSub']))
     contenido.append(Paragraph('Distribución propuesta: <b>primera aplicación 50 %</b>, '
@@ -141,10 +147,19 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         r=next((x for x in gramos if str(x.get('Fertilizante', x.get('Producto', ''))).upper() == 'TOTAL'), gramos[-1])
         contenido.append(Spacer(1, 4*mm))
         contenido.append(Paragraph('3. DOSIS TOTAL POR PLANTA', styles['EjecutivoSub']))
-        contenido.append(Paragraph('<b>Sumando los fertilizantes seleccionados:</b> 1.º abonamiento: '+
-                                  escape(str(r.get('1.º (g/planta)',''))) + ' g; 2.º: '+
-                                  escape(str(r.get('2.º (g/planta)',''))) + ' g; 3.º: '+
-                                  escape(str(r.get('3.º (g/planta)',''))) + ' g.', styles['EjecutivoNota']))
+        contenido.append(Paragraph('Cantidad total de fertilizantes por planta en cada aplicación:', styles['EjecutivoNota']))
+        dosis_filas = [['PRIMER ABONAMIENTO · 50 %', 'SEGUNDO ABONAMIENTO · 32 %', 'TERCER ABONAMIENTO · 18 %'],
+                       [str(r.get('1.º (g/planta)',''))+' g/planta',
+                        str(r.get('2.º (g/planta)',''))+' g/planta',
+                        str(r.get('3.º (g/planta)',''))+' g/planta']]
+        dosis_t = Table([[Paragraph(escape(v), styles['EjecutivoNota']) for v in fila] for fila in dosis_filas],
+                       colWidths=[ancho_util/3]*3, hAlign='LEFT')
+        dosis_t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#D8EBDD')),
+                                    ('BACKGROUND',(0,1),(-1,1),colors.HexColor('#EFF7F0')),
+                                    ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
+                                    ('LINEBELOW',(0,-1),(-1,-1),.6,colors.HexColor('#C2D8C7'))]))
+        contenido.append(Spacer(1,3*mm))
+        contenido.append(dosis_t)
     contenido.append(Spacer(1, 5*mm))
     contenido.append(Paragraph('4. RECOMENDACIONES Y VALIDACIÓN TÉCNICA', styles['EjecutivoSub']))
     contenido.append(Paragraph('<b>IMPORTANTE:</b> Este plan es una simulación técnica. Antes de comprar o aplicar, '
@@ -185,7 +200,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         tabla.setStyle(TableStyle([('GRID',(0,0),(-1,-1),.25,colors.HexColor('#CBD5D1')),
                                    ('VALIGN',(0,0),(-1,-1),'TOP'),('BACKGROUND',(0,0),(0,-1),colors.HexColor('#F0F5F3')),
                                    ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#F0F5F3')),
-                                   ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
+                                   ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
         contenido.append(tabla)
         contenido.append(Spacer(1, 4*mm))
 
@@ -203,7 +218,6 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         ('Dosis calculada (kg/ha)', 'enmienda_kg_ha'), ('Cantidad por parcela (kg)', 'enmienda_kg_parcela'),
         ('Sacos de 50 kg', 'enmienda_sacos'), ('¿Confirmó aplicación?', 'enmienda_aplicada'),
         ('Compost (kg/ha)', 'compost_kg_ha')])
-
     def agregar_tabla(titulo, df, anchos=None):
         contenido.append(Paragraph(escape(titulo), styles['Heading2']))
         columnas = list(df.columns)
@@ -248,7 +262,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         canvas.line(15*mm, 12*mm, w-15*mm, 12*mm)
         canvas.setFont(fuente_pdf, 7.3)
         canvas.setFillColor(colors.HexColor('#4C6B5B'))
-        canvas.drawString(15*mm, 8*mm, 'SIFERT CACAO DIGITAL  |  Plan técnico referencial')
+        canvas.drawString(15*mm, 8*mm, 'SIFERT CACAO DIGITAL  |  Elaborado por Joel F. Gonzales Rodriguez')
         canvas.drawRightString(w-15*mm, 8*mm, f'Página {documento.page} de 4')
         canvas.restoreState()
     doc.build(contenido, onFirstPage=pie_pagina, onLaterPages=pie_pagina)
@@ -1524,7 +1538,7 @@ with secciones[1]:
                 total_fertilizantes = sum(r[1] for r in filas_detalle)
                 # Cuadro 1: solo fertilizantes y sus tres aplicaciones.
                 filas_compra.append({'Fertilizante':'TOTAL FERTILIZANTES','Cantidad (kg)':round(total_fertilizantes,2),
-                    'Sacos / kg':'Ver productos','1.º abonamiento (kg)':round(sum(r[2] for r in filas_detalle),2),
+                    'Sacos / kg':'—','1.º abonamiento (kg)':round(sum(r[2] for r in filas_detalle),2),
                     '2.º abonamiento (kg)':round(sum(r[3] for r in filas_detalle),2),
                     '3.º abonamiento (kg)':round(sum(r[4] for r in filas_detalle),2)})
                 tabla_ajustada(pd.DataFrame(filas_compra),hide_index=True,use_container_width=True)
@@ -1556,13 +1570,13 @@ with secciones[1]:
                 # Se mantiene estructura de compra para la ficha PDF y anexos existentes.
                 filas_compra_pdf = [r for r in filas_compra if r['Fertilizante'] != 'TOTAL FERTILIZANTES']
                 filas_compra_pdf.append({'Fertilizante':'SUBTOTAL FERTILIZANTES',
-                    'Cantidad (kg)':round(total_fertilizantes,2),'Sacos / kg':'Ver productos'})
+                    'Cantidad (kg)':round(total_fertilizantes,2),'Sacos / kg':'—'})
                 for r in filas_enmiendas:
                     filas_compra_pdf.append({'Fertilizante':r['Producto']+' (enmienda)' if r['Producto']!='Compost' else 'Compost (aplicación independiente)',
                         'Cantidad (kg)':r['Cantidad (kg/parcela)'],'Sacos / kg':r['Sacos / kg']})
                 filas_compra_pdf.append({'Fertilizante':'TOTAL GENERAL',
                     'Cantidad (kg)':round(total_fertilizantes+kg_enmienda_parcela+kg_compost_parcela,2),
-                    'Sacos / kg':'Ver productos'})
+                    'Sacos / kg':'—'})
                 st.markdown('**Dosis en gramos por planta y abonamiento**')
                 filas_gramos=[{'Fertilizante':'TOTAL','1.º (g/planta)':round(sum(r[2] for r in filas_detalle)*1000/total_plantas,2),
                     '2.º (g/planta)':round(sum(r[3] for r in filas_detalle)*1000/total_plantas,2),
