@@ -1082,29 +1082,67 @@ with secciones[1]:
                 st.caption(f'Compost del módulo anterior: {compost_kg_ha:,.2f} kg/ha/año. Aporte estimado disponible: N {compost_aprovechable["N"]:.2f}, P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}, K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha/año.')
                 st.caption('Compost: el aporte aprovechable se descuenta una sola vez del requerimiento del cultivo. La etiqueta declara N, P y K elementales; P y K se convierten a P₂O₅ y K₂O para compararlos con los fertilizantes. Valores referenciales sujetos a análisis, humedad y mineralización.')
                 st.markdown('**Balance NPK: suelo, compost y cáscaras**')
-                st.markdown('**Enmienda realmente aplicada (Ca y Mg)**')
-                st.caption('Solo se contabiliza una enmienda cuando se confirma su aplicación. No se descuenta por una dosis meramente simulada o recomendada.')
-                enm_aplicada=st.checkbox('Sí aplicó (cal o dolomita)', value=False, key='enm_aplicada_v72')
-                enm_ca_kg_ha=0.0
-                enm_mg_kg_ha=0.0
-                if enm_aplicada:
-                    if kg_ha_encalado_calculado is None:
-                        st.warning('No se pudo calcular la dosis de encalado. Revise los datos de suelo del módulo anterior.')
+                st.markdown('**Balance complementario de calcio y magnesio (Ca/Mg)**')
+                st.caption('Se diferencia la dosis recomendada de la realmente aplicada. El descuento depende de la composición del producto y de una fracción de disponibilidad estimada, no validada localmente.')
+                enm_aplicada = st.checkbox('Sí aplicó (cal o dolomita)', value=False, key='enm_aplicada_v72')
+                enm_ca_kg_ha = 0.0
+                enm_mg_kg_ha = 0.0
+                ca_total_aportado = 0.0
+                mg_total_aportado = 0.0
+                if enm_aplicada and (producto_enc == 'No aplicar' or kg_ha_encalado_calculado is None):
+                    st.warning('Para registrar la aplicación, seleccione una enmienda y compruebe que exista una dosis calculada.')
+                elif enm_aplicada:
+                    st.caption(f'Enmienda: {producto_enc}. Dosis simulada: {kg_ha_encalado_calculado:,.2f} kg/ha. Confirme la cantidad realmente aplicada.')
+                    dosis_real_enm = st.number_input('Dosis realmente aplicada (kg/ha)', min_value=0.0,
+                        value=float(round(kg_ha_encalado_calculado, 2)), step=10.0, key='enm_dosis_real_camg')
+                    col_ca, col_mg = st.columns(2)
+                    if producto_enc == 'Dolomita':
+                        cao_pct = col_ca.number_input('CaO del producto (%)', min_value=0.0, max_value=100.0,
+                            value=30.0, step=0.5, key='enm_cao_pct_camg')
+                        mgo_pct = col_mg.number_input('MgO del producto (%)', min_value=0.0, max_value=100.0,
+                            value=21.5, step=0.5, key='enm_mgo_pct_camg')
                     else:
-                        tipo_enm='Dolomita' if producto_enc.startswith('Dolomita') else 'Cal agrícola'
-                        st.write(f'**Enmienda declarada como aplicada:** {tipo_enm} · **Dosis calculada:** {kg_ha_encalado_calculado:,.2f} kg/ha')
-                        if tipo_enm == 'Dolomita':
-                            ca_teorico=kg_ha_encalado_calculado*0.30*(40.078/56.077)
-                            mg_teorico=kg_ha_encalado_calculado*0.215*(24.305/40.304)
-                            st.caption(f'Aporte químico teórico: Ca {ca_teorico:.2f} kg/ha; Mg {mg_teorico:.2f} kg/ha (sin coeficiente de disponibilidad). Composición referencial: CaO 30 %, MgO 21.5 %.')
-                        else:
-                            st.caption('Para la cal agrícola no se cuantifica Ca/Mg sin análisis de composición del producto.')
-                        st.info('El aporte teórico no se descuenta del balance de Ca/Mg: falta un coeficiente sustentado de incorporación a la fracción intercambiable. La casilla confirma aplicación, no disponibilidad.')
-                # El aporte teórico no se equipara con un incremento de Ca/Mg intercambiables.
-                # Por ello, hasta contar con un coeficiente validado, no se descuenta Ca/Mg.
-                # Ca/Mg: objetivo de concentración intercambiable del suelo, no extracción anual.
-                # La enmienda se descuenta solo cuando se confirma aplicación y se especifica su composición.
-                masa_suelo=masa
+                        cao_pct = col_ca.number_input('CaO del producto (%) según ficha', min_value=0.0, max_value=100.0,
+                            value=0.0, step=0.5, key='enm_cao_pct_cal_camg')
+                        mgo_pct = col_mg.number_input('MgO del producto (%) según ficha', min_value=0.0, max_value=100.0,
+                            value=0.0, step=0.5, key='enm_mgo_pct_cal_camg')
+                    if cao_pct + mgo_pct > 100:
+                        st.error('CaO + MgO supera 100 %. Revise la ficha técnica del producto.')
+                        cao_pct, mgo_pct = 0.0, 0.0
+                    ca_total_aportado = dosis_real_enm * cao_pct / 100 * (40.078 / 56.077)
+                    mg_total_aportado = dosis_real_enm * mgo_pct / 100 * (24.305 / 40.304)
+                    fraccion_enm = st.number_input('Fracción estimada disponible de Ca/Mg en el período (%)',
+                        min_value=0.0, max_value=100.0, value=0.0, step=5.0, key='enm_fraccion_disp_camg') / 100
+                    enm_ca_kg_ha = ca_total_aportado * fraccion_enm
+                    enm_mg_kg_ha = mg_total_aportado * fraccion_enm
+                    st.caption(f'Aporte total potencial: Ca {ca_total_aportado:.2f} y Mg {mg_total_aportado:.2f} kg/ha. '
+                               f'Aporte estimado disponible: Ca {enm_ca_kg_ha:.2f} y Mg {enm_mg_kg_ha:.2f} kg/ha.')
+                    st.caption('La fracción inicia en 0 % por falta de calibración local: solo cambie este valor con un criterio técnico sustentado. La aplicación no garantiza disponibilidad inmediata.')
+                # Objetivos de concentración intercambiable (INIA 2025, tabla 27):
+                # Ca 4–5 y Mg 1–1.5 cmol(+)/kg. No confundir stock con extracción anual.
+                # El balance es un indicador teórico de corrección, no dosis de fertilizante.
+                filas_camg = []
+                for nutr, meta, factor_mgkg, aporte_kg in (
+                    ('Ca', 4.5, 200.39, enm_ca_kg_ha),
+                    ('Mg', 1.25, 121.53, enm_mg_kg_ha)):
+                    analisis = datos.get(nutr.lower())
+                    if analisis is None:
+                        filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': 'Sin análisis',
+                            'Objetivo (cmol(+)/kg)': meta, 'Déficit inicial (kg/ha)': 'No calculable',
+                            'Aporte estimado disponible (kg/ha)': round(aporte_kg,2),
+                            'Diferencia pendiente (kg/ha)': 'No calculable'})
+                        continue
+                    # factor_mgkg: mg/kg por cmol(+)/kg. masa: kg suelo/ha (0–20 cm).
+                    deficit_inicial = max(0.0, (meta - float(analisis)) * factor_mgkg * masa / 1_000_000)
+                    pendiente = max(0.0, deficit_inicial - aporte_kg)
+                    filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': round(float(analisis),3),
+                        'Objetivo (cmol(+)/kg)': meta, 'Déficit inicial (kg/ha)': round(deficit_inicial,2),
+                        'Aporte estimado disponible (kg/ha)': round(aporte_kg,2),
+                        'Diferencia pendiente (kg/ha)': round(pendiente,2)})
+                st.dataframe(pd.DataFrame(filas_camg), hide_index=True, use_container_width=True)
+                st.caption('Si persiste déficit de Mg, evaluar un suplemento como Magnocal solo tras confirmar su composición, la disponibilidad y la necesidad agronómica. No se genera dosis automática.')
+                st.caption('Nota: kg/ha representa un déficit teórico de reserva intercambiable en 0–20 cm; no equivale a requerimiento anual ni demuestra cambio real del análisis de suelo.')
+                masa_suelo = masa
                 # Reciclaje potencial de cáscaras por t de cacao seco; NO se confunde con disponibilidad anual.
                 factor_cascaras = 0.0
                 if fila_parcela is not None:
