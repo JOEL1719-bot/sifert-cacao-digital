@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V9.3 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V11.5 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -192,7 +192,7 @@ CAMPOS = [
 # Biblioteca inicial recuperada de SIFERT V6 (26 entradas) + MOLIMAX 20-20-20.
 # Valores porcentuales son los almacenados en V6; comprobar etiqueta antes de prescribir.
 # Ca y Mg de V6 no se convierten automáticamente a CaO/MgO.
-BIBLIOTECA_V6 = [('Urea (46-0-0)', 'N', 46, 0, 0, 0, 0, 0), ('Nitrato de amonio (33-0-0)', 'N', 33, 0, 0, 0, 0, 0), ('Fosfato diamónico (18-46-0)', 'P', 18, 46, 0, 0, 0, 0), ('Fosfato monoamónico (11-52-0)', 'P', 11, 52, 0, 0, 0, 0), ('Superfosfato triple (0-46-0 + 14% Ca)', 'P', 0, 46, 0, 14, 0, 0), ('NPK soluble (20-20-20)', 'P', 20, 20, 20, 0, 0, 0), ('Cloruro de potasio (0-0-60)', 'K', 0, 0, 60, 0, 0, 0), ('Nitrato de potasio (13-0-46)', 'K', 13, 0, 46, 0, 0, 0), ('Guano de isla (10-10-2; referencial)', 'Org', 10, 10, 2, 0, 0, 0), ('Gallinaza compostada (2.5-2.5-2; referencial)', 'Org', 2.5, 2.5, 2, 0, 0, 0), ('Humus de lombriz (1.5-1-1; referencial)', 'Org', 1.5, 1, 1, 0, 0, 0), ('Roca fosfórica (0-28-0 + 30% Ca; referencial)', 'Natural', 0, 28, 0, 30, 0, 0), ('Sulfato de potasio (0-0-50 + 18% S)', 'Natural', 0, 0, 50, 0, 0, 18), ('Sulfato de magnesio (0-0-0 + 9.6% Mg + 13% S)', 'Natural', 0, 0, 0, 0, 9.6, 13), ('Sulfato de potasio y magnesio (0-0-22 + 11% Mg + 22% S)', 'Natural', 0, 0, 22, 0, 11, 22), ('Sulfato de cobre (0-0-0; CuSO4·5H2O)', 'Micro', 0, 0, 0, 0, 0, 0), ('Sulfato de zinc (0-0-0; Zn)', 'Micro', 0, 0, 0, 0, 0, 0), ('Sulfato de manganeso (0-0-0; Mn)', 'Micro', 0, 0, 0, 0, 0, 0), ('Ulexita (0-0-0; 10–13% B)', 'Micro', 0, 0, 0, 0, 0, 0)]
+BIBLIOTECA_V6 = [('Urea (46-0-0)', 'N', 46, 0, 0, 0, 0, 0), ('Nitrato de amonio (33-0-0)', 'N', 33, 0, 0, 0, 0, 0), ('Fosfato diamónico (18-46-0)', 'P', 18, 46, 0, 0, 0, 0), ('Fosfato monoamónico (11-52-0)', 'P', 11, 52, 0, 0, 0, 0), ('Superfosfato triple (0-46-0 + 14% Ca)', 'P', 0, 46, 0, 14, 0, 0), ('NPK soluble (20-20-20)', 'P', 20, 20, 20, 0, 0, 0), ('Cloruro de potasio (0-0-60)', 'K', 0, 0, 60, 0, 0, 0), ('Nitrato de potasio (13-0-46)', 'K', 13, 0, 46, 0, 0, 0), ('Guano de isla (10-10-2; referencial)', 'Org', 10, 10, 2, 0, 0, 0), ('Gallinaza compostada (2.5-2.5-2; referencial)', 'Org', 2.5, 2.5, 2, 0, 0, 0), ('Humus de lombriz (1.5-1-1; referencial)', 'Org', 1.5, 1, 1, 0, 0, 0), ('Roca fosfórica (0-28-0 + 30% Ca; referencial)', 'Natural', 0, 28, 0, 30, 0, 0), ('Sulfato de potasio (0-0-50 + 18% S)', 'Natural', 0, 0, 50, 0, 0, 18), ('Sulfato de magnesio (0-0-0 + 9.6% Mg + 13% S)', 'Natural', 0, 0, 0, 0, 9.6, 13), ('Kieserita (27% MgO + 22% S; referencial)', 'Natural', 0, 0, 0, 0, 27*24.305/40.304, 22), ('Sulfato de potasio y magnesio (0-0-22 + 11% Mg + 22% S)', 'Natural', 0, 0, 22, 0, 11, 22), ('Sulfato de cobre (0-0-0; CuSO4·5H2O)', 'Micro', 0, 0, 0, 0, 0, 0), ('Sulfato de zinc (0-0-0; Zn)', 'Micro', 0, 0, 0, 0, 0, 0), ('Sulfato de manganeso (0-0-0; Mn)', 'Micro', 0, 0, 0, 0, 0, 0), ('Ulexita (0-0-0; 10–13% B)', 'Micro', 0, 0, 0, 0, 0, 0)]
 
 # Ficha comercial ODINSU: los porcentajes de CaO/MgO y carbonatos son
 # declaraciones en formas químicas distintas; no sumarlos. PRNT no acreditado.
@@ -458,7 +458,7 @@ def init_db():
             if 'meta_produccion' not in {r[1] for r in cur.fetchall()}:
                 cur.execute('ALTER TABLE analisis ADD COLUMN meta_produccion REAL')
         # Migración compatible con Neon y SQLite: metadatos analíticos persistentes.
-        for campo in ('laboratorio', 'metodo_fosforo'):
+        for campo in ('laboratorio', 'metodo_fosforo', 'dap_origen'):
             if IS_POSTGRES:
                 cur.execute(f'ALTER TABLE analisis ADD COLUMN IF NOT EXISTS {campo} TEXT')
             else:
@@ -563,7 +563,7 @@ with secciones[0]:
         st.session_state['_analisis_inicio_previo'] = (productor_existente_id, analisis_inicio_id)
         for k in FIELD_KEYS:
             st.session_state.pop('dato_' + k, None)
-        for k in ('fecha_evaluacion','meta_evaluacion','laboratorio_evaluacion','metodo_fosforo_evaluacion'):
+        for k in ('fecha_evaluacion','meta_evaluacion','laboratorio_evaluacion','metodo_fosforo_evaluacion','dap_evaluacion','dap_origen_evaluacion'):
             st.session_state.pop(k, None)
         st.session_state.pop('evaluacion_pendiente', None)
         if analisis_inicio_id is not None:
@@ -582,6 +582,8 @@ with secciones[0]:
             coincidencia_lab = re.search(r'laboratorio:\s*([^;]+)', observacion_h, flags=re.IGNORECASE)
             lab_h = fila_h.get('laboratorio')
             st.session_state['laboratorio_evaluacion'] = (str(lab_h).strip() if pd.notna(lab_h) and str(lab_h).strip() else (coincidencia_lab.group(1).strip() if coincidencia_lab else ''))
+            st.session_state['dap_evaluacion'] = float(fila_h.get('dap')) if pd.notna(fila_h.get('dap')) and float(fila_h.get('dap')) > 0 else 1.33
+            st.session_state['dap_origen_evaluacion'] = fila_h.get('dap_origen') if fila_h.get('dap_origen') in ('Medida en laboratorio','Estimada / referencial') else 'Estimada / referencial'
             st.session_state['metodo_fosforo_evaluacion'] = ('Olsen modificado' if fila_h.get('metodo_fosforo') == 'Olsen' else str(fila_h.get('metodo_fosforo')) if pd.notna(fila_h.get('metodo_fosforo')) and fila_h.get('metodo_fosforo') in ('Bray I','Olsen modificado') else 'Bray I')
             st.session_state['evaluacion_pendiente'] = {
                 'datos': {k: (float(fila_h[k]) if pd.notna(fila_h[k]) else None) for k in FIELD_KEYS},
@@ -589,7 +591,8 @@ with secciones[0]:
                 'participante_id': productor_existente_id,
                 'fecha': str(fila_h['fecha'])[:10],
                 'laboratorio': st.session_state['laboratorio_evaluacion'],
-                'metodo_fosforo': st.session_state['metodo_fosforo_evaluacion']}
+                'metodo_fosforo': st.session_state['metodo_fosforo_evaluacion'],
+                'dap': st.session_state['dap_evaluacion'], 'dap_origen': st.session_state['dap_origen_evaluacion']}
     if analisis_inicio_id is not None:
         st.caption('Análisis recuperado. Puede consultar sus resultados en la segunda pestaña o editarlo y guardar los cambios con el botón inferior.')
 
@@ -658,8 +661,12 @@ with secciones[0]:
                         placeholder='No medido: dejar vacío', key='dato_'+clave)
         # La escala Olsen modificado está documentada en la tabla UNAS (2008),
         # excepto >40 ppm, ampliación operativa solicitada por el usuario.
-        st.caption('Densidad aparente referencial automática: 1.33 g/cm³ (0–20 cm).')
-        calcular = st.form_submit_button('💾 Guardar productor y análisis de suelo' if analisis_inicio_id is None else '💾 Actualizar productor y análisis seleccionado', type='primary', use_container_width=True)
+        st.markdown('**Densidad aparente del suelo (0–20 cm)**')
+        c_dap, c_origen = st.columns(2)
+        dap_evaluacion = c_dap.number_input('Densidad aparente (g/cm³)', min_value=0.50, max_value=2.50, value=1.33, step=0.01, key='dap_evaluacion')
+        dap_origen = c_origen.selectbox('Procedencia de densidad aparente', ['Estimada / referencial', 'Medida en laboratorio'], key='dap_origen_evaluacion')
+        st.caption('1.33 g/cm³ es una referencia inicial, no una medición UNAS. La densidad aparente del compost NO es la del suelo.')
+        calcular = st.form_submit_button('💾 Guardar productor y análisis de suelo', type='primary', use_container_width=True)
 
     if calcular:
         try:
@@ -688,10 +695,10 @@ with secciones[0]:
                         (codigo.strip(),nombre.strip(),caserio.strip(),area,plantas,edad,manejo,retiro,float(rendimiento),date.today().isoformat(),'',distrito.strip(),provincia.strip(),'',etapa,ingeniero.strip(),''))
                     cur.execute(q('SELECT id FROM participantes WHERE codigo=?'), (codigo.strip(),))
                     pid_guardar = int(cur.fetchone()[0])
-                columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['dap','textura','observaciones','meta_produccion','laboratorio','metodo_fosforo']
+                columnas = ['participante_id', 'fecha'] + FIELD_KEYS + ['dap','textura','observaciones','meta_produccion','laboratorio','metodo_fosforo','dap_origen']
                 parametros = [pid_guardar, fecha_guardar.isoformat()] + [valores[k] for k in FIELD_KEYS] + [
-                    1.33, textura_usda(valores['arena'],valores['limo'],valores['arcilla']),
-                    f'Meta de evaluación: {rendimiento:g} kg/ha/año; laboratorio: {laboratorio_analisis}', float(rendimiento), laboratorio_analisis, metodo_fosforo]
+                    float(dap_evaluacion), textura_usda(valores['arena'],valores['limo'],valores['arcilla']),
+                    f'Meta de evaluación: {rendimiento:g} kg/ha/año; laboratorio: {laboratorio_analisis}', float(rendimiento), laboratorio_analisis, metodo_fosforo, dap_origen]
                 if analisis_inicio_id is None:
                     cur.execute(q(f"INSERT INTO analisis({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})"), parametros)
                 else:
@@ -703,7 +710,8 @@ with secciones[0]:
             st.session_state['evaluacion_pendiente'] = {
                 'datos': valores.copy(), 'rendimiento': float(rendimiento),
                 'participante_id': pid_guardar, 'fecha': fecha_guardar.isoformat(),
-                'laboratorio': laboratorio_analisis, 'metodo_fosforo': metodo_fosforo}
+                'laboratorio': laboratorio_analisis, 'metodo_fosforo': metodo_fosforo,
+                'dap': float(dap_evaluacion), 'dap_origen': dap_origen}
             # Sincronizar inmediatamente el selector tras actualizar el nombre en Neon.
             st.session_state['_selector_inicio_previo'] = pid_guardar
             st.session_state['_actualizacion_exitosa'] = True
@@ -726,7 +734,9 @@ with secciones[1]:
     fecha_guardar = date.fromisoformat(st.session_state['evaluacion_pendiente']['fecha']) if st.session_state.get('evaluacion_pendiente') else date.today()
     laboratorio_analisis = st.session_state.get('evaluacion_pendiente', {}).get('laboratorio', '')
     rendimiento = st.session_state.get('evaluacion_pendiente', {}).get('rendimiento', 1000.0)
-    fila_parcela = participantes().query('id == @pid_guardar').iloc[0] if pid_guardar is not None and not participantes().query('id == @pid_guardar').empty else None
+    _participantes_resultados = participantes()
+    _coincidencias_resultados = _participantes_resultados[_participantes_resultados['id'] == pid_guardar] if pid_guardar is not None else pd.DataFrame()
+    fila_parcela = _coincidencias_resultados.iloc[0] if not _coincidencias_resultados.empty else None
     if st.session_state.get('evaluacion_pendiente') is None:
         st.info('Primero registre al productor y guarde los resultados del laboratorio en la pestaña Inicio. Aquí aparecerán los resultados calculados.')
     if st.session_state.get('evaluacion_pendiente') is not None:
@@ -734,7 +744,8 @@ with secciones[1]:
             # La evaluación pendiente es una instantánea inmutable hasta guardar.
             # Los reruns de botones, pestañas y descargas no deben sobrescribirla.
             datos = st.session_state['evaluacion_pendiente']['datos'].copy()
-            datos['dap'] = 1.33  # Densidad aparente fija, referencial (g/cm³)
+            datos['dap'] = float(st.session_state['evaluacion_pendiente'].get('dap') or 1.33)
+            st.caption(f'Densidad aparente del suelo: {datos["dap"]:.2f} g/cm³ · {st.session_state["evaluacion_pendiente"].get("dap_origen", "Estimada / referencial")}')
             for clave in ['mo','n','sat_al','arena','limo','arcilla']:
                 if datos[clave] is not None and datos[clave] > 100:
                     raise ValueError(f'{clave}: el porcentaje no puede superar 100.')
@@ -915,27 +926,40 @@ with secciones[1]:
                 ca_total_aportado = dosis_real_enm * cao_pct / 100 * (40.078 / 56.077)
                 mg_total_aportado = dosis_real_enm * mgo_pct / 100 * (24.305 / 40.304)
                 st.caption(f'Aporte químico potencial (no disponibilidad inmediata): Ca {ca_total_aportado:.2f} y Mg {mg_total_aportado:.2f} kg/ha.')
+            st.markdown('**Kieserita (aplicación manual, sin prescripción automática)**')
+            ck1, ck2 = st.columns(2)
+            kies_kg_ha = ck1.number_input('Kieserita aplicada (kg/ha de plantación)', min_value=0.0, value=0.0, step=10.0, key='kies_kg_ha')
+            kies_mgo = ck2.number_input('MgO de kieserita según etiqueta (%)', min_value=0.0, max_value=100.0, value=27.0, step=0.5, key='kies_mgo_pct')
+            kies_mg = kies_kg_ha * kies_mgo / 100.0 * (24.305/40.304)
+            kies_s = kies_kg_ha * 0.22
+            st.caption(f'Aporte potencial de kieserita: Mg elemental {kies_mg:.2f} kg/ha y S {kies_s:.2f} kg/ha; presentación referencial 22 % S. No es dosis recomendada.')
             # Los objetivos son los puntos medios de los intervalos de referencia para cacao:
             # Ca 4–5 y Mg 1–1.5 cmol(+)/kg. La diferencia de reservas no es una
             # dosis de fertilizante ni puede reducirse automáticamente con el aporte total.
-            masa_camg = 2_000_000 * float(datos.get('dap') or 0.0)
+            # Equivalencia localizada: el déficit se expresa por ha de plantación,
+            # solo para el área de anillos; NO representa dosis recomendada.
+            area_camg = math.pi * max(0.0, radio_ext**2 - radio_int**2) * plantas_encalado
+            masa_camg = min(area_camg, 10000.0) * (prof_enc/100.0) * float(datos.get('dap') or 0.0) * 1000.0
             filas_camg = []
+            st.caption(f'Balance Ca/Mg localizado: {min(area_camg,10000):,.1f} m²/ha de plantación, profundidad {prof_enc:g} cm. Mg objetivo 1.25 cmol(+)/kg: provisional, pendiente de validación.')
             for nutr, meta, factor_mgkg, aporte_kg in (
                 ('Ca', 4.5, 200.39, ca_total_aportado),
-                ('Mg', 1.25, 121.53, mg_total_aportado)):
+                ('Mg', 1.25, 121.53, mg_total_aportado + kies_mg)):
                 analisis = datos.get(nutr.lower())
                 if analisis is None or masa_camg <= 0:
                     filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': 'Sin análisis',
                         'Referencia (cmol(+)/kg)': meta, 'Déficit inicial teórico (kg/ha)': 'No calculable',
-                        'Aporte potencial de enmienda (kg/ha)': round(aporte_kg,2)})
+                        'Aporte potencial enmienda + kieserita (kg/ha)': round(aporte_kg,2),
+                    'Diferencia restante teórica (kg/ha)': 'No calculable'})
                     continue
                 deficit_inicial = max(0.0, (meta - float(analisis)) * factor_mgkg * masa_camg / 1_000_000)
                 filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': round(float(analisis),3),
                     'Referencia (cmol(+)/kg)': meta, 'Déficit inicial teórico (kg/ha)': round(deficit_inicial,2),
-                    'Aporte potencial de enmienda (kg/ha)': round(aporte_kg,2)})
+                    'Aporte potencial enmienda + kieserita (kg/ha)': round(aporte_kg,2),
+                    'Diferencia restante teórica (kg/ha)': round(max(0.0, deficit_inicial-aporte_kg),2)})
             st.dataframe(pd.DataFrame(filas_camg), hide_index=True, use_container_width=True)
-            st.caption('INIA (2025): neutralización del aluminio, pp. 91–99; evaluación de Ca, pp. 100–104. El aporte potencial NO se resta del déficit intercambiable sin análisis posterior del suelo.')
-            st.caption('Si Mg permanece bajo tras el encalado, evaluar una fuente complementaria como Magnocal según su composición y un nuevo análisis. No se calcula dosis automática.')
+            st.caption('INIA (2025): neutralización del aluminio, pp. 91–99; evaluación de Ca, pp. 100–104. La diferencia restante es una resta química TEÓRICA, no un aumento comprobado del Mg intercambiable; verificar mediante análisis posterior.')
+            st.caption('Si Mg permanece bajo, evaluar fuente complementaria y confirmar con análisis posterior. La kieserita solo se registra manualmente.')
 
             st.subheader('5. Compost aplicado y manejo de residuos de poda')
             st.caption('INIA: 2–5 kg/planta como referencia orientativa, no dosis obligatoria. El técnico registra la dosis real que aplica el agricultor.')
@@ -1040,7 +1064,7 @@ with secciones[1]:
                 total_plantas = area_real * plantas
                 st.caption(f'Parcela: {area_real:g} ha · {plantas:,} plantas/ha · {total_plantas:,.0f} plantas estimadas.')
                 catalogo = catalogo_v6()
-                st.caption('Biblioteca de 19 productos, sin duplicar el compost del módulo de materia orgánica. Las enmiendas se evalúan por separado.')
+                st.caption(f'Biblioteca de {len(catalogo)} productos, sin duplicar el compost del módulo de materia orgánica. Las enmiendas se evalúan por separado.')
                 with st.expander('📚 Consultar biblioteca de fertilizantes', expanded=False):
                     st.dataframe(pd.DataFrame([{'Producto':nombre,'Origen':clasificar_origen_producto(nombre, v['tipo']), 'N %':round(v['N']*100,2),
                         'P₂O₅ %':round(v['P₂O₅']*100,2),'K₂O %':round(v['K₂O']*100,2),
@@ -1161,7 +1185,7 @@ with secciones[1]:
                     objetivo_comercial=max(0.,deficit-compost_aprovechable[k])
                     aporte=aporte_fert[k]
                     diferencia=aporte-objetivo_comercial
-                    tolerancia=max(0.1,objetivo_comercial*0.01)
+                    tolerancia=max(0.000001,objetivo_comercial*0.05)  # ±5 % operativo; no norma INIA
                     estado='Equilibrado' if abs(diferencia)<=tolerancia else ('Exceso' if diferencia>0 else 'Déficit')
                     filas_balance.append({'Nutriente':k,'Necesidad de nutrientes (kg/ha)':round(objetivo_comercial,2),
                         'Aporte del fertilizante (kg/ha)':round(aporte,2),'Diferencia (kg/ha)':round(diferencia,2),'Estado':estado})
@@ -1185,11 +1209,8 @@ with secciones[1]:
                     total=plan[x]
                     a,b,c=total*0.50,total*0.32,total*0.18
                     filas_detalle.append((x,total,a,b,c))
-                for nombre,a,b,c in micro_ref:
-                    if nombre in usados: continue
-                    total_micro=(a+b+c)*area_real
-                    filas_detalle.append((nombre,total_micro,total_micro*0.50,total_micro*0.32,total_micro*0.18))
-                st.warning('Microelementos y sulfato de magnesio: dosis referenciales, no derivadas del análisis. Confirmar necesidad antes de aplicar, especialmente Cu y B.')
+                # No agregar automáticamente micronutrientes sin análisis ni diagnóstico.
+                st.caption('Micronutrientes: no se agregan automáticamente; confirmar necesidad con análisis y asesoría, especialmente Cu y B.')
                 st.markdown('**Fertilizantes requeridos y distribución en tres abonamientos**')
                 filas_compra=[]
                 for x,total,a,b,c in filas_detalle:
@@ -1244,7 +1265,7 @@ with secciones[1]:
             st.error(str(e))
 
     with st.expander('Información técnica y fuentes de referencia'):
-        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca, aunque se retiren, representan una exportación adicional.\n- Densidad aparente fija referencial: 1.33 g/cm³ (0–20 cm); no equivale a medición de laboratorio.\n\n**Para guardar productor y análisis juntos, complete el formulario de la primera pestaña y pulse «Guardar productor y análisis».  Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
+        st.markdown('''**Criterios internos, no editables desde la interfaz.** Las referencias y rangos proceden de la versión V4.2 suministrada. Los coeficientes son heterogéneos y necesitan validación antes de usarse como base de prescripción.\n\n- CaO y MgO: cuadro IFA (2008) para grano, datos de Camerún.\n- NPK: coeficientes orientativos heredados de V4.2; comprobar las fuentes originales.\n- Las cáscaras de mazorca no se incorporan al balance de nutrientes de esta simulación.\n- Densidad aparente inicial referencial: 1.33 g/cm³ (0–20 cm), editable y registrada como medida o estimada.\n\n**Para guardar productor y análisis juntos, complete el formulario de la primera pestaña y pulse «Guardar productor y análisis».  Para persistencia en la nube configure PostgreSQL. No se exige inicio de sesión.**''')
 
 
 with secciones[2]:
