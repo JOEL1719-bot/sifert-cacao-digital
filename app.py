@@ -743,6 +743,18 @@ with secciones[1]:
             st.divider()
             st.subheader('3. Resultado de su evaluación')
             tabla = []
+            fuentes_inia = {
+                'ph': 'INIA (2025), tabla 5',
+                'mo': 'INIA (2025), tabla 7',
+                'n': 'INIA (2025), tabla 9',
+                'k_cmol': 'INIA (2025), tabla 15',
+                'ca': 'INIA (2025), tabla 27 (cacao)',
+                'mg': 'INIA (2025), tabla 27 (cacao)',
+                'sat_al': 'INIA (2025), tabla 27 (cacao)',
+            }
+            metodo_p_resultado = st.session_state['evaluacion_pendiente'].get('metodo_fosforo', 'Bray I')
+            fuentes_inia['p'] = ('INIA (2025), tabla 11 (Bray I)' if metodo_p_resultado == 'Bray I'
+                                 else 'Olsen: fuente y rangos pendientes de validación')
             # Mostrar solo indicadores con interpretación agronómica orientativa.
             # Los demás resultados permanecen en datos para verificaciones internas.
             indicadores_visibles = {'ph', 'mo', 'n', 'p', 'k_cmol', 'ca', 'mg', 'sat_al'}
@@ -750,12 +762,12 @@ with secciones[1]:
                 if clave not in indicadores_visibles or datos[clave] is None:
                     continue
                 tabla.append({'Indicador':nombre, 'Resultado': datos[clave] if datos[clave] is not None else 'No medido',
-                              'Unidad':unidad, 'Interpretación orientativa':clasificar(clave, datos[clave], st.session_state['evaluacion_pendiente'].get('metodo_fosforo', 'Bray I'))})
+                              'Unidad':unidad, 'Interpretación orientativa':clasificar(clave, datos[clave], metodo_p_resultado), 'Sustento técnico':fuentes_inia.get(clave, '')})
             textura = textura_usda(datos['arena'], datos['limo'], datos['arcilla'])
             if textura:
                 tabla.append({'Indicador': 'Textura del suelo',
                               'Resultado': textura, 'Unidad': '',
-                              'Interpretación orientativa': 'Clase textural USDA'})
+                              'Interpretación orientativa': 'Clase textural USDA', 'Sustento técnico':'USDA (triángulo textural)'})
             if tabla:
                 st.dataframe(pd.DataFrame(tabla), hide_index=True, use_container_width=True)
             else:
@@ -785,6 +797,18 @@ with secciones[1]:
             else:
                 st.info('Para evaluar Ca/Mg ingrese calcio y magnesio intercambiables; Mg debe ser mayor que cero.')
             st.caption('Valores orientativos para cacao (verificar método analítico y rangos INIA 2025): pH 5.5–6.5; saturación Al < 20 %; Ca 4–5 y Mg 1.0–1.5 cmol(+)/kg. La relación Ca/Mg es complementaria.')
+            if relacion is not None and requiere_revision:
+                if 3 <= relacion <= 4:
+                    st.info('Enmienda orientativa: cal agrícola (criterio de capacitación Ca/Mg 3–4). Confirmar necesidad y dosis de encalado.')
+                elif 4 < relacion <= 7:
+                    st.info('Enmienda orientativa: dolomita (criterio de capacitación Ca/Mg >4–7). Confirmar necesidad y dosis.')
+                elif 7 < relacion <= 12 and ph_val is not None and 4 <= ph_val <= 5.5:
+                    st.info('Enmienda orientativa: dolomita (criterio de capacitación Ca/Mg >7–12 y pH 4–5.5). Si persiste déficit de Mg, evaluar una fuente complementaria como Magnocal según su composición.')
+                else:
+                    st.info('La relación Ca/Mg no encaja en los rangos operativos definidos; el técnico debe evaluar la enmienda.')
+            elif not requiere_revision:
+                st.info('No se identifica automáticamente necesidad de encalado con los indicadores disponibles. Verificar acidez intercambiable.')
+            st.caption('Selección orientativa basada en una guía de capacitación; los intervalos Ca/Mg no están atribuidos al INIA 2025. La dosis se evalúa por separado.')
             st.info('El técnico selecciona la enmienda según su evaluación de campo y la ficha técnica del producto.')
             plantas_encalado = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
             area_encalado = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
@@ -904,7 +928,9 @@ with secciones[1]:
                         b.metric(f'Aumento teórico ({anios_mo} año/s)', f'+{incremento_horizonte:.3f} puntos %')
                         c.metric('M.O. proyectada (sin pérdidas)', f'{mo_proyectada:.3f} %')
                         st.caption(f'Compost acumulado en {anios_mo} año(s): {kg_compost_parcela_anual*anios_mo:,.0f} kg/parcela. Se supone la misma dosis y el mismo aporte de poda cada año.')
-                        st.warning('IMPORTANTE: esta cifra es un escenario de aportes acumulados, NO una predicción validada del análisis de suelo. No descuenta mineralización de la M.O. preexistente ni pérdidas posteriores del carbono añadido; tampoco demuestra que todo el carbono de poda se incorpore a 0–20 cm. La M.O. real podría aumentar menos, mantenerse o disminuir. Verificar con análisis anuales de suelo.')
+                        st.caption('Nota técnica: el incremento de materia orgánica es referencial; verificar mediante análisis periódicos de suelo.')
+                        with st.expander('Ver fundamento técnico del cálculo', expanded=False):
+                            st.write('Este escenario acumula aportes teóricos de compost y poda. No predice el valor real de materia orgánica: pueden existir pérdidas por mineralización y otros procesos, y no todo el carbono aportado se incorpora necesariamente a 0–20 cm.')
                         st.caption('Poda: referencia exploratoria de Schneidewind et al. (2019), Bolivia. Conversión C→M.O.: factor convencional 1.724. Estabilizaciones de 20 %: supuestos editables sin validación local. Compost: composición declarada en etiqueta DEVIDA.')
                         st.markdown('**🌿 Beneficios potenciales del incremento de materia orgánica**')
                         st.markdown('''- **CIC:** puede mejorar la capacidad del suelo para retener nutrientes.
@@ -916,7 +942,7 @@ with secciones[1]:
             st.info('El compost registrado se considera una sola vez en el balance NPK, utilizando composición y disponibilidad anuales estimadas y editables en la sección de fertilización.')
 
             st.subheader('6. Balance nutricional NPK · simulación técnica preliminar')
-            st.warning('Cálculos exploratorios basados en los coeficientes del ejemplo INIA 2025 discutidos durante el desarrollo. NO constituyen una recomendación agronómica validada. Verificar método de extracción de P, calibración local y demanda por edad y manejo de cáscaras antes de aplicar.')
+            st.caption('Referencia bibliográfica: INIA (2025).')
             n_total, p_ppm, k_cmol, dap = datos.get('n'), datos.get('p'), datos.get('k_cmol'), datos.get('dap')
             if any(v is None for v in (n_total,p_ppm,k_cmol,dap)) or dap <= 0:
                 st.info('Para simular NPK ingrese N total (%), P disponible (ppm), K intercambiable (cmol(+)/kg) y densidad aparente positiva.')
