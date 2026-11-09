@@ -1351,19 +1351,42 @@ with secciones[1]:
                     estado='Equilibrado' if abs(diferencia)<=tolerancia else ('Exceso' if diferencia>0 else 'Déficit')
                     filas_balance.append({'Nutriente':k,'Necesidad de nutrientes (kg/ha)':round(objetivo_comercial,2),
                         'Aporte del fertilizante (kg/ha)':round(aporte,2),'Diferencia (kg/ha)':round(diferencia,2),'Estado':estado})
-                # Vista unificada: filas de productos y filas NPK en un solo cuadro, manteniendo
-                # explícita la diferencia entre fertilizante (kg) y nutriente (kg/ha).
-                filas_unificadas=[]
-                filas_unificadas.append({'Fertilizante / nutriente':'Compost aplicado (automático)',
-                    'Presentación (kg/saco)':None,'Sacos':None,'Total (kg)':round(compost_kg_ha*area_real,2),
-                    'Necesidad (kg/ha)':None,'Aporte (kg/ha)':None,'Diferencia (kg/ha)':None,'Estado':f'N {compost_aprovechable["N"]:.2f}; P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}; K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha aprovechables'})
-                for r in filas_balance:
-                    filas_unificadas.append({'Fertilizante / nutriente':'BALANCE '+r['Nutriente'],
-                        'Presentación (kg/saco)':None,'Sacos':None,'Total (kg)':None,
-                        'Necesidad (kg/ha)':r['Necesidad de nutrientes (kg/ha)'],
-                        'Aporte (kg/ha)':r['Aporte del fertilizante (kg/ha)'],
-                        'Diferencia (kg/ha)':r['Diferencia (kg/ha)'],'Estado':r['Estado']})
-                tabla_ajustada(pd.DataFrame(filas_unificadas),hide_index=True,use_container_width=True)
+                # V12.7: separar productos y balance NPK para evitar columnas vacías
+                # y facilitar la lectura en pantallas de celular.
+                filas_productos = []
+                for producto in usados:
+                    peso_producto = float(presentaciones[producto])
+                    kg_producto = float(plan[producto])
+                    filas_productos.append({
+                        'Fertilizante': producto,
+                        'Presentación (kg/saco)': round(peso_producto, 2),
+                        'Sacos': round(kg_producto / peso_producto, 2) if peso_producto else 0,
+                        'Total (kg)': round(kg_producto, 2),
+                    })
+                if compost_kg_ha > 0:
+                    filas_productos.append({
+                        'Fertilizante': 'Compost (automático)',
+                        'Presentación (kg/saco)': None,
+                        'Sacos': None,
+                        'Total (kg)': round(compost_kg_ha * area_real, 2),
+                    })
+                st.markdown('**Productos aplicados**')
+                if filas_productos:
+                    tabla_ajustada(pd.DataFrame(filas_productos), hide_index=True, use_container_width=True)
+                else:
+                    st.caption('No hay productos con cantidad aplicada.')
+                st.caption(f'Aporte aprovechable del compost: N {compost_aprovechable["N"]:.2f}; '
+                           f'P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}; '
+                           f'K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha. Ya descontado en la necesidad.')
+                st.markdown('**Balance nutricional NPK (kg/ha)**')
+                filas_balance_pantalla = [{
+                    'Nutriente': r['Nutriente'],
+                    'Necesidad': r['Necesidad de nutrientes (kg/ha)'],
+                    'Aporte': r['Aporte del fertilizante (kg/ha)'],
+                    'Diferencia': r['Diferencia (kg/ha)'],
+                    'Estado': r['Estado'],
+                } for r in filas_balance]
+                tabla_ajustada(pd.DataFrame(filas_balance_pantalla), hide_index=True, use_container_width=True)
                 st.caption('Diferencia = aporte aprovechable del fertilizante − necesidad restante tras descontar suelo y compost. Las eficiencias minerales se aplican una sola vez al aporte; los orgánicos emplean disponibilidad anual estimada.')
                 # Mostrar el balance Ca/Mg debajo del balance de fertilizantes.
                 # Balance integrado Ca/Mg: leer los mismos controles de fertilizantes,
