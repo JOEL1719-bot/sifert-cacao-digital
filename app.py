@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V13.1 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V13.2 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -1405,20 +1405,20 @@ with secciones[1]:
                     diferencia=aporte-objetivo_comercial
                     tolerancia=max(0.000001,objetivo_comercial*0.05)  # ±5 % operativo; no norma INIA
                     estado='Equilibrado' if abs(diferencia)<=tolerancia else ('Exceso' if diferencia>0 else 'Déficit')
-                    filas_balance.append({'Nutriente':k,'Necesidad de nutrientes (kg/ha)':round(objetivo_comercial,2),
-                        'Aporte del fertilizante (kg/ha)':round(aporte,2),'Diferencia (kg/ha)':round(diferencia,2),'Estado':estado})
+                    filas_balance.append({'Nutriente':k,'Necesidad de fertilización (kg/ha)':round(objetivo_comercial,2),
+                        'Aporte de fertilizantes (kg/ha)':round(aporte,2),'Diferencia (kg/ha)':round(diferencia,2),'Estado':estado})
                 # V13.1: se elimina la tabla redundante 'Productos aplicados'.
                 # La seleccion editable y el cuadro de distribucion ya muestran esas cantidades.
                 st.caption(f'Aporte aprovechable del compost: N {compost_aprovechable["N"]:.2f}; '
                            f'P₂O₅ {compost_aprovechable["P₂O₅"]:.2f}; '
                            f'K₂O {compost_aprovechable["K₂O"]:.2f} kg/ha. Ya descontado en la necesidad.')
                 st.markdown('**Balance nutricional NPK (kg/ha)**')
-                if all(r['Necesidad de nutrientes (kg/ha)'] == 0 for r in filas_balance):
+                if all(r['Necesidad de fertilización (kg/ha)'] == 0 for r in filas_balance):
                     st.info('La necesidad restante es cero porque los aportes estimados del suelo y compost cubren matemáticamente la demanda. No significa que el suelo haya sido calibrado ni que se deba omitir fertilización sin criterio técnico.')
                 filas_balance_pantalla = [{
                     'Nutriente': r['Nutriente'],
-                    'Necesidad': r['Necesidad de nutrientes (kg/ha)'],
-                    'Aporte': r['Aporte del fertilizante (kg/ha)'],
+                    'Necesidad de fertilización (kg/ha)': r['Necesidad de fertilización (kg/ha)'],
+                    'Aporte de fertilizantes (kg/ha)': r['Aporte de fertilizantes (kg/ha)'],
                     'Diferencia': r['Diferencia (kg/ha)'],
                     'Estado': r['Estado'],
                 } for r in filas_balance]
