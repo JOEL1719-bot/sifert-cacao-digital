@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V13.4 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V13.5 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -63,15 +63,15 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     styles = getSampleStyleSheet()
     for estilo in styles.byName.values():
         estilo.fontName = fuente_bold if estilo.name.startswith('Heading') or estilo.name == 'Title' else fuente_pdf
-    styles.add(ParagraphStyle(name='CeldaSifert', parent=styles['Normal'], fontName=fuente_pdf, fontSize=8.1, leading=10.5))
+    styles.add(ParagraphStyle(name='CeldaSifert', parent=styles['Normal'], fontName=fuente_pdf, fontSize=8.2, leading=10.7))
     styles.add(ParagraphStyle(name='SifertPie', parent=styles['Normal'], fontName=fuente_pdf, fontSize=7, leading=9, textColor=colors.HexColor('#63796F')))
     styles.add(ParagraphStyle(name='CabSifert', parent=styles['CeldaSifert'], textColor=colors.white))
     styles.add(ParagraphStyle(name='TitSifert', parent=styles['Heading1'], fontName=fuente_bold, fontSize=14, leading=17, spaceAfter=5))
     from reportlab.platypus import PageBreak
     from reportlab.lib.enums import TA_LEFT
-    styles.add(ParagraphStyle(name='EjecutivoTitulo', parent=styles['Heading1'], fontName=fuente_bold, fontSize=20, leading=25,
+    styles.add(ParagraphStyle(name='EjecutivoTitulo', parent=styles['Heading1'], fontName=fuente_bold, fontSize=18, leading=23,
                               textColor=colors.HexColor('#14543B'), spaceAfter=12))
-    styles.add(ParagraphStyle(name='EjecutivoSub', parent=styles['Heading2'], fontName=fuente_bold, fontSize=11.5, leading=14,
+    styles.add(ParagraphStyle(name='EjecutivoSub', parent=styles['Heading2'], fontName=fuente_bold, fontSize=11.4, leading=14,
                               textColor=colors.HexColor('#14543B'), spaceBefore=7, spaceAfter=4))
     styles.add(ParagraphStyle(name='EjecutivoNota', parent=styles['Normal'], fontName=fuente_pdf, fontSize=9, leading=12))
     styles['Heading2'].fontSize=10
@@ -79,7 +79,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     styles['Heading2'].spaceBefore=6
     styles['Heading2'].spaceAfter=4
     contenido = [Paragraph('PLAN DE FERTILIZACIÓN DEL CACAO', styles['EjecutivoTitulo']),
-                 Paragraph('GUÍA PRÁCTICA PARA EL PRODUCTOR | SIFERT CACAO DIGITAL', styles['Normal']),
+                 Paragraph('GUÍA PRÁCTICA PARA EL PRODUCTOR  |  QUÉ APLICAR Y CUÁNTO', styles['Normal']),
                  Spacer(1, 5*mm),
                  Paragraph('<b>Productor:</b> '+escape(str(productor))+'  |  <b>Área:</b> '+f'{area_ha:,.2f}'+
                            ' ha  |  <b>Plantas en la parcela:</b> '+str(int(plantas))+'  |  <b>Fecha del análisis:</b> '+escape(str(fecha_analisis)), styles['EjecutivoNota']),
@@ -106,7 +106,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                                ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#F5F9F4')]),
                                ('LINEBELOW',(0,0),(-1,-1),.3,colors.HexColor('#CEDCD1')),
                                ('VALIGN',(0,0),(-1,-1),'TOP'),
-                               ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
+                               ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),('LEFTPADDING',(0,0),(-1,-1),9),('RIGHTPADDING',(0,0),(-1,-1),9)]))
         return t
     ancho_util = landscape(A4)[0]-30*mm
     contenido.append(tabla_ejecutiva(resumen_compra, [ancho_util*.52, ancho_util*.21, ancho_util*.27]))
@@ -126,13 +126,13 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         contenido.append(Paragraph('No se registraron enmiendas ni compost.', styles['EjecutivoNota']))
 
     contenido.append(Spacer(1, 3*mm))
-    contenido.append(Paragraph('CÓMO UTILIZAR ESTA FICHA', styles['EjecutivoSub']))
+    contenido.append(Paragraph('INDICACIONES PARA EL AGRICULTOR', styles['EjecutivoSub']))
     contenido.append(Paragraph('Las cantidades de fertilizantes corresponden a la parcela indicada. '
                               'Los sacos pueden incluir fracciones, porque representan lo que se aplicará, '
                               'no necesariamente la cantidad de envases enteros que se comprarán. '
                               'La dolomita y el compost se aplican de manera independiente.', styles['EjecutivoNota']))
     contenido.append(PageBreak())
-    contenido.append(Paragraph('2. PROGRAMA DE ABONAMIENTO | 50 % · 32 % · 18 %', styles['EjecutivoSub']))
+    contenido.append(Paragraph('2. PROGRAMA DE ABONAMIENTO | 50 % · 32 % · 18 %', styles['EjecutivoTitulo']))
     contenido.append(Paragraph('Distribución propuesta: <b>primera aplicación 50 %</b>, '
                               '<b>segunda 32 %</b> y <b>tercera 18 %</b>. '
                               'Las fechas deben definirse según las condiciones de la parcela.', styles['EjecutivoNota']))
@@ -156,7 +156,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                        colWidths=[ancho_util/3]*3, hAlign='LEFT')
         dosis_t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#D8EBDD')),
                                     ('BACKGROUND',(0,1),(-1,1),colors.HexColor('#EFF7F0')),
-                                    ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
+                                    ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
                                     ('LINEBELOW',(0,-1),(-1,-1),.6,colors.HexColor('#C2D8C7'))]))
         contenido.append(Spacer(1,3*mm))
         contenido.append(dosis_t)
@@ -172,7 +172,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     contenido.append(Spacer(1, 4*mm))
     contenido.append(Paragraph('_______________________________  Firma del responsable técnico', styles['EjecutivoNota']))
     contenido.append(PageBreak())
-    contenido.append(Paragraph('ANEXO TÉCNICO | Análisis del suelo y parcela', styles['TitSifert']))
+    contenido.append(Paragraph('ANEXO TÉCNICO | Análisis del suelo y parcela', styles['EjecutivoTitulo']))
     contenido.append(Paragraph(f'<b>Productor:</b> {escape(str(productor))}   |   '
                                f'<b>Fecha del análisis:</b> {escape(str(fecha_analisis))}   |   '
                                f'<b>Área:</b> {area_ha:,.2f} ha   |   '
@@ -200,7 +200,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         tabla.setStyle(TableStyle([('GRID',(0,0),(-1,-1),.25,colors.HexColor('#CBD5D1')),
                                    ('VALIGN',(0,0),(-1,-1),'TOP'),('BACKGROUND',(0,0),(0,-1),colors.HexColor('#F0F5F3')),
                                    ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#F0F5F3')),
-                                   ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
+                                   ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
         contenido.append(tabla)
         contenido.append(Spacer(1, 4*mm))
 
@@ -232,13 +232,13 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
             ('GRID',(0,0),(-1,-1),0.3,colors.HexColor('#CBD5D1')),
             ('VALIGN',(0,0),(-1,-1),'TOP'),
             ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
-            ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4),
+            ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
         ]))
         contenido.append(tabla)
         contenido.append(Spacer(1, 3*mm))
 
     contenido.append(PageBreak())
-    contenido.append(Paragraph('ANEXO TÉCNICO | Balances nutricionales', styles['TitSifert']))
+    contenido.append(Paragraph('ANEXO TÉCNICO | Balances nutricionales', styles['EjecutivoTitulo']))
     if ficha.get('balance_origen_npk'):
         agregar_tabla('Origen de la necesidad NPK (kg/ha)', pd.DataFrame(ficha['balance_origen_npk']))
         contenido.append(Paragraph('Necesidad restante = máximo de cero y (requerimiento - suelo - compost). '
@@ -258,6 +258,12 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
     def pie_pagina(canvas, documento):
         canvas.saveState()
         w, h = landscape(A4)
+        canvas.setFillColor(colors.HexColor('#15533E'))
+        canvas.rect(0, h-5.2*mm, w, 5.2*mm, fill=1, stroke=0)
+        canvas.setFillColor(colors.HexColor('#D2A34A'))
+        canvas.rect(0, h-6.2*mm, w, 1.0*mm, fill=1, stroke=0)
+        canvas.setFillColor(colors.HexColor('#F3F7F1'))
+        canvas.rect(0, 0, w, 13*mm, fill=1, stroke=0)
         canvas.setStrokeColor(colors.HexColor('#C9DED1'))
         canvas.line(15*mm, 12*mm, w-15*mm, 12*mm)
         canvas.setFont(fuente_pdf, 7.3)
@@ -309,6 +315,32 @@ FICHAS_ENMIENDAS = {
         'observacion': 'PRNT sin verificar; no calcular dosis de encalado automáticamente.'
     }
 }
+
+# V13.5: presentación ejecutiva adaptable. Solo CSS: sin modificar cálculos ni Neon.
+st.markdown('''<style>
+:root{--exec-forest:#104a37;--exec-green:#217453;--exec-gold:#c89b43;--exec-ink:#203a30;--exec-border:#d7e3d8}
+.stApp{background:linear-gradient(155deg,#f6f8f3 0%,#eef4ed 50%,#fbf8ee 100%)!important;color:var(--exec-ink)}
+.block-container{max-width:1480px;padding-bottom:3rem}
+h1{font-size:clamp(1.8rem,3.1vw,2.65rem)!important;letter-spacing:-.035em!important;margin-bottom:.15rem!important}
+[data-testid="stCaptionContainer"]{color:#687c70!important}
+div[data-baseweb="tab-list"]{background:#fff!important;border:1px solid var(--exec-border)!important;box-shadow:0 3px 15px #1d503210!important;padding:7px!important}
+button[data-baseweb="tab"][aria-selected="true"]{background:linear-gradient(120deg,#11543c,#29845a)!important;box-shadow:0 4px 14px #14513c2c!important}
+div[data-baseweb="tab-panel"]{border-radius:20px!important;box-shadow:0 7px 28px #1b4b3020!important}
+div[data-baseweb="tab-panel"] h3{font-size:1.13rem!important;letter-spacing:-.012em!important}
+div[data-baseweb="tab-panel"] h4{color:#1d533c!important;font-weight:750!important}
+div[data-testid="stMetric"]{background:linear-gradient(145deg,#fff,#f5f9f3)!important;border:1px solid #d8e5d9!important;border-top:4px solid #2b8058!important;border-radius:14px!important;padding:1rem!important;box-shadow:0 3px 12px #153b2710}
+div[data-testid="stMetricValue"]{color:#14533b!important;font-weight:800!important}
+div[data-testid="stDataFrame"]{border:1px solid #d8e3d8!important;border-radius:13px!important;box-shadow:0 3px 12px #1d4c2910}
+div[data-testid="stForm"],div[data-testid="stExpander"]{border:1px solid #d6e4d8!important;box-shadow:0 2px 10px #174b2810!important;border-radius:14px!important}
+div[data-testid="stNumberInput"] input,div[data-testid="stTextInput"] input{border-radius:8px!important;font-variant-numeric:tabular-nums}
+.stButton button,.stDownloadButton button{border-radius:10px!important;font-weight:700!important;transition:box-shadow .15s ease}
+.stButton button:hover,.stDownloadButton button:hover{box-shadow:0 4px 12px #174e382b!important}
+.sifert-hero{border-radius:17px!important;box-shadow:0 9px 23px #174e3525!important;border-bottom:4px solid #c6a253!important}
+.sifert-hero.inicio{background:linear-gradient(115deg,#104735,#226f4d 70%,#4c925d)!important}
+.sifert-hero.suelo{background:linear-gradient(115deg,#194f3d,#39745b 70%,#8d9c55)!important}
+@media(max-width:767px){.block-container{padding:.75rem .5rem 2rem!important}h1{font-size:1.42rem!important}div[data-baseweb="tab-panel"]{border-radius:12px!important}div[data-testid="stMetric"]{padding:.7rem!important}div[data-testid="stDataFrame"]{overflow-x:auto!important}div[data-baseweb="tab-panel"] [data-testid="stCaptionContainer"]{display:block!important;font-size:.78rem!important;line-height:1.3!important}.sifert-hero{padding:13px!important}.sifert-hero p{display:block!important;font-size:.82rem!important}}
+</style>''',unsafe_allow_html=True)
+
 
 def guardar_edicion_sacos(fuentes):
     """Conserva las ediciones del usuario antes de que Streamlit reconstruya la tabla."""
