@@ -166,7 +166,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
 
 st.set_page_config(page_title='SIFERT CACAO DIGITAL', page_icon='🌱', layout='wide')
 st.title('🌱 CÁLCULO DE ANÁLISIS DE SUELOS')
-st.caption('V10.3 · Balance NPK · Ficha final de fertilización en PDF · Simulación técnica')
+st.caption('V11.8 · Balance NPK y Ca/Mg · Proyección referencial de M.O. · Simulación técnica')
 st.markdown('\n<style>\n/* SIFERT V8.8 · identidad visual cacao y suelo */\n:root { --sifert-green:#1b6249; --sifert-gold:#d8a43c; --sifert-ink:#203c31; }\n.stApp { background: linear-gradient(145deg,#f5f8f0 0%,#edf4e9 45%,#fff8e9 100%); }\n.block-container { padding-top:4.5rem; }\nh1 { margin-top:0.5rem !important; padding-top:0.4rem !important; line-height:1.25 !important; }\n@media(max-width:700px){.block-container{padding-top:3.5rem;}}\nh1 { color:#174e3a !important; font-weight:800 !important; letter-spacing:-.025em; }\ndiv[data-baseweb="tab-list"] { background:#e4efe5; padding:7px; border-radius:17px; gap:5px; border:1px solid #d1e2d0; }\nbutton[data-baseweb="tab"] { border-radius:11px !important; padding:11px 15px !important; font-weight:700 !important; color:#315444 !important; }\nbutton[data-baseweb="tab"][aria-selected="true"] { background:linear-gradient(120deg,#166447,#318b5c) !important; color:white !important; box-shadow:0 4px 12px #134f3929; }\ndiv[data-baseweb="tab-highlight"] { background:transparent !important; }\n/* Panel themes rely on marker elements, not positional selectors. */\ndiv[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {align-items:end; gap:1rem;}\ndiv[data-testid="stForm"] div[data-testid="stColumn"] {min-width:0;}\ndiv[data-testid="stForm"] div[data-testid="stWidgetLabel"] {min-height:1.35rem;}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) {\n background:linear-gradient(145deg,rgba(247,255,246,.93),rgba(229,247,223,.92)),\n radial-gradient(circle at 95% 8%,#94bd72 0%,transparent 36%);\n border:1px solid #c5ddbd; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #225b3420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) {\n background:linear-gradient(140deg,rgba(255,252,242,.96),rgba(242,235,214,.94)),\n radial-gradient(circle at 95% 8%,#e8b96a 0%,transparent 35%);\n border:1px solid #e3d2ad; border-radius:20px; padding:1.3rem 1.5rem 2rem;\n box-shadow:0 8px 28px #7b5a2420;\n}\ndiv[data-baseweb="tab-panel"]:has(.sifert-inicio-marker) h3,\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {color:#234c36 !important; font-weight:800 !important; padding:.65rem .8rem; background:#ffffffb8; border-left:5px solid #2f8959; border-radius:8px; margin-top:1.5rem; }\ndiv[data-baseweb="tab-panel"]:has(.sifert-suelo-marker) h3 {border-left-color:#c28b37;}\ndiv[data-baseweb="tab-panel"] [data-testid="stForm"],\ndiv[data-baseweb="tab-panel"] [data-testid="stExpander"] {background:#ffffffd9; border:1px solid #d8e4d4; border-radius:14px; padding:.35rem;}\ndiv[data-baseweb="tab-panel"] [data-testid="stMetric"] {background:#fffefa; padding:.75rem; border:1px solid #e3e8da; border-radius:12px;}\ndiv[data-baseweb="tab-panel"] div[data-testid="stDataFrame"] {border-radius:12px; overflow:hidden;}\ndiv[data-baseweb="tab-panel"] label {color:#244b38 !important; font-weight:600 !important;}\ndiv[data-baseweb="tab-panel"] .stButton > button[kind="primary"],\ndiv[data-baseweb="tab-panel"] .stFormSubmitButton button {background:#23734f; color:white; border-color:#23734f; border-radius:10px; font-weight:700;}\n.sifert-hero {position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:17px; padding:22px 25px; margin:4px 0 20px; color:white; box-shadow:0 6px 20px #0000001c;}\n.sifert-hero.inicio {background:linear-gradient(110deg,#104f37,#297f4b 64%,#6a9e46);}\n.sifert-hero.suelo {background:linear-gradient(110deg,#654221,#997038 64%,#b89452);}\n.sifert-hero h2 {font-size:clamp(1.25rem,2.2vw,1.9rem); margin:0 0 6px; font-weight:800; color:#fff !important;}\n.sifert-hero p {margin:0; font-size:.96rem; color:#f7f9e9;}\n.sifert-hero .art {font-size:clamp(2.6rem,5vw,4.7rem); line-height:1; filter:drop-shadow(0 3px 4px #0004); white-space:nowrap;}\n@media(max-width:700px){ div[data-baseweb="tab-panel"]:has(.sifert-inicio-marker),div[data-baseweb="tab-panel"]:has(.sifert-suelo-marker){padding:.65rem;} .sifert-hero{padding:15px 14px;} .sifert-hero .art{font-size:2.5rem;} }\n</style>\n', unsafe_allow_html=True)
 st.info('Ingrese los resultados de su análisis de suelo y la producción de cacao seco que desea alcanzar. No necesita modificar fórmulas.')
 
@@ -495,6 +495,7 @@ with secciones[0]:
     if st.session_state.pop('_actualizacion_exitosa', False):
         st.session_state.pop('selector_inicio', None)
         st.session_state['_selector_inicio_objetivo'] = st.session_state.get('_productor_evaluacion_anterior')
+        st.session_state['_selector_inicio_previo'] = '__refrescar_datos_guardados__'
     opciones_inicio = {'➕ Nuevo productor y nuevo análisis': None}
     opciones_inicio.update({f"{r['codigo']} · {r['nombre']}": int(r['id']) for _, r in registros_inicio.iterrows()})
     objetivo = st.session_state.pop('_selector_inicio_objetivo', None)
@@ -684,7 +685,10 @@ with secciones[0]:
             with connect() as conn:
                 cur = conn.cursor()
                 q = lambda sql: sql.replace('?', '%s') if IS_POSTGRES else sql
-                cur.execute(q('SELECT id FROM participantes WHERE codigo=?'), (codigo.strip(),))
+                if productor_existente_id is not None:
+                    cur.execute(q('SELECT id FROM participantes WHERE id=?'), (productor_existente_id,))
+                else:
+                    cur.execute(q('SELECT id FROM participantes WHERE codigo=?'), (codigo.strip(),))
                 anterior = cur.fetchone()
                 if anterior:
                     pid_guardar = int(anterior[0])
@@ -706,6 +710,10 @@ with secciones[0]:
                     valores_update = [parametros[columnas.index(c)] for c in campos_update]
                     cur.execute(q(f"UPDATE analisis SET {','.join(c + '=?' for c in campos_update)} WHERE id=? AND participante_id=?"),
                                 valores_update + [analisis_inicio_id, pid_guardar])
+            # Verificar lectura posterior a COMMIT: evitar éxito falso si Neon no refleja el cambio.
+            confirmado = execute('SELECT nombre FROM participantes WHERE id=?', (pid_guardar,), True)
+            if confirmado.empty or str(confirmado.iloc[0]['nombre']).strip() != nombre.strip():
+                raise RuntimeError('No se confirmó la actualización del nombre en la base de datos.')
             st.session_state['_productor_evaluacion_anterior'] = pid_guardar
             st.session_state['evaluacion_pendiente'] = {
                 'datos': valores.copy(), 'rendimiento': float(rendimiento),
@@ -713,7 +721,7 @@ with secciones[0]:
                 'laboratorio': laboratorio_analisis, 'metodo_fosforo': metodo_fosforo,
                 'dap': float(dap_evaluacion), 'dap_origen': dap_origen}
             # Sincronizar inmediatamente el selector tras actualizar el nombre en Neon.
-            st.session_state['_selector_inicio_previo'] = pid_guardar
+            st.session_state['_selector_inicio_previo'] = '__refrescar_datos_guardados__'
             st.session_state['_actualizacion_exitosa'] = True
             # Forzar reconstrucción del selector desde Neon tras confirmar COMMIT.
             # El análisis existente mantiene su ID; no se inserta un duplicado.
@@ -943,9 +951,39 @@ with secciones[1]:
             r1.metric('Compost por hectárea', f'{kg_compost_ha_anual:,.1f} kg')
             r2.metric('Compost en la parcela', f'{kg_compost_parcela_anual:,.1f} kg')
             r3.metric('Sacos para la parcela', f'{math.ceil(kg_compost_parcela_anual/saco_compost):,}')
+            st.markdown('**Proyección anual referencial de materia orgánica (compost y poda)**')
+            st.caption('Escenario ilustrativo, no predicción validada: usa biomasa de poda referencial y supuestos de permanencia del carbono. La cobertura superficial no equivale a materia orgánica estabilizada del suelo.')
+            col_ret1, col_ret2 = st.columns(2)
+            ret_compost = col_ret1.number_input('Permanencia hipotética de C del compost (%)', min_value=0.0, max_value=100.0, value=20.0, step=5.0, key='mo_ret_compost_v118') / 100.0
+            ret_poda = col_ret2.number_input('Estabilización hipotética de C de poda (%)', min_value=0.0, max_value=100.0, value=20.0, step=5.0, key='mo_ret_poda_v118') / 100.0
+            # Valores de biomasa orientativos; no equivalen a mediciones locales.
+            poda_fresca_ha = 8900.0 * plantas_compost / 1100.0
+            poda_seca_ha = poda_fresca_ha * 0.57
+            carbono_poda_ha = poda_seca_ha * 0.45
+            carbono_estable_poda = carbono_poda_ha * ret_poda
+            mo_estable_poda = carbono_estable_poda * 1.724
+            mo_compost_bruta = kg_compost_ha_anual * 0.30
+            # M.O. -> C por factor convencional 1.724; retención aplicada al carbono.
+            mo_estable_compost = (mo_compost_bruta / 1.724) * ret_compost * 1.724
+            dap_mo = float(datos.get('dap') or 1.33)
+            masa_mo = 10000.0 * 0.20 * dap_mo * 1000.0
+            delta_mo_pct = (mo_estable_compost + mo_estable_poda) / masa_mo * 100.0 if masa_mo > 0 else 0.0
+            proyeccion_mo = [
+                {'Indicador':'M.O. inicial del suelo (%)','Valor':f'{mo_val:.3f}' if mo_val is not None else 'Sin análisis'},
+                {'Indicador':'Meta orientativa de M.O. (%)','Valor':'4.000'},
+                {'Indicador':'Compost aplicado (kg/ha/año)','Valor':f'{kg_compost_ha_anual:,.2f}'},
+                {'Indicador':'M.O. contenida en compost (kg/ha; 30 % ref.)','Valor':f'{mo_compost_bruta:,.2f}'},
+                {'Indicador':'M.O. hipotéticamente retenida del compost (kg/ha)','Valor':f'{mo_estable_compost:,.2f}'},
+                {'Indicador':'Residuos de poda frescos (kg/ha/año; ref.)','Valor':f'{poda_fresca_ha:,.2f}'},
+                {'Indicador':'Biomasa seca de poda (kg/ha/año; 57 % ref.)','Valor':f'{poda_seca_ha:,.2f}'},
+                {'Indicador':'M.O. hipotéticamente estabilizada de poda (kg/ha)','Valor':f'{mo_estable_poda:,.2f}'},
+                {'Indicador':'Incremento hipotético anual M.O. (puntos %)','Valor':f'{delta_mo_pct:.4f}'},
+                {'Indicador':'M.O. final simulada (%)','Valor':f'{mo_val+delta_mo_pct:.4f}' if mo_val is not None else 'Sin análisis'}]
+            st.dataframe(pd.DataFrame(proyeccion_mo), hide_index=True, use_container_width=True)
+            st.caption(f'Base de cálculo: 0–20 cm, 1 ha completa y densidad aparente {dap_mo:.2f} g/cm³; biomasa de poda 8,900 kg frescos/ha/año a 1,100 plantas, 57 % materia seca, 45 % C. El 20 % inicial de permanencia es SOLO un supuesto editable, no una tasa validada. No se descuentan nutrientes de poda del NPK. Confirmar cambios mediante análisis de suelo posteriores.')
             st.markdown('**Residuos de poda: práctica habitual de campo**')
             st.caption('Cada planta conserva sus hojas y ramas de poda cortadas en trozos pequeños debajo de su propia copa. Esta cobertura contribuye al reciclaje gradual de nutrientes y a la protección del suelo.')
-            st.caption('Por falta de mediciones locales de biomasa y estabilización, los residuos de poda NO se descuentan del balance NPK ni se convierten en un incremento numérico de materia orgánica. Se elimina el supuesto del 20 %.')
+            st.caption('La proyección anterior es exclusivamente referencial: el 20 % se usa como supuesto de escenario, NO como coeficiente validado. Los residuos de poda NO se descuentan del balance NPK.')
             st.caption('El NPK del compost aplicado sí se calcula con la dosis ingresada y la disponibilidad del primer año; no se duplica en el balance mineral.')
 
             st.subheader('6. Balance nutricional NPK · simulación técnica preliminar')
