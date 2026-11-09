@@ -843,7 +843,7 @@ with secciones[1]:
                     meta_previa = float(st.session_state['encalado_meta_al'])
                 except (TypeError, ValueError):
                     meta_previa = 20.0
-                if not (0.0 < meta_previa <= 100.0):
+                if not (1.0 < meta_previa <= 100.0):
                     st.session_state['encalado_meta_al'] = 20.0
             col_actual_al, col_meta_al = st.columns(2)
             col_actual_al.metric('Saturación de aluminio actual (análisis)',
@@ -883,11 +883,11 @@ with secciones[1]:
                     st.caption(f'Área tratada: {area_ha:,.1f} m²/ha. Masa de suelo: {masa_suelo:,.0f} kg/ha. Equivalente CaCO₃: {kg_equiv:,.1f} kg/ha. Ajuste por PRNT: {prnt:.2f}.')
                     st.caption('Referencia metodológica: INIA (2025), Manual técnico de encalado y fertilización para café y cacao, pp. 91–99 (neutralización de aluminio). Cálculo de SIFERT: estimación referencial; validar la dosis con el ejemplo del manual antes de aplicarla.')
                     if producto_enc.startswith('Dolomita'):
-                        st.caption(f'Aporte químico teórico de la dolomita (sin estimar disponibilidad): CaO {kg_ha*0.30:.2f} kg/ha; MgO {kg_ha*0.215:.2f} kg/ha. Porcentajes centrales de la ficha ODINSU (CaO 28–32 %, MgO 20–23 %).')
+                        st.caption(f'Aporte químico teórico de la dolomita (sin estimar disponibilidad): CaO {kg_ha*0.30:.2f} kg/ha; MgO {kg_ha*0.215:.2f} kg/ha. Composición referencial editable; confirmar con la ficha del lote.')
                     else:
                         st.caption('La cal agrícola aporta principalmente calcio; para cuantificar CaO y MgO se requiere su composición real. No se presupone que carezca de magnesio.')
                     st.caption('Estos aportes de Ca y Mg solo serían efectivos si se aplicara la enmienda. No equivalen a nutrientes inmediatamente disponibles ni a una dosis aprobada.')
-                    st.warning('RESULTADO SOLO DE SIMULACIÓN: neutralización estequiométrica de exceso de Al, no una recomendación de aplicación de campo validada por INIA. La neutralización real depende de acidez de reserva, reactividad, incorporación superficial, condiciones de suelo y calidad de la enmienda. No comprar ni aplicar basándose únicamente en esta cifra.')
+                    st.caption('Dosis referencial por neutralización de aluminio: verificar con el método y ejemplo INIA antes de recomendar la aplicación.')
             st.subheader('5. Compost y poda: proyección de materia orgánica')
             st.caption('El agricultor elige cuánto compost aplicará. SIFERT estima por separado el aporte del compost y el de los residuos de poda que permanecen en el anillo.')
             mo_val = datos.get('mo')
@@ -1184,17 +1184,15 @@ with secciones[1]:
                 st.dataframe(pd.DataFrame(filas_unificadas),hide_index=True,use_container_width=True)
                 st.caption('Diferencia = aporte aprovechable del fertilizante − necesidad restante tras descontar suelo y compost. Las eficiencias minerales se aplican una sola vez al aporte; los orgánicos emplean disponibilidad anual estimada.')
                 st.markdown('**Balance complementario de calcio y magnesio (Ca/Mg)**')
-                st.caption('Al confirmar la aplicación, se utiliza automáticamente la dosis calculada arriba. Solo se descuenta la fracción estimada disponible.')
+                st.caption('Enfoque INIA (2025): evaluar Ca y Mg intercambiables frente a valores de referencia; el encalado se calcula por neutralización de aluminio. No se presume disponibilidad inmediata de la enmienda.')
                 enm_aplicada = st.checkbox('Sí aplicó (cal o dolomita)', value=False, key='enm_aplicada_v72')
-                enm_ca_kg_ha = 0.0
-                enm_mg_kg_ha = 0.0
                 ca_total_aportado = 0.0
                 mg_total_aportado = 0.0
                 if enm_aplicada and (producto_enc == 'No aplicar' or kg_ha_encalado_calculado is None):
-                    st.warning('Para registrar la aplicación, seleccione una enmienda y compruebe que exista una dosis calculada.')
+                    st.warning('Seleccione una enmienda y complete los datos necesarios para obtener su dosis.')
                 elif enm_aplicada:
-                    st.caption(f'Enmienda: {producto_enc}. Dosis aplicada tomada automáticamente del cálculo: {kg_ha_encalado_calculado:,.2f} kg/ha.')
                     dosis_real_enm = float(kg_ha_encalado_calculado)
+                    st.caption(f'Enmienda: {producto_enc}. Dosis tomada automáticamente del cálculo de encalado: {dosis_real_enm:,.2f} kg/ha.')
                     col_ca, col_mg = st.columns(2)
                     if producto_enc == 'Dolomita':
                         cao_pct = col_ca.number_input('CaO del producto (%)', min_value=0.0, max_value=100.0,
@@ -1211,37 +1209,27 @@ with secciones[1]:
                         cao_pct, mgo_pct = 0.0, 0.0
                     ca_total_aportado = dosis_real_enm * cao_pct / 100 * (40.078 / 56.077)
                     mg_total_aportado = dosis_real_enm * mgo_pct / 100 * (24.305 / 40.304)
-                    fraccion_enm = st.number_input('Fracción estimada disponible de Ca/Mg en el período (%)',
-                        min_value=0.0, max_value=100.0, value=0.0, step=5.0, key='enm_fraccion_disp_camg') / 100
-                    enm_ca_kg_ha = ca_total_aportado * fraccion_enm
-                    enm_mg_kg_ha = mg_total_aportado * fraccion_enm
-                    st.caption(f'Aporte total potencial: Ca {ca_total_aportado:.2f} y Mg {mg_total_aportado:.2f} kg/ha. '
-                               f'Aporte estimado disponible: Ca {enm_ca_kg_ha:.2f} y Mg {enm_mg_kg_ha:.2f} kg/ha.')
-                    st.caption('Con disponibilidad 0 % no se descuenta Ca ni Mg. Modifique el porcentaje solo con sustento técnico; marcar aplicación no demuestra disponibilidad inmediata.')
-                # Objetivos de concentración intercambiable (INIA 2025, tabla 27):
-                # Ca 4–5 y Mg 1–1.5 cmol(+)/kg. No confundir stock con extracción anual.
-                # El balance es un indicador teórico de corrección, no dosis de fertilizante.
+                    st.caption(f'Aporte químico potencial (no disponibilidad inmediata): Ca {ca_total_aportado:.2f} y Mg {mg_total_aportado:.2f} kg/ha.')
+                # Los objetivos son los puntos medios de los intervalos de referencia para cacao:
+                # Ca 4–5 y Mg 1–1.5 cmol(+)/kg. La diferencia de reservas no es una
+                # dosis de fertilizante ni puede reducirse automáticamente con el aporte total.
                 filas_camg = []
                 for nutr, meta, factor_mgkg, aporte_kg in (
-                    ('Ca', 4.5, 200.39, enm_ca_kg_ha),
-                    ('Mg', 1.25, 121.53, enm_mg_kg_ha)):
+                    ('Ca', 4.5, 200.39, ca_total_aportado),
+                    ('Mg', 1.25, 121.53, mg_total_aportado)):
                     analisis = datos.get(nutr.lower())
                     if analisis is None:
                         filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': 'Sin análisis',
-                            'Objetivo (cmol(+)/kg)': meta, 'Déficit inicial (kg/ha)': 'No calculable',
-                            'Aporte estimado disponible (kg/ha)': round(aporte_kg,2),
-                            'Diferencia pendiente (kg/ha)': 'No calculable'})
+                            'Referencia (cmol(+)/kg)': meta, 'Déficit inicial teórico (kg/ha)': 'No calculable',
+                            'Aporte potencial de enmienda (kg/ha)': round(aporte_kg,2)})
                         continue
-                    # factor_mgkg: mg/kg por cmol(+)/kg. masa: kg suelo/ha (0–20 cm).
                     deficit_inicial = max(0.0, (meta - float(analisis)) * factor_mgkg * masa / 1_000_000)
-                    pendiente = max(0.0, deficit_inicial - aporte_kg)
                     filas_camg.append({'Nutriente': nutr, 'Suelo (cmol(+)/kg)': round(float(analisis),3),
-                        'Objetivo (cmol(+)/kg)': meta, 'Déficit inicial (kg/ha)': round(deficit_inicial,2),
-                        'Aporte estimado disponible (kg/ha)': round(aporte_kg,2),
-                        'Diferencia pendiente (kg/ha)': round(pendiente,2)})
+                        'Referencia (cmol(+)/kg)': meta, 'Déficit inicial teórico (kg/ha)': round(deficit_inicial,2),
+                        'Aporte potencial de enmienda (kg/ha)': round(aporte_kg,2)})
                 st.dataframe(pd.DataFrame(filas_camg), hide_index=True, use_container_width=True)
-                st.caption('Si persiste déficit de Mg, evaluar un suplemento como Magnocal solo tras confirmar su composición, la disponibilidad y la necesidad agronómica. No se genera dosis automática.')
-                st.caption('Nota: kg/ha representa un déficit teórico de reserva intercambiable en 0–20 cm; no equivale a requerimiento anual ni demuestra cambio real del análisis de suelo.')
+                st.caption('INIA (2025): neutralización del aluminio, pp. 91–99; evaluación de Ca, pp. 100–104. El aporte potencial NO se resta del déficit intercambiable sin análisis posterior del suelo.')
+                st.caption('Si Mg permanece bajo tras el encalado, evaluar una fuente complementaria como Magnocal según su composición y un nuevo análisis. No se calcula dosis automática.')
                 # Distribución operativa: 50 %, 32 %, 18 % por producto.
                 filas_detalle=[]
                 for x in usados:
