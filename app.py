@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V13.6 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V13.7 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -82,7 +82,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         for etiqueta, valor in elementos:
             celdas.append([Paragraph(texto_quimico(etiqueta),styles['ExecCardLabel']), Paragraph(texto_quimico(valor),styles['ExecCardValue'])])
         tabla=Table([[Table([[v] for v in celda],colWidths=[ancho/len(celdas)-8*mm],rowHeights=[7*mm,10*mm]) for celda in celdas]], colWidths=[ancho/len(celdas)]*len(celdas), rowHeights=[alto],hAlign='LEFT')
-        tabla.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#ECF5EE')),('BOX',(0,0),(-1,-1),.6,colors.HexColor('#B8D5C3')),('INNERGRID',(0,0),(-1,-1),3,colors.white),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+        tabla.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#E7F2EA')),('BOX',(0,0),(-1,-1),.6,colors.HexColor('#B8D5C3')),('INNERGRID',(0,0),(-1,-1),3,colors.white),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
         return tabla
     styles['Heading2'].fontSize=10
     styles['Heading2'].leading=12
@@ -116,7 +116,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                                ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#F5F9F4')]),
                                ('LINEBELOW',(0,0),(-1,-1),.3,colors.HexColor('#CEDCD1')),
                                ('VALIGN',(0,0),(-1,-1),'TOP'),
-                               ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),('LEFTPADDING',(0,0),(-1,-1),9),('RIGHTPADDING',(0,0),(-1,-1),9)]))
+                               ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4),('LEFTPADDING',(0,0),(-1,-1),9),('RIGHTPADDING',(0,0),(-1,-1),9)]))
         return t
     ancho_util = landscape(A4)[0]-30*mm
     contenido.insert(4, tarjetas_pdf([('ÁREA DE CULTIVO',f'{area_ha:,.2f} ha'),('PLANTAS',f'{int(plantas):,}'),('FERTILIZANTES',f"{sum(float(r.get('Cantidad (kg)',0) or 0) for r in filas_fert):,.0f} kg")], ancho_util))
@@ -373,6 +373,34 @@ st.markdown('''<style>
 @media(max-width:1000px){.sifert-diagnostic-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.sifert-diagnostic-grid{gap:8px}.sifert-diagnostic-card{padding:11px 10px}.sifert-card-value{font-size:1.28rem}.sifert-card-label{font-size:.74rem}.sifert-card-state{font-size:.72rem}.sifert-exec-intro{padding:14px}}
 </style>''',unsafe_allow_html=True)
+
+
+st.markdown('''<style>
+/* V13.7: identidad ejecutiva para todo el aplicativo. */
+.sifert-diagnostic-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:11px!important}
+.sifert-diagnostic-card{border-top:5px solid #24734e!important;box-shadow:0 9px 25px #103d2a16!important;padding:18px 15px!important}
+.sifert-card-label{font-size:.85rem!important;color:#385d4a!important}
+.sifert-card-value{font-size:clamp(1.4rem,2.1vw,2rem)!important;line-height:1.2!important}
+.sifert-balance-grid,.sifert-dose-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:14px 0 18px}
+.sifert-balance-card,.sifert-dose-card{background:white;border:1px solid #d5e4d8;border-radius:17px;padding:18px;box-shadow:0 5px 18px #12442d12;min-width:0}
+.sifert-balance-card{border-top:5px solid #cf9d3f}
+.sifert-balance-card.equilibrado{border-top-color:#268257}.sifert-balance-card.deficit{border-top-color:#cb7b34}.sifert-balance-card.exceso{border-top-color:#b05b52}
+.sifert-balance-nutriente{font-weight:850;font-size:1.05rem;color:#22523b}
+.sifert-balance-diferencia{font-size:clamp(1.5rem,2.3vw,2.2rem);font-weight:850;color:#174c36;margin:8px 0}
+.sifert-balance-diferencia small{font-size:.8rem;font-weight:600}
+.sifert-balance-estado{display:inline-block;background:#f6eddb;color:#79521f;padding:3px 9px;border-radius:7px;font-weight:750;font-size:.82rem}
+.sifert-balance-card.equilibrado .sifert-balance-estado{background:#e0f1e6;color:#205b39}
+.sifert-balance-pie{color:#6c7b70;font-size:.78rem;margin-top:10px}
+.sifert-dose-card{background:linear-gradient(145deg,#ecf5ee,#fff);border-top:5px solid #25845a}
+.sifert-dose-card div{font-size:.78rem;font-weight:800;color:#476452;letter-spacing:.025em}
+.sifert-dose-card strong{display:block;font-size:clamp(1.5rem,2.4vw,2.2rem);color:#15513a;margin:10px 0 0}
+.sifert-dose-card small{color:#6d7e72}
+div[data-baseweb="tab-panel"]{background:#fafbf7!important}
+div[data-baseweb="tab-panel"] h3{border-left:5px solid #328459!important;padding:10px 13px!important;background:#fff!important;border-radius:9px!important;margin-top:18px!important}
+div[data-testid="stDataFrame"]{background:white!important}
+@media(max-width:1150px){.sifert-diagnostic-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:700px){.sifert-diagnostic-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.sifert-balance-grid,.sifert-dose-grid{grid-template-columns:1fr!important;gap:9px}.sifert-balance-card,.sifert-dose-card{padding:13px}.sifert-diagnostic-card{padding:11px!important}.sifert-card-value{font-size:1.25rem!important}}
+</style>''', unsafe_allow_html=True)
 
 
 def guardar_edicion_sacos(fuentes):
@@ -1103,7 +1131,7 @@ with secciones[1]:
                     try:numero=f'{float(valor):.2f}'.rstrip('0').rstrip('.')
                     except (ValueError,TypeError):numero=str(valor)
                     return (numero+unidad,clasificar(clave,valor,metodo_p_resultado))
-                claves_tarjetas=[('ph','Acidez del suelo',''),('mo','Materia orgánica',' %'),('p','Fósforo disponible',' ppm'),('k_cmol','Potasio intercambiable',' cmol/kg')]
+                claves_tarjetas=[('ph','Acidez del suelo',''),('mo','Materia orgánica',' %'),('n','Nitrógeno total',' %'),('p','Fósforo disponible',' ppm'),('k_cmol','Potasio intercambiable',' cmol(+)/kg')]
                 tarjetas=[]
                 for clave,etiqueta,unidad in claves_tarjetas:
                     valor,interpretacion=dato_carta(clave,etiqueta,unidad)
@@ -1533,7 +1561,15 @@ with secciones[1]:
                     'Diferencia': r['Diferencia (kg/ha)'],
                     'Estado': r['Estado'],
                 } for r in filas_balance]
-                tabla_ajustada(pd.DataFrame(filas_balance_pantalla), hide_index=True, use_container_width=True)
+                # Resumen ejecutivo; datos calculados previamente, sin modificar fórmulas.
+                estados=[]
+                for r in filas_balance:
+                    estado=str(r['Estado'])
+                    clase='equilibrado' if estado=='Equilibrado' else ('deficit' if estado=='Déficit' else 'exceso')
+                    estados.append(f'<div class="sifert-balance-card {clase}"><div class="sifert-balance-nutriente">{r["Nutriente"]}</div><div class="sifert-balance-diferencia">{r["Diferencia (kg/ha)"]:+.2f} <small>kg/ha</small></div><div class="sifert-balance-estado">{estado}</div><div class="sifert-balance-pie">Necesidad: {r["Necesidad de fertilización (kg/ha)"]:.2f} · Aporte: {r["Aporte de fertilizantes (kg/ha)"]:.2f}</div></div>')
+                st.markdown('<div class="sifert-balance-grid">'+''.join(estados)+'</div>', unsafe_allow_html=True)
+                with st.expander('Ver tabla completa del balance NPK', expanded=False):
+                    tabla_ajustada(pd.DataFrame(filas_balance_pantalla), hide_index=True, use_container_width=True)
                 st.caption('Diferencia = aporte aprovechable del fertilizante − necesidad restante tras descontar suelo y compost. Las eficiencias minerales se aplican una sola vez al aporte; los orgánicos emplean disponibilidad anual estimada.')
                 # Mostrar el balance Ca/Mg debajo del balance de fertilizantes.
                 # Balance integrado Ca/Mg: leer los mismos controles de fertilizantes,
@@ -1660,7 +1696,9 @@ with secciones[1]:
                 filas_gramos=[{'Fertilizante':'TOTAL','1.º (g/planta)':round(sum(r[2] for r in filas_detalle)*1000/total_plantas,2),
                     '2.º (g/planta)':round(sum(r[3] for r in filas_detalle)*1000/total_plantas,2),
                     '3.º (g/planta)':round(sum(r[4] for r in filas_detalle)*1000/total_plantas,2)}]
-                tabla_ajustada(pd.DataFrame(filas_gramos),hide_index=True,use_container_width=True)
+                st.markdown('<div class="sifert-dose-grid">'+''.join(f'<div class="sifert-dose-card"><div>{etiqueta}</div><strong>{filas_gramos[0][clave]:,.2f} g</strong><small>por planta</small></div>' for etiqueta,clave in [('PRIMER ABONAMIENTO · 50 %','1.º (g/planta)'),('SEGUNDO ABONAMIENTO · 32 %','2.º (g/planta)'),('TERCER ABONAMIENTO · 18 %','3.º (g/planta)')])+'</div>',unsafe_allow_html=True)
+                with st.expander('Ver dosis en tabla',expanded=False):
+                    tabla_ajustada(pd.DataFrame(filas_gramos),hide_index=True,use_container_width=True)
                 st.caption('Distribución operativa 50 % / 32 % / 18 % para cada producto. Validar dosis, compatibilidad y necesidades específicas de micronutrientes antes de aplicar.')
                 productor_pdf = str(fila_parcela['nombre']) if fila_parcela is not None else 'Sin participante seleccionado'
                 def valor_pdf_parcela(campo):
