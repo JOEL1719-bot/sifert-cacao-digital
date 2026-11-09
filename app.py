@@ -599,7 +599,9 @@ with secciones[0]:
     st.markdown('### Datos generales del análisis de suelo')
     col_fecha, col_meta, col_lab = st.columns(3)
     fecha_guardar = col_fecha.date_input('Fecha del análisis', value=date.today(), key='fecha_evaluacion')
-    rendimiento = col_meta.number_input('Meta de cacao seco (kg/ha/año)', min_value=100.0, max_value=10000.0, step=100.0, key='meta_evaluacion', help='Producción esperada utilizada en los cálculos de fertilización.')
+    rendimiento = col_meta.number_input('Meta de cacao seco (kg/ha/año)', min_value=0.0, max_value=10000.0, step=100.0, key='meta_evaluacion', help='En crecimiento de 0 a 2 años, este dato no interviene en la demanda vegetativa. En producción indique una meta positiva.')
+    if etapa == 'Crecimiento':
+        st.caption('Crecimiento: la meta de cosecha no interviene en la demanda vegetativa de los dos primeros años.')
     laboratorio_analisis = col_lab.text_input('Laboratorio del análisis de suelo', key='laboratorio_evaluacion')
     with st.form('evaluacion'):
         st.subheader('1. Copie los valores de su análisis de suelo')
@@ -895,7 +897,41 @@ with secciones[1]:
                     'P₂O₅': masa*p_ppm/1_000_000*2.291*0.25,
                     'K₂O': masa*k_cmol*391/1_000_000*1.205*0.40,
                 }
-                demanda = {'N': 70*rendimiento/1000, 'P₂O₅': 16*rendimiento/1000, 'K₂O': 90*rendimiento/1000}
+                etapa_balance = str(fila_parcela.get('etapa') or '') if fila_parcela is not None else ''
+                edad_balance = float(fila_parcela.get('edad_anios') or 0) if fila_parcela is not None else 0.0
+                densidad_balance = int(fila_parcela.get('plantas_ha') or 1100) if fila_parcela is not None else 1100
+                if etapa_balance == 'Crecimiento' and 0 <= edad_balance <= 2:
+                    # Vasquez-Zambrano et al. (2025), Tabla 1 y Apéndice B.1:
+                    # incremento de biomasa seca 1500 (año 1), 3000 (año 2) kg/ha/año,
+                    # para 1111 plantas/ha; madera+raíces 60/80 %, hojas 40/20 %.
+                    # Concentraciones elementales en madera: N 0.69 %, P 0.12 %, K 1.55 %;
+                    # hojas: N 2.50 %, P 0.20 %, K 1.80 %.
+                    # P y K se convierten a P2O5 y K2O con 2.291 y 1.205.
+                    anio_crecimiento = 1 if edad_balance <= 1 else 2
+                    biomasa_base = 1500.0 if anio_crecimiento == 1 else 3000.0
+                    fraccion_hojas = 0.40 if anio_crecimiento == 1 else 0.20
+                    biomasa = biomasa_base * densidad_balance / 1111.0
+                    madera = biomasa * (1.0 - fraccion_hojas)
+                    hojas = biomasa * fraccion_hojas
+                    demanda = {
+                        'N': madera*0.0069 + hojas*0.025,
+                        'P₂O₅': (madera*0.0012 + hojas*0.0020)*2.291,
+                        'K₂O': (madera*0.0155 + hojas*0.0180)*1.205,
+                    }
+                    st.success(f'Cacao en crecimiento · año {anio_crecimiento}: demanda vegetativa estimada por biomasa y edad, ajustada a {densidad_balance:,} plantas/ha.')
+                    st.caption('Fuente: Vasquez-Zambrano et al. (2025), European Journal of Agronomy, DOI: 10.1016/j.eja.2024.127463. Demanda por inmovilización vegetativa, NO dosis de fertilizante validada para Leoncio Prado.')
+                elif etapa_balance == 'Crecimiento':
+                    demanda = None
+                    st.error('Crecimiento de más de 2 años: todavía no hay un modelo local validado. No se calculará una dosis automática; seleccione Producción solo si la plantación realmente produce.')
+                elif etapa_balance == 'Producción' and rendimiento <= 0:
+                    demanda = None
+                    st.error('En Producción ingrese una meta de cacao seco mayor que cero.')
+                else:
+                    demanda = {'N': 70*rendimiento/1000, 'P₂O₅': 16*rendimiento/1000, 'K₂O': 90*rendimiento/1000}
+                    if etapa_balance == 'No especificada':
+                        st.warning('Etapa no especificada: se aplica provisionalmente el modelo de producción. Confirme la etapa antes de usar el resultado.')
+                if demanda is None:
+                    st.stop()
                 eficiencia = {'N':0.60,'P₂O₅':0.25,'K₂O':0.70}
                 dosis = {nut:max(0,demanda[nut]-oferta[nut])/eficiencia[nut] for nut in demanda}
                 # Balance inicial exclusivo de N, P₂O₅ y K₂O.
@@ -909,7 +945,7 @@ with secciones[1]:
                 st.dataframe(pd.DataFrame(filas_balance_suelo), hide_index=True, use_container_width=True)
                 st.caption('NPK: requerimiento y aporte anual estimados. El calcio y el magnesio se evalúan por separado en el módulo de encalado.')
                 st.caption('El cuadro inicial muestra la necesidad antes de descontar compost. La sección 7 descuenta el compost y calcula el aporte aprovechable de cada fertilizante.')
-                st.caption('La estimación de oferta del suelo no es una medición de absorción anual. El modelo de demanda escala linealmente con rendimiento y no incorpora aún una calibración independiente por edad ni cáscaras.')
+                st.caption('La oferta del suelo es una aproximación no calibrada localmente. En Producción, la demanda escala con rendimiento; en Crecimiento (0–2 años), con biomasa y edad. No interpretar las dosis como prescripción validada.')
 
                 # Las dosis complementarias son referenciales y se presentan en la tabla
                 # de fertilizantes, nunca como una segunda prescripción independiente.
