@@ -1940,14 +1940,36 @@ def excel_consolidado(part, anal):
         ws.page_setup.orientation='landscape'; ws.page_setup.paperSize=ws.PAPERSIZE_A3; ws.page_setup.fitToWidth=1; ws.page_setup.fitToHeight=0; ws.sheet_properties.pageSetUpPr.fitToPage=True; ws.print_title_rows='1:3'
         return ws
     mapa={r['id']:r for r in part.to_dict('records')}
-    grupos=[('Identificación del participante',['N.º','Código','DNI','Participante','Caserío','Distrito','Provincia','Área (ha)']),('Datos del análisis',['Fecha','Laboratorio','Método P']),('Análisis mecánico',['Arena (%)','Arcilla (%)','Limo (%)','Clase textural']),('Análisis químico',['CE (dS/m)','pH','M.O. (%)','N total (%)','C orgánico (%)','P disponible (ppm)','K₂O disponible (ppm)','CIC (cmol(+)/kg)']),('Cationes cambiables (cmol(+)/kg)',['Ca','Mg','K','Na','Al','H']),('Indicadores de fertilidad',['CICe (cmol(+)/kg)','Bases cambiables (%)','Acidez cambiable (%)','Sat. Al (%)'])]
+    grupos=[('Identificación del participante',['N.º','Código','Participante','Caserío','Distrito','Provincia','Área (ha)']),('Datos del análisis',['Fecha','Laboratorio','Método P']),('Análisis mecánico',['Arena (%)','Arcilla (%)','Limo (%)','Clase textural']),('Análisis químico',['CE (dS/m)','pH','M.O. (%)','N total (%)','C orgánico (%)','P disponible (ppm)','K₂O disponible (ppm)','CIC (cmol(+)/kg)']),('Cationes cambiables (cmol(+)/kg)',['Ca','Mg','K','Na','Al','H']),('Indicadores de fertilidad',['CICe (cmol(+)/kg)','Bases cambiables (%)','Acidez cambiable (%)','Sat. Al (%)'])]
+    def numero(v):
+        try:
+            x=float(v)
+            return x if pd.notna(x) and abs(x)!=float('inf') and x>=0 else None
+        except (TypeError, ValueError):
+            return None
+    def indicador(a, clave, componentes, factor):
+        original=numero(a.get(clave))
+        if original is not None: return original
+        valores=[numero(a.get(k)) for k in componentes]
+        if factor is None or factor<=0 or any(v is None for v in valores): return None
+        return round(sum(valores)/factor,2)
     filas=[]
     for i,a in enumerate(anal.to_dict('records'),1):
         p=mapa.get(a.get('participante_id'),{})
-        filas.append([i]+[p.get(k) for k in ['codigo','dni','nombre','caserio','distrito','provincia','area_ha']]+[a.get(k) for k in ['fecha','laboratorio','metodo_fosforo','arena','arcilla','limo','textura','ce','ph','mo','n','c_organico','p','k2o','cic','ca','mg','k_cmol','na','al','h','cice','bases_cambiables','acidez_cambiable','sat_al']])
+        cice=numero(a.get('cice'))
+        a['c_organico']=indicador(a,'c_organico',['mo'],1.724)
+        a['bases_cambiables']=indicador(a,'bases_cambiables',['ca','mg','k_cmol','na'],cice/100 if cice else None)
+        a['acidez_cambiable']=indicador(a,'acidez_cambiable',['al','h'],cice/100 if cice else None)
+        filas.append([i]+[p.get(k) for k in ['codigo','nombre','caserio','distrito','provincia','area_ha']]+[a.get(k) for k in ['fecha','laboratorio','metodo_fosforo','arena','arcilla','limo','textura','ce','ph','mo','n','c_organico','p','k2o','cic','ca','mg','k_cmol','na','al','h','cice','bases_cambiables','acidez_cambiable','sat_al']])
     ws=hoja('Consolidado de suelos',grupos,filas)
     ws.cell(1,1,'SIFERT CACAO DIGITAL | CONSOLIDADO GENERAL DE ANÁLISIS DE SUELOS')
-    ws.freeze_panes='E4'
+    ws.freeze_panes='D4'
+    from openpyxl.comments import Comment
+    notas={'C orgánico (%)':'Si no existe dato registrado: estimado como M.O. / 1.724 (factor convencional).','Bases cambiables (%)':'Si no existe dato registrado: 100 × (Ca + Mg + K + Na) / CICe.','Acidez cambiable (%)':'Si no existe dato registrado: 100 × (Al + H) / CICe.'}
+    for c in ws[3]:
+        if c.value in notas:
+            c.comment=Comment(notas[c.value], 'SIFERT')
+            for r in range(4,ws.max_row+1): ws.cell(r,c.column).number_format='0.00'
     b=BytesIO(); wb.save(b); return b.getvalue()
 
 with secciones[4]:
@@ -1955,8 +1977,8 @@ with secciones[4]:
     try:
         part=execute('SELECT * FROM participantes ORDER BY id',fetch=True)
         anal=execute('SELECT * FROM analisis ORDER BY participante_id,fecha,id',fetch=True)
-        st.download_button('Descargar consolidado general (Excel)',excel_consolidado(part,anal),file_name='SIFERT_CACAO_CONSOLIDADO.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key='excel_general_v146')
-        st.caption('Una fila por análisis registrado. Los parámetros no registrados quedan en blanco.')
+        st.download_button('Descargar consolidado general (Excel)',excel_consolidado(part,anal),file_name='SIFERT_CACAO_CONSOLIDADO.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key='excel_general_v147')
+        st.caption('Una fila por análisis registrado. C orgánico, bases y acidez cambiables se calculan si faltan y existen los datos necesarios; los demás valores faltantes quedan en blanco.')
     except Exception as e:
         st.error(f'No se pudo generar el consolidado: {e}')
     st.subheader('Importar información (Excel)')
