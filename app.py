@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V14.1 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V14.2 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -145,7 +145,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                               'La dolomita y el compost se aplican de manera independiente.', styles['EjecutivoNota']))
     contenido.append(PageBreak())
     contenido.append(Paragraph('2. PROGRAMA DE ABONAMIENTO | 50 % · 32 % · 18 %', styles['EjecutivoTitulo']))
-    contenido.append(Paragraph('Distribución propuesta: <b>primera aplicación 50 %</b>, '
+    contenido.append(Paragraph('Distribución de fertilizantes convencionales: <b>primera aplicación 50 %</b>, '
                               '<b>segunda 32 %</b> y <b>tercera 18 %</b>. '
                               'Las fechas deben definirse según las condiciones de la parcela.', styles['EjecutivoNota']))
     filas_uso = [['Producto', '1.º (kg/parcela)', '2.º (kg/parcela)', '3.º (kg/parcela)']]
@@ -154,7 +154,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                          str(r.get('2.º abonamiento (kg)','')), str(r.get('3.º abonamiento (kg)',''))])
     contenido.append(Spacer(1, 3*mm))
     contenido.append(tabla_ejecutiva(filas_uso, [ancho_util*.49, ancho_util*.17, ancho_util*.17, ancho_util*.17]))
-    contenido.append(Paragraph('Enmienda y compost: aplicación independiente. Cu, Zn y Mn: reposición referencial por cosecha (Rosas-Patiño et al., 2021, tabla 4), 100 % en el primer abonamiento como criterio operativo; validar antes de aplicar.', styles['EjecutivoNota']))
+    contenido.append(Paragraph('Enmienda y compost: aplicación independiente. Cu, Zn y Mn: exportación CCN-51 (Rosas-Patiño et al., 2021, tabla 4), con eficiencias referenciales de 8 %, 12.4 % y 10 %. Ulexita: referencia Manual Yanesha, 25 kg/ha al 8.1 % B. Primer abonamiento: asignación referencial, no prescripción; confirmar necesidad, dosis y fraccionamiento antes de aplicar.', styles['EjecutivoNota']))
     if gramos:
         r=next((x for x in gramos if str(x.get('Fertilizante', x.get('Producto', ''))).upper() == 'TOTAL'), gramos[-1])
         contenido.append(Spacer(1, 4*mm))
@@ -379,7 +379,7 @@ st.markdown('''<style>
 
 
 st.markdown('''<style>
-/* V14.1: identidad ejecutiva para todo el aplicativo. */
+/* V14.2: identidad ejecutiva para todo el aplicativo. */
 .sifert-diagnostic-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:11px!important}
 .sifert-diagnostic-card{border-top:5px solid #24734e!important;box-shadow:0 9px 25px #103d2a16!important;padding:18px 15px!important}
 .sifert-card-label{font-size:.85rem!important;color:#385d4a!important}
@@ -1477,7 +1477,7 @@ with secciones[1]:
                     with col:
                         st.markdown('**'+titulo+'**')
                         for producto,comp in minerales.items():
-                            if comp['tipo'] in tipos and not (producto in micro_contenidos and micro_contenidos[producto][0] in ('Cu','Zn','Mn')) and st.checkbox(producto,value=False,key=f'check_fuente_v62_{producto}'):
+                            if comp['tipo'] in tipos and not (producto in micro_contenidos) and st.checkbox(producto,value=False,key=f'check_fuente_v62_{producto}'):
                                 fuentes.append(producto)
                 # NPK del compost: se trae del módulo de materia orgánica, sin duplicar el compost como fertilizante seleccionable.
                 compost_kg_ha=float(st.session_state.get('compost_dosis_real',0.0))*plantas
@@ -1521,13 +1521,17 @@ with secciones[1]:
                 plan={}
                 presentaciones={}
                 # Reposición automática referencial, únicamente en producción.
-                coef_micro = {'Cu':27.5, 'Zn':55.0, 'Mn':55.0}
+                coef_micro = {'Cu':30.0, 'Zn':50.0, 'Mn':40.0}
+                eficiencia_micro = {'Cu':0.08, 'Zn':0.124, 'Mn':0.10}
+                # B: exportación referencial 15.77 g/t; dosis agronómica independiente: 2.025 kg B/ha (25 kg ulexita al 8.1 %).
                 reposicion_micro = {}
                 if etapa_balance == 'Producción' and rendimiento > 0:
                     for nombre,(elemento,pct) in micro_contenidos.items():
                         if elemento in coef_micro and pct > 0:
-                            reposicion_micro[nombre] = round(coef_micro[elemento]*float(rendimiento)/1000*area_real/(pct/100)/1000, 3)
-                        elif elemento in coef_micro:
+                            reposicion_micro[nombre] = round(coef_micro[elemento]*float(rendimiento)/1000*area_real/(pct/100)/eficiencia_micro[elemento]/1000, 3)
+                        elif elemento == 'B' and pct > 0:
+                            reposicion_micro[nombre] = round(2.025*area_real/(pct/100), 3)
+                        elif elemento in coef_micro or elemento == 'B':
                             st.warning(f'No se calcula {elemento}: concentración de etiqueta igual a cero.')
                 if fuentes:
                     cab=st.columns([4,2,2,2])
@@ -1650,7 +1654,7 @@ with secciones[1]:
                     if total > 0:
                         filas_detalle.append((x,total,total,0.0,0.0))
                 if reposicion_micro:
-                    st.caption('Cu, Zn y Mn: reposición referencial por cosecha (Rosas-Patiño et al., 2021, tabla 4), incorporada al primer abonamiento como criterio operativo. Confirmar necesidad y dosis antes de aplicar; no equivale a diagnóstico del suelo.')
+                    st.caption('Cu, Zn y Mn: exportación CCN-51 (Rosas-Patiño et al., 2021, tabla 4), ajustada por eficiencias referenciales (Cu 8 %, Zn 12.4 %, Mn 10 %; no validadas en cacao adulto). Ulexita: referencia Manual Yanesha, 25 kg/ha al 8.1 % B, independiente del rendimiento. Exportación B: 15.77 g/t (referencial). Confirmar necesidad, dosis y fraccionamiento antes de aplicar; riesgo de toxicidad por B y Mn.')
                 st.markdown('**Fertilizantes requeridos y distribución en tres abonamientos**')
                 filas_compra=[]
                 def formato_compra(cantidad, presentacion, micronutriente=False):
@@ -1664,7 +1668,7 @@ with secciones[1]:
                     return f'{texto} saco' + ('s' if abs(n_sacos - 1.0) > 1e-9 else '')
                 for x,total,a,b,c in filas_detalle:
                     peso=presentaciones.get(x,50.)
-                    es_micro = x.startswith(('Sulfato de cobre', 'Sulfato de zinc', 'Sulfato de manganeso'))
+                    es_micro = x in micro_contenidos
                     filas_compra.append({'Fertilizante':x,'Cantidad (kg)':round(total,3),
                         'Sacos / kg':formato_compra(total,peso,es_micro),
                         '1.º abonamiento (kg)':round(a,3),'2.º abonamiento (kg)':round(b,3),'3.º abonamiento (kg)':round(c,3)})
@@ -1717,7 +1721,7 @@ with secciones[1]:
                 st.markdown('<div class="sifert-dose-grid">'+''.join(f'<div class="sifert-dose-card"><div>{etiqueta}</div><strong>{filas_gramos[0][clave]:,.2f} g</strong><small>por planta</small></div>' for etiqueta,clave in [('PRIMER ABONAMIENTO','1.º (g/planta)'),('SEGUNDO ABONAMIENTO · 32 %','2.º (g/planta)'),('TERCER ABONAMIENTO · 18 %','3.º (g/planta)')])+'</div>',unsafe_allow_html=True)
                 with st.expander('Ver dosis en tabla',expanded=False):
                     tabla_ajustada(pd.DataFrame(filas_gramos),hide_index=True,use_container_width=True)
-                st.caption('Distribución operativa 50 % / 32 % / 18 % para fertilizantes convencionales. Cu, Zn y Mn: 100 % en el primer abonamiento, sujeto a validación técnica.')
+                st.caption('Distribución operativa 50 % / 32 % / 18 % para fertilizantes convencionales. Cu, Zn, Mn y ulexita: 100 % asignado al primer abonamiento como escenario referencial; confirmar dosis y fraccionamiento antes de aplicar.')
                 productor_pdf = str(fila_parcela['nombre']) if fila_parcela is not None else 'Sin participante seleccionado'
                 def valor_pdf_parcela(campo):
                     if fila_parcela is None:
