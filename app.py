@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V13.8 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V13.9 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -263,13 +263,13 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                                   'no confirma disponibilidad real ni una recomendación de no fertilizar.', styles['EjecutivoNota']))
         contenido.append(Spacer(1, 3*mm))
     agregar_tabla('Balance nutricional NPK', pd.DataFrame(balance))
+    if ficha.get('balance_micro'):
+        agregar_tabla('Exportación y aporte referencial de micronutrientes (g/ha/año)', pd.DataFrame(ficha['balance_micro']))
+        contenido.append(Paragraph('Rosas-Patiño et al. (2021), tabla 4. Estados referenciales respecto a exportación (±5 %); no diagnóstico ni dosis recomendada. En crecimiento no se calcula exportación.', styles['EjecutivoNota']))
     if ficha.get('balance_camg'):
         agregar_tabla('Balance integrado de calcio y magnesio (Ca/Mg)', pd.DataFrame(ficha['balance_camg']))
         contenido.append(Paragraph('Aportes químicos potenciales; no equivalen a disponibilidad inmediata ni a incremento confirmado de Ca/Mg intercambiable.', styles['Normal']))
 
-    if ficha.get('balance_micro'):
-        agregar_tabla('Exportación y aporte referencial de micronutrientes (g/ha/año)', pd.DataFrame(ficha['balance_micro']))
-        contenido.append(Paragraph('Rosas-Patiño et al. (2021), tabla 4. Diferencia referencial, no diagnóstico ni dosis recomendada. En crecimiento no se calcula exportación.', styles['EjecutivoNota']))
     contenido.append(Paragraph('Cáscaras de cacao: el reciclaje potencial de NPK se informa por separado; no se descuenta como disponibilidad anual sin validación.', styles['Normal']))
     contenido.append(Spacer(1, 3*mm))
     contenido.append(Paragraph('Nota del anexo: simulación técnica preliminar. Validar los resultados del análisis, la composición '
@@ -379,7 +379,7 @@ st.markdown('''<style>
 
 
 st.markdown('''<style>
-/* V13.8: identidad ejecutiva para todo el aplicativo. */
+/* V13.9: identidad ejecutiva para todo el aplicativo. */
 .sifert-diagnostic-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:11px!important}
 .sifert-diagnostic-card{border-top:5px solid #24734e!important;box-shadow:0 9px 25px #103d2a16!important;padding:18px 15px!important}
 .sifert-card-label{font-size:.85rem!important;color:#385d4a!important}
@@ -392,6 +392,7 @@ st.markdown('''<style>
 .sifert-balance-diferencia{font-size:clamp(1.5rem,2.3vw,2.2rem);font-weight:850;color:#174c36;margin:8px 0}
 .sifert-balance-diferencia small{font-size:.8rem;font-weight:600}
 .sifert-balance-estado{display:inline-block;background:#f6eddb;color:#79521f;padding:3px 9px;border-radius:7px;font-weight:750;font-size:.82rem}
+.sifert-balance-card.exceso .sifert-balance-estado{background:#f7e2df;color:#963e36}.sifert-balance-card.deficit .sifert-balance-estado{background:#f8eddc;color:#94591f}
 .sifert-balance-card.equilibrado .sifert-balance-estado{background:#e0f1e6;color:#205b39}
 .sifert-balance-pie{color:#6c7b70;font-size:.78rem;margin-top:10px}
 .sifert-dose-card{background:linear-gradient(145deg,#ecf5ee,#fff);border-top:5px solid #25845a}
@@ -1576,6 +1577,35 @@ with secciones[1]:
                 with st.expander('Ver tabla completa del balance NPK', expanded=False):
                     tabla_ajustada(pd.DataFrame(filas_balance_pantalla), hide_index=True, use_container_width=True)
                 st.caption('Diferencia = aporte aprovechable del fertilizante − necesidad restante tras descontar suelo y compost. Las eficiencias minerales se aplican una sola vez al aporte; los orgánicos emplean disponibilidad anual estimada.')
+                micro_aportes_g_ha = {'Cu': 0.0, 'Zn': 0.0, 'Mn': 0.0, 'B': 0.0}
+                for nombre_micro, (elemento, porcentaje) in micro_contenidos.items():
+                    if nombre_micro in fuentes:
+                        micro_aportes_g_ha[elemento] += (float(plan.get(nombre_micro, 0.0)) /
+                            area_real) * porcentaje / 100.0 * 1000.0
+                # Exportación por cosecha, no requerimiento ni diagnóstico de suficiencia.
+                filas_micro = []
+                for elemento, coeficiente in [('Cu',27.5), ('Zn',55.0), ('Mn',55.0)]:
+                    exportacion = coeficiente * float(rendimiento) / 1000 if etapa_balance == 'Producción' else None
+                    aporte = micro_aportes_g_ha[elemento]
+                    diferencia = aporte-exportacion if exportacion is not None else None
+                    estado = ('Sin referencia' if diferencia is None else ('Equilibrado referencial' if abs(diferencia)<=exportacion*0.05 else ('Exceso referencial' if diferencia>0 else 'Déficit referencial')))
+                    filas_micro.append({'Nutriente': elemento,
+                        'Exportación (g/ha)': round(exportacion,2) if exportacion is not None else '—',
+                        'Aporte (g/ha)': round(aporte,2),
+                        'Diferencia (g/ha)': round(aporte-exportacion,2) if exportacion is not None else '—', 'Estado': estado})
+                st.markdown('**Balance referencial de micronutrientes (g/ha/año)**')
+                tarjetas_micro=[]
+                for r in filas_micro:
+                    estado=r['Estado']
+                    clase={'Equilibrado referencial':'equilibrado','Déficit referencial':'deficit','Exceso referencial':'exceso'}.get(estado,'')
+                    diferencia=r['Diferencia (g/ha)']
+                    valor=f'{diferencia:+.2f}' if isinstance(diferencia,(int,float)) else f'{r["Aporte (g/ha)"]:.2f}'
+                    nombre={'Cu':'Cobre (Cu)','Zn':'Zinc (Zn)','Mn':'Manganeso (Mn)'}[r['Nutriente']]
+                    tarjetas_micro.append(f'<div class="sifert-balance-card {clase}"><div class="sifert-balance-nutriente">{nombre}</div><div class="sifert-balance-diferencia">{valor} <small>g/ha</small></div><div class="sifert-balance-estado">{estado}</div><div class="sifert-balance-pie">Exportación: {r["Exportación (g/ha)"]} · Aporte: {r["Aporte (g/ha)"]:.2f}</div></div>')
+                st.markdown('<div class="sifert-balance-grid">'+''.join(tarjetas_micro)+'</div>', unsafe_allow_html=True)
+                with st.expander('Ver tabla completa de micronutrientes', expanded=False):
+                    tabla_ajustada(pd.DataFrame(filas_micro),hide_index=True,use_container_width=True)
+                st.caption('Rosas-Patiño et al. (2021), tabla 4. Tolerancia operativa ±5 % respecto a la exportación por cosecha; no indica suficiencia, toxicidad ni dosis recomendada. En crecimiento solo se muestra el aporte elemental.')
                 # Mostrar el balance Ca/Mg debajo del balance de fertilizantes.
                 # Balance integrado Ca/Mg: leer los mismos controles de fertilizantes,
                 # nunca solicitar una segunda cantidad de kieserita.
@@ -1623,26 +1653,6 @@ with secciones[1]:
                 tabla_ajustada(pd.DataFrame(filas_camg_integrado),hide_index=True,use_container_width=True)
                 st.caption(f'Área de anillos: {min(area_camg,10000):,.1f} m²/ha de plantación · profundidad {prof_enc:g} cm. El Mg objetivo 1.25 cmol(+)/kg aún requiere validación. Solo se descuenta la enmienda cuando se declara aplicada.')
                 st.caption('El aporte químico potencial de fertilizantes y enmiendas no implica que todo se incorpore al Mg/Ca intercambiable del suelo. No sumar nuevamente kieserita en Enmienda.')
-                # Los aportes de Cu, Zn, Mn y B se calculan desde los productos
-                # seleccionados; no se presenta una tabla de exportación que
-                # podría confundirse con una prescripción de fertilización.
-                micro_aportes_g_ha = {'Cu': 0.0, 'Zn': 0.0, 'Mn': 0.0, 'B': 0.0}
-                for nombre_micro, (elemento, porcentaje) in micro_contenidos.items():
-                    if nombre_micro in fuentes:
-                        micro_aportes_g_ha[elemento] += (float(plan.get(nombre_micro, 0.0)) /
-                            area_real) * porcentaje / 100.0 * 1000.0
-                # Exportación por cosecha, no requerimiento ni diagnóstico de suficiencia.
-                filas_micro = []
-                for elemento, coeficiente in [('Cu',27.5), ('Zn',55.0), ('Mn',55.0)]:
-                    exportacion = coeficiente * float(rendimiento) / 1000 if etapa_balance == 'Producción' else None
-                    aporte = micro_aportes_g_ha[elemento]
-                    filas_micro.append({'Nutriente': elemento,
-                        'Exportación (g/ha)': round(exportacion,2) if exportacion is not None else '—',
-                        'Aporte (g/ha)': round(aporte,2),
-                        'Diferencia (g/ha)': round(aporte-exportacion,2) if exportacion is not None else '—'})
-                st.markdown('**Exportación y aporte referencial de micronutrientes (g/ha/año)**')
-                tabla_ajustada(pd.DataFrame(filas_micro),hide_index=True,use_container_width=True)
-                st.caption('Fuente: Rosas-Patiño et al. (2021), tabla 4. Exportación por cosecha; aporte elemental de productos seleccionados. Diferencia no indica déficit, exceso ni disponibilidad. En crecimiento no se estima exportación por cosecha.')
                 # Distribución operativa: 50 %, 32 %, 18 % por producto.
                 filas_detalle=[]
                 for x in usados:
