@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V14.3 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V14.4 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -24,6 +24,14 @@ def tabla_ajustada(datos, **kwargs):
                 config[columna] = st.column_config.TextColumn(label=nombre, width='medium')
         kwargs['column_config'] = config
     return st.dataframe(datos, **kwargs)
+
+def programa_abonos(numero=3, etapa='Producción'):
+    numero = 2 if numero == 2 else 3
+    porcentajes = (50, 50) if numero == 2 else (50, 32, 18)
+    fases = ('Botón floral', 'Fructificación') if numero == 2 else ('Botón floral', 'Floración', 'Fructificación')
+    etiquetas = [f'{i+1}.º Inicio de {fases[i].lower()}' if etapa == 'Producción' else f'{i+1}.º Abonamiento' for i in range(numero)]
+    return porcentajes, etiquetas
+
 
 def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra, gramos, ficha=None):
     """Genera la ficha final de fertilización en PDF, sin alterar los cálculos."""
@@ -53,6 +61,9 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         fuente_pdf, fuente_bold = 'SifertUnicode', 'SifertUnicodeBold'
 
     ficha = ficha or {}
+    porcentajes, etiquetas = programa_abonos(ficha.get("numero_abonos", 3), ficha.get("etapa", "Producción"))
+    numero_abonos = len(porcentajes)
+    reparto = " · ".join(f"{p} %" for p in porcentajes)
     # ReportLab no siempre incorpora los glifos Unicode de subíndices en todas
     # las plataformas. El marcado <sub> conserva la fórmula en el PDF.
     def texto_quimico(valor):
@@ -144,16 +155,13 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                               'no necesariamente la cantidad de envases enteros que se comprarán. '
                               'La dolomita y el compost se aplican de manera independiente.', styles['EjecutivoNota']))
     contenido.append(PageBreak())
-    contenido.append(Paragraph('2. PROGRAMA DE ABONAMIENTO | 50 % · 32 % · 18 %', styles['EjecutivoTitulo']))
-    contenido.append(Paragraph('Distribución de fertilizantes convencionales: <b>primera aplicación 50 %</b>, '
-                              '<b>segunda 32 %</b> y <b>tercera 18 %</b>. '
-                              'Las fechas deben definirse según las condiciones de la parcela.', styles['EjecutivoNota']))
-    filas_uso = [['Producto', '1.º (kg/parcela)', '2.º (kg/parcela)', '3.º (kg/parcela)']]
+    contenido.append(Paragraph('2. PROGRAMA DE ABONAMIENTO | '+reparto, styles['EjecutivoTitulo']))
+    contenido.append(Paragraph('Distribución referencial de fertilizantes convencionales. Evitar suelos saturados y precipitaciones intensas.', styles['EjecutivoNota']))
+    filas_uso = [['Producto']+[f'{e} ({p} %) · kg/parcela' for e,p in zip(etiquetas,porcentajes)]]
     for r in filas_fert:
-        filas_uso.append([str(r.get('Fertilizante','')), str(r.get('1.º abonamiento (kg)','')),
-                         str(r.get('2.º abonamiento (kg)','')), str(r.get('3.º abonamiento (kg)',''))])
+        filas_uso.append([str(r.get('Fertilizante',''))]+[str(r.get(f'{i+1}.º abonamiento (kg)','')) for i in range(numero_abonos)])
     contenido.append(Spacer(1, 3*mm))
-    contenido.append(tabla_ejecutiva(filas_uso, [ancho_util*.49, ancho_util*.17, ancho_util*.17, ancho_util*.17]))
+    contenido.append(tabla_ejecutiva(filas_uso, [ancho_util*.40]+[ancho_util*.60/numero_abonos]*numero_abonos))
     contenido.append(Paragraph('Enmienda y compost: aplicación independiente. Cu, Zn y Mn: exportación CCN-51 (Rosas-Patiño et al., 2021, tabla 4), con eficiencias referenciales de 8 %, 12.4 % y 10 %. Ulexita: Manual Yanesha, 25–40 kg/ha al 8.1 % B según rendimiento (1000–2500 kg/ha). Primer abonamiento: asignación referencial, no prescripción; confirmar necesidad, dosis y fraccionamiento antes de aplicar.', styles['EjecutivoNota']))
     if gramos:
         r=next((x for x in gramos if str(x.get('Fertilizante', x.get('Producto', ''))).upper() == 'TOTAL'), gramos[-1])
@@ -161,10 +169,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         contenido.append(Paragraph('3. DOSIS TOTAL POR PLANTA', styles['EjecutivoSub']))
         contenido.append(Paragraph('Cantidad total de fertilizantes por planta en cada aplicación:', styles['EjecutivoNota']))
         contenido.append(Spacer(1,3*mm))
-        contenido.append(tarjetas_pdf([
-            ('1.er ABONAMIENTO',str(r.get('1.º (g/planta)',''))+' g/planta'),
-            ('2.º ABONAMIENTO · 32 %',str(r.get('2.º (g/planta)',''))+' g/planta'),
-            ('3.er ABONAMIENTO · 18 %',str(r.get('3.º (g/planta)',''))+' g/planta')],ancho_util,24*mm))
+        contenido.append(tarjetas_pdf([(e,str(r.get(f'{i+1}.º (g/planta)',''))+' g/planta') for i,e in enumerate(etiquetas)],ancho_util,24*mm))
     contenido.append(Spacer(1, 5*mm))
     contenido.append(Paragraph('4. RECOMENDACIONES Y VALIDACIÓN TÉCNICA', styles['EjecutivoSub']))
     contenido.append(Paragraph('<b>IMPORTANTE:</b> Este plan es una simulación técnica. Antes de comprar o aplicar, '
@@ -379,12 +384,13 @@ st.markdown('''<style>
 
 
 st.markdown('''<style>
-/* V14.3: identidad ejecutiva para todo el aplicativo. */
+/* V14.4: identidad ejecutiva para todo el aplicativo. */
 .sifert-diagnostic-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:11px!important}
 .sifert-diagnostic-card{border-top:5px solid #24734e!important;box-shadow:0 9px 25px #103d2a16!important;padding:18px 15px!important}
 .sifert-card-label{font-size:.85rem!important;color:#385d4a!important}
 .sifert-card-value{font-size:clamp(1.4rem,2.1vw,2rem)!important;line-height:1.2!important}
 .sifert-balance-grid,.sifert-dose-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:14px 0 18px}
+.sifert-dose-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
 .sifert-balance-card,.sifert-dose-card{background:white;border:1px solid #d5e4d8;border-radius:17px;padding:18px;box-shadow:0 5px 18px #12442d12;min-width:0}
 .sifert-balance-card{border-top:5px solid #cf9d3f}
 .sifert-balance-card.equilibrado{border-top-color:#268257}.sifert-balance-card.deficit{border-top-color:#cb7b34}.sifert-balance-card.exceso{border-top-color:#b05b52}
@@ -716,7 +722,7 @@ CLAVES_CALCULO_FIJAS = {
     'compost_dosis_real','saco_compost_proyeccion',
     'mo_ret_compost_v118','mo_ret_poda_v118',
     'org_dispon_n','org_dispon_p','org_dispon_k',
-    'compost_n_v67','compost_p_v67','compost_k_v67',
+    'compost_n_v67','compost_p_v67','compost_k_v67','numero_abonos_v144',
 }
 PREFIJOS_CALCULO = ('check_fuente_v62_', 'peso_v69_', 'sacos_v69_', 'micro_porcentaje_v119_')
 
@@ -977,6 +983,7 @@ with secciones[0]:
         if (etapa == 'Crecimiento - 1.er año' and edad > 1) or (etapa == 'Crecimiento - 2.º año' and (edad < 1 or edad > 2)):
             st.warning('Revise la edad del cacao: no coincide con el año de crecimiento seleccionado. Corrija el dato antes de guardar.')
     laboratorio_analisis = col_lab.text_input('Laboratorio del análisis de suelo', key='laboratorio_evaluacion')
+    st.selectbox('Número de abonamientos al año', [3, 2], key='numero_abonos_v144', format_func=lambda n: '2 abonamientos (50–50 %)' if n == 2 else '3 abonamientos (50–32–18 %)')
     with st.form('evaluacion'):
         st.subheader('1. Copie los valores de su análisis de suelo')
         st.caption('Si el laboratorio no midió un indicador, déjelo vacío. No coloque cero para representar un dato faltante.')
@@ -1408,7 +1415,7 @@ with secciones[1]:
 
                 # Las dosis complementarias son referenciales y se presentan en la tabla
                 # de fertilizantes, nunca como una segunda prescripción independiente.
-                st.subheader('7. Fertilización NPK y microelementos en tres abonamientos')
+                st.subheader('7. Fertilización NPK y microelementos')
                 st.caption('El balance compara nutrientes aprovechables: suelo + compost + fertilizantes. Las eficiencias minerales se aplican una sola vez a su aporte; los orgánicos utilizan sus factores propios de disponibilidad.')
                 area_real = float(fila_parcela['area_ha']) if fila_parcela is not None and pd.notna(fila_parcela['area_ha']) and fila_parcela['area_ha'] > 0 else 1.0
                 plantas = int(fila_parcela['plantas_ha']) if fila_parcela is not None and pd.notna(fila_parcela['plantas_ha']) and fila_parcela['plantas_ha'] > 0 else 1100
@@ -1650,18 +1657,20 @@ with secciones[1]:
                 tabla_ajustada(pd.DataFrame(filas_camg_integrado),hide_index=True,use_container_width=True)
                 st.caption(f'Área de anillos: {min(area_camg,10000):,.1f} m²/ha de plantación · profundidad {prof_enc:g} cm. El Mg objetivo 1.25 cmol(+)/kg aún requiere validación. Solo se descuenta la enmienda cuando se declara aplicada.')
                 st.caption('El aporte químico potencial de fertilizantes y enmiendas no implica que todo se incorpore al Mg/Ca intercambiable del suelo. No sumar nuevamente kieserita en Enmienda.')
-                # Distribución operativa: 50 %, 32 %, 18 % por producto.
+                porcentajes, etiquetas_abonos = programa_abonos(st.session_state.get("numero_abonos_v144", 3), etapa_balance)
+                numero_abonos = len(porcentajes)
+                reparto = " / ".join(f"{p} %" for p in porcentajes)
                 filas_detalle=[]
                 for x in usados:
                     total=plan[x]
-                    a,b,c=total*0.50,total*0.32,total*0.18
+                    a,b,c=[total*p/100 for p in (list(porcentajes)+[0])[:3]]
                     filas_detalle.append((x,total,a,b,c))
                 for x,total in reposicion_micro.items():
                     if total > 0:
                         filas_detalle.append((x,total,total,0.0,0.0))
                 if reposicion_micro:
                     st.caption('Cu, Zn y Mn: exportación CCN-51 (Rosas-Patiño et al., 2021, tabla 4), ajustada por eficiencias referenciales (Cu 8 %, Zn 12.4 %, Mn 10 %; no validadas en cacao adulto). Ulexita: Manual Yanesha, 25–40 kg/ha al 8.1 % B, interpolación entre 1000 y 2500 kg/ha; fuera del rango requiere evaluación técnica. Exportación B: 15.77 g/t (referencial). Confirmar necesidad, dosis y fraccionamiento antes de aplicar; riesgo de toxicidad por B y Mn.')
-                st.markdown('**Fertilizantes requeridos y distribución en tres abonamientos**')
+                st.markdown(f'**Fertilizantes requeridos y distribución en {numero_abonos} abonamientos**')
                 filas_compra=[]
                 def formato_compra(cantidad, presentacion, micronutriente=False):
                     if cantidad <= 0:
@@ -1684,7 +1693,11 @@ with secciones[1]:
                     'Sacos / kg':'—','1.º abonamiento (kg)':round(sum(r[2] for r in filas_detalle),3),
                     '2.º abonamiento (kg)':round(sum(r[3] for r in filas_detalle),3),
                     '3.º abonamiento (kg)':round(sum(r[4] for r in filas_detalle),3)})
-                tabla_ajustada(pd.DataFrame(filas_compra),hide_index=True,use_container_width=True)
+                columnas_abonos = {f'{i+1}.º abonamiento (kg)': f'{e} ({p} %) · kg' for i,(e,p) in enumerate(zip(etiquetas_abonos,porcentajes))}
+                tabla_compra = pd.DataFrame(filas_compra)
+                if numero_abonos == 2:
+                    tabla_compra = tabla_compra.drop(columns=['3.º abonamiento (kg)'])
+                tabla_ajustada(tabla_compra.rename(columns=columnas_abonos),hide_index=True,use_container_width=True)
                 # Cuadro 2: enmienda y compost, sin reparto en los tres abonamientos.
                 kg_enmienda_parcela = (max(0.0,float(kg_ha_encalado_calculado))*area_real
                     if kg_ha_encalado_calculado is not None and producto_enc != 'No aplicar' else 0.0)
@@ -1724,10 +1737,10 @@ with secciones[1]:
                 filas_gramos=[{'Fertilizante':'TOTAL','1.º (g/planta)':round(sum(r[2] for r in filas_detalle)*1000/total_plantas,2),
                     '2.º (g/planta)':round(sum(r[3] for r in filas_detalle)*1000/total_plantas,2),
                     '3.º (g/planta)':round(sum(r[4] for r in filas_detalle)*1000/total_plantas,2)}]
-                st.markdown('<div class="sifert-dose-grid">'+''.join(f'<div class="sifert-dose-card"><div>{etiqueta}</div><strong>{filas_gramos[0][clave]:,.2f} g</strong><small>por planta</small></div>' for etiqueta,clave in [('PRIMER ABONAMIENTO','1.º (g/planta)'),('SEGUNDO ABONAMIENTO · 32 %','2.º (g/planta)'),('TERCER ABONAMIENTO · 18 %','3.º (g/planta)')])+'</div>',unsafe_allow_html=True)
+                st.markdown('<div class="sifert-dose-grid">'+''.join(f'<div class="sifert-dose-card"><div>{etiqueta}</div><strong>{filas_gramos[0][clave]:,.2f} g</strong><small>por planta</small></div>' for etiqueta,clave in [(e,f'{i+1}.º (g/planta)') for i,e in enumerate(etiquetas_abonos)])+'</div>',unsafe_allow_html=True)
                 with st.expander('Ver dosis en tabla',expanded=False):
-                    tabla_ajustada(pd.DataFrame(filas_gramos),hide_index=True,use_container_width=True)
-                st.caption('Distribución operativa 50 % / 32 % / 18 % para fertilizantes convencionales. Cu, Zn, Mn y ulexita: 100 % asignado al primer abonamiento como escenario referencial; confirmar dosis y fraccionamiento antes de aplicar.')
+                    tabla_ajustada(pd.DataFrame(filas_gramos)[["Fertilizante"]+[f"{i+1}.º (g/planta)" for i in range(numero_abonos)]].rename(columns={f"{i+1}.º (g/planta)": e+" (g/planta)" for i,e in enumerate(etiquetas_abonos)}),hide_index=True,use_container_width=True)
+                st.caption(f'Distribución operativa {reparto} para fertilizantes convencionales. Cu, Zn, Mn y ulexita: 100 % asignado al primer abonamiento como escenario referencial; confirmar dosis y fraccionamiento antes de aplicar.')
                 productor_pdf = str(fila_parcela['nombre']) if fila_parcela is not None else 'Sin participante seleccionado'
                 def valor_pdf_parcela(campo):
                     if fila_parcela is None:
@@ -1735,6 +1748,7 @@ with secciones[1]:
                     valor = fila_parcela.get(campo, '')
                     return '' if pd.isna(valor) else valor
                 ficha_datos = {
+                    'numero_abonos': numero_abonos,
                     'codigo': valor_pdf_parcela('codigo'), 'caserio': valor_pdf_parcela('caserio'),
                     'distrito': valor_pdf_parcela('distrito'), 'provincia': valor_pdf_parcela('provincia'),
                     'edad': valor_pdf_parcela('edad_anios'), 'etapa': valor_pdf_parcela('etapa'),
