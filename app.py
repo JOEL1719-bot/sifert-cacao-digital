@@ -2030,6 +2030,92 @@ def excel_consolidado(part, anal):
             for r in range(4,ws.max_row+1): ws.cell(r,c.column).number_format='0.00'
     b=BytesIO(); wb.save(b); return b.getvalue()
 
+# V14.9: plantilla unificada y carga por transacciones de hasta 500 filas.
+GRUPOS_MASIVO=[('Identificación del participante',[('codigo','Código'),('nombre','Participante'),('caserio','Caserío'),('distrito','Distrito'),('provincia','Provincia')]),('Parcela',[('area_ha','Área (ha)'),('edad_anios','Edad (años)'),('plantas_ha','Plantas/ha'),('meta_produccion','Meta (kg/ha)'),('etapa','Etapa'),('ingeniero','Responsable técnico')]),('Datos del análisis',[('fecha','Fecha'),('laboratorio','Laboratorio'),('metodo_fosforo','Método P'),('dap','Densidad aparente (g/cm³)'),('dap_origen','Origen DAP')]),('Análisis mecánico',[('arena','Arena (%)'),('arcilla','Arcilla (%)'),('limo','Limo (%)'),('textura','Clase textural')]),('Análisis químico',[('ce','CE (dS/m)'),('ph','pH'),('mo','M.O. (%)'),('n','N total (%)'),('p','P disponible (ppm)'),('k2o','K₂O disponible (ppm)')]),('Cationes cambiables (cmol(+)/kg)',[(k,h) for k,h in [('ca','Ca'),('mg','Mg'),('k_cmol','K'),('na','Na'),('al','Al'),('h','H')]]),('Indicadores de fertilidad',[('cice','CICe (cmol(+)/kg)'),('sat_al','Sat. Al (%)')])]
+MAPA_MASIVO={h:k for _,pares in GRUPOS_MASIVO for k,h in pares}
+
+def plantilla_masiva():
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.datavalidation import DataValidation
+    from openpyxl.comments import Comment
+    wb=Workbook(); ws=wb.active; ws.title='Registro masivo'
+    n=len(MAPA_MASIVO); ws.merge_cells(start_row=1,start_column=1,end_row=1,end_column=n); ws.cell(1,1,'SIFERT CACAO DIGITAL | REGISTRO MASIVO DE ANÁLISIS DE SUELOS')
+    pos=1
+    for grupo,pares in GRUPOS_MASIVO:
+        ws.merge_cells(start_row=2,start_column=pos,end_row=2,end_column=pos+len(pares)-1); ws.cell(2,pos,grupo); pos+=len(pares)
+    ws.append(list(MAPA_MASIVO))
+    for r in (1,2,3):
+        ws.row_dimensions[r].height=36 if r==3 else 26
+        for c in ws[r]:
+            c.fill=PatternFill('solid',fgColor={1:'174D38',2:'34765A',3:'E1EFE5'}[r]); c.font=Font(bold=True,color='FFFFFF' if r<3 else '174D38'); c.alignment=Alignment(horizontal='center',vertical='center',wrap_text=True)
+    for i,(h,k) in enumerate(MAPA_MASIVO.items(),1):
+        letra=get_column_letter(i); ws.column_dimensions[letra].width=34 if k=='nombre' else max(15,min(25,len(h)+3))
+        if k=='codigo': ws.column_dimensions[letra].number_format='@'
+        if k=='fecha': ws.column_dimensions[letra].number_format='dd/mm/yyyy'
+        if k in ('codigo','nombre','fecha','area_ha','plantas_ha','edad_anios','etapa'): ws.cell(3,i).comment=Comment('Obligatorio.','SIFERT')
+        opciones={'etapa':'No especificada,Crecimiento - 1.er año,Crecimiento - 2.º año,Producción','metodo_fosforo':'Bray I,Olsen modificado','dap_origen':'Medida,Estimada / referencial'}.get(k)
+        if opciones:
+            dv=DataValidation(type='list',formula1='"'+opciones+'"',allow_blank=True); dv.showErrorMessage=True; ws.add_data_validation(dv); dv.add(f'{letra}4:{letra}5003')
+    ws.freeze_panes='C4'; ws.auto_filter.ref=f'A3:{get_column_letter(n)}5003'; ws.sheet_view.showGridLines=False
+    b=BytesIO(); wb.save(b); return b.getvalue()
+
+def preparar_masivo(tabla,part,anal):
+    if not set(MAPA_MASIVO).issubset(tabla.columns): raise ValueError('Utilice la plantilla unificada de SIFERT V14.9 sin modificar encabezados.')
+    existentes={str(r['codigo']):r for r in part.to_dict('records')}; ids={r['id']:str(r['codigo']) for r in existentes.values()}
+    vistos={(ids.get(r['participante_id']),str(r['fecha'])[:10]) for r in anal.to_dict('records')}; nuevos={}; salida=[]
+    for idx,row in tabla.iterrows():
+        d={k:(None if pd.isna(row[h]) or str(row[h]).strip()=='' else row[h]) for h,k in MAPA_MASIVO.items()}; estado='Inconsistente'; obs=''
+        try:
+            for k in ('codigo','nombre','fecha','area_ha','plantas_ha','edad_anios','etapa'):
+                if d[k] is None: raise ValueError('Falta '+k)
+            for k in ('codigo','nombre','caserio','distrito','provincia','etapa','ingeniero','laboratorio','metodo_fosforo','dap_origen','textura'):
+                if d[k] is not None: d[k]=str(d[k]).strip()
+            d['fecha']=pd.to_datetime(d['fecha'],dayfirst=True,errors='raise').date().isoformat()
+            for k in FIELD_KEYS+['area_ha','plantas_ha','edad_anios','meta_produccion','dap']:
+                if d[k] is not None:
+                    d[k]=float(str(d[k]).replace(',','.'))
+                    if not math.isfinite(d[k]) or d[k]<0: raise ValueError('Valor inválido: '+k)
+            if d['area_ha']<=0 or d['plantas_ha']<=0 or not d['plantas_ha'].is_integer(): raise ValueError('Área y densidad deben ser positivas; densidad entera.')
+            d['plantas_ha']=int(d['plantas_ha'])
+            if d['etapa'] not in ('No especificada','Crecimiento - 1.er año','Crecimiento - 2.º año','Producción'): raise ValueError('Etapa inválida')
+            if d['etapa']=='Producción' and not d['meta_produccion']: raise ValueError('Falta meta de producción positiva')
+            if d['dap'] is not None and d['dap']<=0: raise ValueError('DAP debe ser positiva')
+            if not any(d[k] is not None for k in FIELD_KEYS): raise ValueError('No hay resultados de suelo')
+            estado,obs,_=validar_coherencia_suelo(d)
+            codigo=d['codigo']; llave=(codigo,d['fecha'])
+            previo=existentes.get(codigo) or nuevos.get(codigo)
+            if previo and str(previo['nombre']).strip().casefold()!=d['nombre'].casefold(): estado='Inconsistente'; obs='Código asociado a otro nombre; verificar identidad.'
+            elif llave in vistos: estado='Duplicado'; obs='Ya existe el código y fecha de análisis.'
+            elif estado!='Inconsistente':
+                vistos.add(llave); nuevos.setdefault(codigo,d)
+                if codigo in existentes: obs+=' Datos del participante existente se conservan.'
+        except Exception as e: estado='Inconsistente'; obs=str(e)
+        salida.append({'Fila':int(idx)+4,'Código':d.get('codigo'),'Participante':d.get('nombre'),'Fecha':str(d.get('fecha') or ''),'Estado':estado,'Observaciones':obs,'datos':d})
+    return salida
+
+def guardar_bloque_masivo(filas):
+    total=0
+    with connect() as conn:
+        cur=conn.cursor(); q=lambda sql:sql.replace('?', '%s') if IS_POSTGRES else sql
+        if IS_POSTGRES: cur.execute('LOCK TABLE participantes, analisis IN SHARE ROW EXCLUSIVE MODE')
+        else: cur.execute('BEGIN IMMEDIATE')
+        for r in filas:
+            d=r['datos']; cur.execute(q('SELECT id,nombre FROM participantes WHERE codigo=?'),(d['codigo'],)); p=cur.fetchone()
+            if p is None:
+                campos=['codigo','nombre','caserio','distrito','provincia','area_ha','plantas_ha','edad_anios','etapa','ingeniero']; vals=[d[k] for k in campos]
+                campos+=['meta_kg_ha','creado','manejo_cascaras','retiro_pct']; vals += [d['meta_produccion'],date.today().isoformat(),'Permanecen en la parcela',0.0]
+                cur.execute(q(f"INSERT INTO participantes ({','.join(campos)}) VALUES ({','.join('?' for _ in campos)}) RETURNING id"),vals); pid=cur.fetchone()[0]
+            else:
+                pid=p[0]
+                if str(p[1]).strip().casefold()!=d['nombre'].casefold(): raise ValueError('Identidad modificada: '+d['codigo'])
+            cur.execute(q('SELECT id FROM analisis WHERE participante_id=? AND fecha=?'),(pid,d['fecha']))
+            if cur.fetchone(): continue
+            campos=['participante_id','fecha']+FIELD_KEYS+['dap','textura','meta_produccion','laboratorio','metodo_fosforo','dap_origen']; vals=[pid,d['fecha']]+[d[k] for k in campos[2:]]
+            cur.execute(q(f"INSERT INTO analisis ({','.join(campos)}) VALUES ({','.join('?' for _ in campos)})"),vals); total+=1
+    return total
+
 with secciones[4]:
     st.subheader('Exportar información')
     try:
@@ -2040,41 +2126,32 @@ with secciones[4]:
     except Exception as e:
         st.error(f'No se pudo generar el consolidado: {e}')
     st.subheader('Importar información (Excel)')
-    st.caption('Importe primero participantes, luego análisis. Revise la vista previa antes de confirmar. Los registros existentes no se sobrescriben.')
-    for tipo,campos in [('participantes',['codigo','nombre','caserio','area_ha','plantas_ha','edad_anios','dni','distrito','provincia','parcela','etapa','ingeniero','cip','meta_kg_ha']),('analisis',['codigo','fecha']+FIELD_KEYS+['dap','textura','observaciones','meta_produccion','laboratorio','metodo_fosforo','dap_origen'])]:
-        campos=list(dict.fromkeys(campos))
-        b=BytesIO()
-        with pd.ExcelWriter(b,engine='openpyxl') as w: pd.DataFrame(columns=campos).to_excel(w,index=False)
-        st.download_button('Descargar plantilla '+tipo,b.getvalue(),file_name='plantilla_'+tipo+'.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key='plantilla_'+tipo)
-        uploaded=st.file_uploader('Importar Excel '+tipo,type=['xlsx'],key='upload_'+tipo)
-        if uploaded is not None:
-            try:
-                tabla=pd.read_excel(uploaded,dtype={'codigo':str,'dni':str,'cip':str})
-                faltantes=[c for c in campos[:2] if c not in tabla.columns]
-                if faltantes: st.error('Faltan columnas: '+', '.join(faltantes)); continue
-                tabla_ajustada(tabla.head(10),hide_index=True)
-                if st.button('Confirmar importación de '+tipo,key='confirmar_'+tipo):
-                    exitos=0; errores=[]
-                    for indice,fila in tabla.iterrows():
-                        try:
-                            if pd.isna(fila['codigo']) or not str(fila['codigo']).strip(): raise ValueError('Código vacío')
-                            codigo=str(fila['codigo']).strip()
-                            match=execute('SELECT id FROM participantes WHERE codigo=?',(codigo,),True)
-                            if tipo=='participantes':
-                                if not match.empty: raise ValueError('Código ya registrado')
-                                if pd.isna(fila['nombre']): raise ValueError('Nombre vacío')
-                                columnas=campos+['creado']; valores=[None if pd.isna(fila.get(k)) else fila.get(k) for k in campos]+[date.today().isoformat()]; valores[0]=codigo
-                                if valores[campos.index('plantas_ha')] is None: valores[campos.index('plantas_ha')]=1100
-                            else:
-                                if match.empty: raise ValueError('Participante no encontrado')
-                                if pd.isna(fila['fecha']): raise ValueError('Fecha vacía')
-                                pid=int(match.iloc[0]['id']); fecha=pd.to_datetime(fila['fecha']).date().isoformat()
-                                if not execute('SELECT id FROM analisis WHERE participante_id=? AND fecha=?',(pid,fecha),True).empty: raise ValueError('Ya existe análisis en esa fecha')
-                                columnas=['participante_id','fecha']+campos[2:]; valores=[pid,fecha]+[None if pd.isna(fila.get(k)) else fila.get(k) for k in campos[2:]]
-                            valores=[v.item() if hasattr(v,'item') else v for v in valores]
-                            execute(f"INSERT INTO {tipo}({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})",valores); exitos+=1
-                        except Exception as e: errores.append(f'Fila {indice+2}: {e}')
-                    st.success(f'{exitos} registros importados.')
-                    if errores: st.error('\n'.join(errores[:20]))
-
-            except Exception as e: st.error(f'No se pudo importar: {e}')
+    st.caption('Una fila por análisis. Hasta 5,000 registros por archivo. No se sobrescriben participantes ni análisis existentes.')
+    st.download_button('Descargar plantilla de registro masivo (Excel)', plantilla_masiva(), file_name='SIFERT_PLANTILLA_REGISTRO_MASIVO.xlsx', mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', key='plantilla_v149')
+    archivo=st.file_uploader('Importar participantes y análisis de suelos',type=['xlsx'],key='masivo_v149')
+    if archivo is not None:
+        try:
+            tabla=pd.read_excel(archivo,header=2,dtype=object,nrows=5001).dropna(how='all')
+            if len(tabla)>5000: raise ValueError('Máximo 5,000 filas por archivo.')
+            if tabla.empty: raise ValueError('La plantilla no contiene registros.')
+            filas=preparar_masivo(tabla,execute('SELECT * FROM participantes',fetch=True),execute('SELECT participante_id,fecha FROM analisis',fetch=True))
+            vista=pd.DataFrame([{k:r[k] for k in ('Fila','Código','Participante','Fecha','Estado','Observaciones')} for r in filas])
+            st.write(vista['Estado'].value_counts().rename('Registros'))
+            tabla_ajustada(vista,hide_index=True)
+            aptos=[r for r in filas if r['Estado']=='Coherente']
+            aceptar=st.checkbox('Incluir registros que requieren revisión o tienen datos insuficientes (he comprobado el reporte original)',key='aceptar_masivo149')
+            if aceptar: aptos += [r for r in filas if r['Estado'] in ('Requiere revisión','Datos insuficientes')]
+            st.caption(f'{len(aptos)} registros seleccionados. Se excluyen duplicados e inconsistentes.')
+            if st.button('Confirmar importación',disabled=not aptos,key='confirmar_masivo149'):
+                progreso=st.progress(0); total=0; errores=[]
+                for inicio in range(0,len(aptos),500):
+                    bloque=aptos[inicio:inicio+500]
+                    try:
+                        total+=guardar_bloque_masivo(bloque)
+                    except Exception as e:
+                        errores.append(f'Bloque {inicio//500+1} revertido: {e}')
+                    progreso.progress(min(1.0,(inicio+len(bloque))/len(aptos)))
+                st.success(f'{total} análisis importados y confirmados.')
+                if errores: st.error('\n'.join(errores))
+                st.caption('Cambie de pestaña o vuelva a cargar la página para consultar los nuevos registros.')
+        except Exception as e: st.error(f'No se pudo importar: {e}')
