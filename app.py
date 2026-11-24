@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V14.2 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V14.3 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -154,7 +154,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                          str(r.get('2.º abonamiento (kg)','')), str(r.get('3.º abonamiento (kg)',''))])
     contenido.append(Spacer(1, 3*mm))
     contenido.append(tabla_ejecutiva(filas_uso, [ancho_util*.49, ancho_util*.17, ancho_util*.17, ancho_util*.17]))
-    contenido.append(Paragraph('Enmienda y compost: aplicación independiente. Cu, Zn y Mn: exportación CCN-51 (Rosas-Patiño et al., 2021, tabla 4), con eficiencias referenciales de 8 %, 12.4 % y 10 %. Ulexita: referencia Manual Yanesha, 25 kg/ha al 8.1 % B. Primer abonamiento: asignación referencial, no prescripción; confirmar necesidad, dosis y fraccionamiento antes de aplicar.', styles['EjecutivoNota']))
+    contenido.append(Paragraph('Enmienda y compost: aplicación independiente. Cu, Zn y Mn: exportación CCN-51 (Rosas-Patiño et al., 2021, tabla 4), con eficiencias referenciales de 8 %, 12.4 % y 10 %. Ulexita: Manual Yanesha, 25–40 kg/ha al 8.1 % B según rendimiento (1000–2500 kg/ha). Primer abonamiento: asignación referencial, no prescripción; confirmar necesidad, dosis y fraccionamiento antes de aplicar.', styles['EjecutivoNota']))
     if gramos:
         r=next((x for x in gramos if str(x.get('Fertilizante', x.get('Producto', ''))).upper() == 'TOTAL'), gramos[-1])
         contenido.append(Spacer(1, 4*mm))
@@ -379,7 +379,7 @@ st.markdown('''<style>
 
 
 st.markdown('''<style>
-/* V14.2: identidad ejecutiva para todo el aplicativo. */
+/* V14.3: identidad ejecutiva para todo el aplicativo. */
 .sifert-diagnostic-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:11px!important}
 .sifert-diagnostic-card{border-top:5px solid #24734e!important;box-shadow:0 9px 25px #103d2a16!important;padding:18px 15px!important}
 .sifert-card-label{font-size:.85rem!important;color:#385d4a!important}
@@ -1072,7 +1072,7 @@ with secciones[0]:
 
 
 with secciones[1]:
-    st.info('Si cambió la etapa o la edad del cultivo en Registro, pulse «Guardar productor y análisis» antes de consultar estos resultados.')
+    st.info('La meta de producción se actualiza automáticamente. Si cambió la etapa, edad o área del cultivo, guarde el productor y análisis antes de consultar los resultados.')
     st.markdown('<div class="sifert-suelo-marker sifert-hero suelo"><div><h2>🌱 Resultados del suelo y fertilización</h2><p>Diagnóstico químico · balance NPK · plan de abonamiento</p></div><span class="art">🪴🔬</span></div>', unsafe_allow_html=True)
     # Resultados sincronizados con la selección de Registro; sin segundo selector.
     pid_guardar = st.session_state.get('_productor_evaluacion_anterior')
@@ -1080,7 +1080,9 @@ with secciones[1]:
         st.info('Seleccione un productor y su análisis en la pestaña Registro.')
     fecha_guardar = date.fromisoformat(st.session_state['evaluacion_pendiente']['fecha']) if st.session_state.get('evaluacion_pendiente') else date.today()
     laboratorio_analisis = st.session_state.get('evaluacion_pendiente', {}).get('laboratorio', '')
-    rendimiento = st.session_state.get('evaluacion_pendiente', {}).get('rendimiento', 1000.0)
+    rendimiento = float(st.session_state.get('meta_evaluacion', st.session_state.get('evaluacion_pendiente', {}).get('rendimiento', 1000.0)))
+    if str(st.session_state.get('registro_etapa', '')).startswith('Crecimiento'):
+        rendimiento = 0.0
     _participantes_resultados = participantes()
     _coincidencias_resultados = _participantes_resultados[_participantes_resultados['id'] == pid_guardar] if pid_guardar is not None else pd.DataFrame()
     fila_parcela = _coincidencias_resultados.iloc[0] if not _coincidencias_resultados.empty else None
@@ -1523,14 +1525,18 @@ with secciones[1]:
                 # Reposición automática referencial, únicamente en producción.
                 coef_micro = {'Cu':30.0, 'Zn':50.0, 'Mn':40.0}
                 eficiencia_micro = {'Cu':0.08, 'Zn':0.124, 'Mn':0.10}
-                # B: exportación referencial 15.77 g/t; dosis agronómica independiente: 2.025 kg B/ha (25 kg ulexita al 8.1 %).
+                # B: referencia Yanesha interpolada dentro del rango documentado; no extrapolar.
                 reposicion_micro = {}
                 if etapa_balance == 'Producción' and rendimiento > 0:
                     for nombre,(elemento,pct) in micro_contenidos.items():
                         if elemento in coef_micro and pct > 0:
                             reposicion_micro[nombre] = round(coef_micro[elemento]*float(rendimiento)/1000*area_real/(pct/100)/eficiencia_micro[elemento]/1000, 3)
                         elif elemento == 'B' and pct > 0:
-                            reposicion_micro[nombre] = round(2.025*area_real/(pct/100), 3)
+                            if 1000 <= rendimiento <= 2500:
+                                ulexita_ref = 25.0 + (float(rendimiento)-1000.0)*0.01
+                                reposicion_micro[nombre] = round(ulexita_ref*0.081*area_real/(pct/100), 3)
+                            else:
+                                st.warning('Ulexita: meta fuera del rango referencial 1000–2500 kg/ha; requiere evaluación técnica.')
                         elif elemento in coef_micro or elemento == 'B':
                             st.warning(f'No se calcula {elemento}: concentración de etiqueta igual a cero.')
                 if fuentes:
@@ -1654,7 +1660,7 @@ with secciones[1]:
                     if total > 0:
                         filas_detalle.append((x,total,total,0.0,0.0))
                 if reposicion_micro:
-                    st.caption('Cu, Zn y Mn: exportación CCN-51 (Rosas-Patiño et al., 2021, tabla 4), ajustada por eficiencias referenciales (Cu 8 %, Zn 12.4 %, Mn 10 %; no validadas en cacao adulto). Ulexita: referencia Manual Yanesha, 25 kg/ha al 8.1 % B, independiente del rendimiento. Exportación B: 15.77 g/t (referencial). Confirmar necesidad, dosis y fraccionamiento antes de aplicar; riesgo de toxicidad por B y Mn.')
+                    st.caption('Cu, Zn y Mn: exportación CCN-51 (Rosas-Patiño et al., 2021, tabla 4), ajustada por eficiencias referenciales (Cu 8 %, Zn 12.4 %, Mn 10 %; no validadas en cacao adulto). Ulexita: Manual Yanesha, 25–40 kg/ha al 8.1 % B, interpolación entre 1000 y 2500 kg/ha; fuera del rango requiere evaluación técnica. Exportación B: 15.77 g/t (referencial). Confirmar necesidad, dosis y fraccionamiento antes de aplicar; riesgo de toxicidad por B y Mn.')
                 st.markdown('**Fertilizantes requeridos y distribución en tres abonamientos**')
                 filas_compra=[]
                 def formato_compra(cantidad, presentacion, micronutriente=False):
