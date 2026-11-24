@@ -2030,7 +2030,7 @@ def excel_consolidado(part, anal):
             for r in range(4,ws.max_row+1): ws.cell(r,c.column).number_format='0.00'
     b=BytesIO(); wb.save(b); return b.getvalue()
 
-# V14.9: plantilla unificada y carga por transacciones de hasta 500 filas.
+# V15.0: plantilla unificada y carga por transacciones de hasta 500 filas.
 GRUPOS_MASIVO=[('Identificación del participante',[('codigo','Código'),('nombre','Participante'),('caserio','Caserío'),('distrito','Distrito'),('provincia','Provincia')]),('Parcela',[('area_ha','Área (ha)'),('edad_anios','Edad (años)'),('plantas_ha','Plantas/ha'),('meta_produccion','Meta (kg/ha)'),('etapa','Etapa'),('ingeniero','Responsable técnico')]),('Datos del análisis',[('fecha','Fecha'),('laboratorio','Laboratorio'),('metodo_fosforo','Método P'),('dap','Densidad aparente (g/cm³)'),('dap_origen','Origen DAP')]),('Análisis mecánico',[('arena','Arena (%)'),('arcilla','Arcilla (%)'),('limo','Limo (%)'),('textura','Clase textural')]),('Análisis químico',[('ce','CE (dS/m)'),('ph','pH'),('mo','M.O. (%)'),('n','N total (%)'),('p','P disponible (ppm)'),('k2o','K₂O disponible (ppm)')]),('Cationes cambiables (cmol(+)/kg)',[(k,h) for k,h in [('ca','Ca'),('mg','Mg'),('k_cmol','K'),('na','Na'),('al','Al'),('h','H')]]),('Indicadores de fertilidad',[('cice','CICe (cmol(+)/kg)'),('sat_al','Sat. Al (%)')])]
 MAPA_MASIVO={h:k for _,pares in GRUPOS_MASIVO for k,h in pares}
 
@@ -2041,11 +2041,12 @@ def plantilla_masiva():
     from openpyxl.worksheet.datavalidation import DataValidation
     from openpyxl.comments import Comment
     wb=Workbook(); ws=wb.active; ws.title='Registro masivo'
-    n=len(MAPA_MASIVO); ws.merge_cells(start_row=1,start_column=1,end_row=1,end_column=n); ws.cell(1,1,'SIFERT CACAO DIGITAL | REGISTRO MASIVO DE ANÁLISIS DE SUELOS')
+    n=len(MAPA_MASIVO)+2; ws.merge_cells(start_row=1,start_column=1,end_row=1,end_column=n); ws.cell(1,1,'SIFERT CACAO DIGITAL | REGISTRO MASIVO DE ANÁLISIS DE SUELOS')
     pos=1
     for grupo,pares in GRUPOS_MASIVO:
         ws.merge_cells(start_row=2,start_column=pos,end_row=2,end_column=pos+len(pares)-1); ws.cell(2,pos,grupo); pos+=len(pares)
-    ws.append(list(MAPA_MASIVO))
+    ws.merge_cells(start_row=2,start_column=pos,end_row=2,end_column=pos+1); ws.cell(2,pos,'Control de coherencia')
+    ws.append(list(MAPA_MASIVO)+['Estado de validación','Observaciones de validación'])
     for r in (1,2,3):
         ws.row_dimensions[r].height=36 if r==3 else 26
         for c in ws[r]:
@@ -2058,11 +2059,45 @@ def plantilla_masiva():
         opciones={'etapa':'No especificada,Crecimiento - 1.er año,Crecimiento - 2.º año,Producción','metodo_fosforo':'Bray I,Olsen modificado','dap_origen':'Medida,Estimada / referencial'}.get(k)
         if opciones:
             dv=DataValidation(type='list',formula1='"'+opciones+'"',allow_blank=True); dv.showErrorMessage=True; ws.add_data_validation(dv); dv.add(f'{letra}4:{letra}5003')
+    from openpyxl.styles import Protection
+    from openpyxl.formatting.rule import FormulaRule
+    from openpyxl.workbook.properties import CalcProperties
+    wb.calculation=CalcProperties(calcMode='auto',fullCalcOnLoad=True)
+    cols={k:get_column_letter(i) for i,k in enumerate(MAPA_MASIVO.values(),1)}
+    est,obs=get_column_letter(n-1),get_column_letter(n)
+    ws.column_dimensions[est].width=25; ws.column_dimensions[obs].width=65
+    ws.cell(3,n-1).comment=Comment('Resultado automático de coherencia interna; no certifica la exactitud del laboratorio.','SIFERT')
+    for r in range(4,5004):
+        c=lambda k:cols[k]+str(r)
+        checks=[]
+        for k in FIELD_KEYS:
+            ref=c(k); limits=f',{ref}>100' if k in ('mo','n','sat_al','arena','limo','arcilla') else (f',{ref}<=0,{ref}>14' if k=='ph' else '')
+            checks.append((f'IF({ref}="",0,IFERROR(IF(OR(NOT(ISNUMBER({ref})),{ref}<0{limits}),3,0),3))',f'{k}: valor inválido'))
+        def prueba(keys,diff,tol,label,extra='FALSE'):
+            refs=','.join(c(k) for k in keys)
+            checks.append((f'IF(COUNT({refs})<{len(keys)},1,IFERROR(IF({extra},3,IF(ABS({diff})<={tol}+0.000000001,0,IF(ABS({diff})<=2*{tol}+0.000000001,2,3))),3))',label))
+        textura=['arena','arcilla','limo']; cat=['ca','mg','k_cmol','na','al','h']
+        prueba(textura,'100-SUM('+','.join(c(k) for k in textura)+')',1,'Textura')
+        prueba(['cice']+cat,c('cice')+'-SUM('+','.join(c(k) for k in cat)+')',0.1,'CICe')
+        prueba(['sat_al','al','cice'],c('sat_al')+'-100*'+c('al')+'/'+c('cice'),1,'Sat. Al',c('cice')+'<=0')
+        checks.append((f'IF({c("ph")}="",1,0)','pH faltante'))
+        blank=f'COUNTA(A{r}:{get_column_letter(n-2)}{r})=0'
+        mx='MAX('+','.join(x for x,_ in checks)+')'
+        ws.cell(r,n-1,f'=IF({blank},"",CHOOSE(1+{mx},"Coherente","Datos insuficientes","Requiere revisión","Inconsistente"))')
+        details='&'.join(f'IF({x}=0,"","{label}; ")' for x,label in checks)
+        ws.cell(r,n,f'=IF({blank},"",IF({est}{r}="Coherente","Sin inconsistencias detectadas",{details}))')
+        for i in range(1,n-1):
+            cell=ws.cell(r,i); cell.protection=Protection(locked=False)
+            if i==1: cell.number_format='@'
+            if i==list(MAPA_MASIVO.values()).index('fecha')+1: cell.number_format='dd/mm/yyyy'
+    for estado,color in [('Coherente','D9EEDC'),('Datos insuficientes','E5E7EB'),('Requiere revisión','FFF0C2'),('Inconsistente','F8D7DA')]:
+        ws.conditional_formatting.add(f'{est}4:{obs}5003',FormulaRule(formula=[f'${est}4="{estado}"'],fill=PatternFill('solid',fgColor=color)))
+    ws.protection.sheet=True; ws.protection.autoFilter=False; ws.protection.selectLockedCells=False; ws.protection.selectUnlockedCells=False
     ws.freeze_panes='C4'; ws.auto_filter.ref=f'A3:{get_column_letter(n)}5003'; ws.sheet_view.showGridLines=False
     b=BytesIO(); wb.save(b); return b.getvalue()
 
 def preparar_masivo(tabla,part,anal):
-    if not set(MAPA_MASIVO).issubset(tabla.columns): raise ValueError('Utilice la plantilla unificada de SIFERT V14.9 sin modificar encabezados.')
+    if not set(MAPA_MASIVO).issubset(tabla.columns): raise ValueError('Utilice la plantilla unificada de SIFERT V15.0 sin modificar encabezados.')
     existentes={str(r['codigo']):r for r in part.to_dict('records')}; ids={r['id']:str(r['codigo']) for r in existentes.values()}
     vistos={(ids.get(r['participante_id']),str(r['fecha'])[:10]) for r in anal.to_dict('records')}; nuevos={}; salida=[]
     for idx,row in tabla.iterrows():
@@ -2128,10 +2163,14 @@ with secciones[4]:
     st.subheader('Importar información (Excel)')
     st.caption('Una fila por análisis. Hasta 5,000 registros por archivo. No se sobrescriben participantes ni análisis existentes.')
     st.download_button('Descargar plantilla de registro masivo (Excel)', plantilla_masiva(), file_name='SIFERT_PLANTILLA_REGISTRO_MASIVO.xlsx', mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', key='plantilla_v149')
+    st.markdown('Seleccione o arrastre aquí la plantilla completada (.xlsx, hasta 5,000 registros).')
+    st.markdown('''<style>[data-testid="stFileUploaderDropzoneInstructions"] > div > span {font-size:0;} [data-testid="stFileUploaderDropzoneInstructions"] > div > span::after {content:"Arrastra tu plantilla Excel aquí";font-size:14px;} [data-testid="stFileUploaderDropzoneInstructions"] small {font-size:0;} [data-testid="stFileUploaderDropzoneInstructions"] small::after {content:"Máximo 200 MB · XLSX";font-size:12px;} [data-testid="stFileUploaderDropzone"] button {font-size:0;} [data-testid="stFileUploaderDropzone"] button::after {content:"Seleccionar archivo Excel";font-size:14px;}</style>''',unsafe_allow_html=True)
     archivo=st.file_uploader('Importar participantes y análisis de suelos',type=['xlsx'],key='masivo_v149')
     if archivo is not None:
         try:
-            tabla=pd.read_excel(archivo,header=2,dtype=object,nrows=5001).dropna(how='all')
+            tabla=pd.read_excel(archivo,header=2,dtype=object)
+            if not set(MAPA_MASIVO).issubset(tabla.columns): raise ValueError('Encabezados de plantilla inválidos.')
+            tabla=tabla[list(MAPA_MASIVO)].dropna(how='all')
             if len(tabla)>5000: raise ValueError('Máximo 5,000 filas por archivo.')
             if tabla.empty: raise ValueError('La plantilla no contiene registros.')
             filas=preparar_masivo(tabla,execute('SELECT * FROM participantes',fetch=True),execute('SELECT participante_id,fecha FROM analisis',fetch=True))
