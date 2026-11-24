@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V14.5 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V14.6 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -1905,7 +1905,7 @@ with secciones[3]:
             tabla_ajustada(pd.DataFrame(comparacion),hide_index=True,use_container_width=True)
             st.caption('Las diferencias no demuestran por sí solas el efecto de una fertilización.')
 
-def excel_consolidado(part, anal, configs, aplicaciones=None, respaldo=False):
+def excel_consolidado(part, anal):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
@@ -1939,51 +1939,26 @@ def excel_consolidado(part, anal, configs, aplicaciones=None, respaldo=False):
         ws.freeze_panes='D4'; ws.auto_filter.ref=f'A3:{get_column_letter(n)}{ws.max_row}'; ws.sheet_view.showGridLines=False
         ws.page_setup.orientation='landscape'; ws.page_setup.paperSize=ws.PAPERSIZE_A3; ws.page_setup.fitToWidth=1; ws.page_setup.fitToHeight=0; ws.sheet_properties.pageSetUpPr.fitToPage=True; ws.print_title_rows='1:3'
         return ws
-    if respaldo:
-        for nombre,df in [('participantes',part),('analisis',anal),('configuraciones',configs),('aplicaciones',aplicaciones)]:
-            if df is not None: hoja(nombre,[('Datos originales',list(df.columns))],df.itertuples(index=False,name=None))
-    else:
-        pc=['codigo','dni','nombre','caserio','distrito','provincia','parcela','area_ha','plantas_ha','edad_anios','etapa','meta_kg_ha','ingeniero','cip']
-        ph=['Código','DNI','Productor','Caserío','Distrito','Provincia','Parcela','Área (ha)','Plantas/ha','Edad (años)','Etapa','Meta (kg/ha)','Técnico','CIP']
-        hoja('Participantes',[('Identificación',ph[:7]),('Parcela',ph[7:12]),('Responsable',ph[12:])],part.reindex(columns=pc).itertuples(index=False,name=None))
-        mapa={r['id']:r for r in part.to_dict('records')}
-        amapa={r['id']:r for r in anal.to_dict('records')}
-        grupos=[('Identificación',['ID análisis','Código','Productor','Caserío','Distrito','Fecha','Laboratorio','Método P']),('Análisis mecánico',['Arena (%)','Arcilla (%)','Limo (%)','Textura']),('Análisis químico',['CE (dS/m)','pH','MO (%)','N total (%)','P (ppm)','K₂O (ppm)']),('Cationes cambiables (cmol(+)/kg)',['Ca','Mg','K','Na','Al','H']),('Fertilidad',['CICe (cmol(+)/kg)','Sat. Al (%)','DAP (g/cm³)','Origen DAP','Meta (kg/ha)','Observaciones'])]
-        ak=['arena','arcilla','limo','textura','ce','ph','mo','n','p','k2o','ca','mg','k_cmol','na','al','h','cice','sat_al','dap','dap_origen','meta_produccion','observaciones']
-        def ident(a):
-            p=mapa.get(a.get('participante_id'),{}); return [a.get('id'),p.get('codigo'),p.get('nombre'),p.get('caserio'),p.get('distrito'),a.get('fecha')]
-        hoja('Análisis de suelos',grupos,(ident(a)+[a.get('laboratorio'),a.get('metodo_fosforo')]+[a.get(k) for k in ak] for a in anal.to_dict('records')))
-        planes=[]; dosis=[]
-        for c in configs.to_dict('records'):
-            a=amapa.get(c['analisis_id'],{}); base=ident(a)
-            try: cfg=json.loads(c['configuracion']); res=cfg.get('_resumen_exportacion')
-            except (ValueError,TypeError): res=None
-            if not res:
-                planes.append(base+[None,None,None,None,None,'Guardar nuevamente el cálculo para exportar el plan completo']); continue
-            for r in res['fertilizantes']:
-                if r['Fertilizante'].startswith('SUBTOTAL'): continue
-                planes.append(base+[res['meta'],res['area'],r['Fertilizante'],r['Cantidad (kg)'],r['Sacos / kg'],'Plan guardado'])
-            for producto,total,*cant in res['detalle']:
-                for etapa,kg in zip(res['etiquetas'],cant): dosis.append(base+[producto,etapa,kg,kg*1000/max(res['plantas'],1)])
-            for r in res['enmiendas']: dosis.append(base+[r['Producto'],'Independiente',r['Cantidad (kg/parcela)'],r['Dosis (g/planta)']])
-        ids=['ID análisis','Código','Productor','Caserío','Distrito','Fecha']
-        hoja('Plan de abonamiento',[('Identificación',ids),('Plan guardado',['Meta (kg/ha)','Área (ha)','Producto','Cantidad (kg/parcela)','Sacos / kg','Estado'])],planes)
-        hoja('Distribución de dosis',[('Identificación',ids),('Aplicación',['Producto','Etapa','kg/parcela','g/planta'])],dosis)
+    mapa={r['id']:r for r in part.to_dict('records')}
+    grupos=[('Identificación del participante',['N.º','Código','DNI','Participante','Caserío','Distrito','Provincia','Área (ha)']),('Datos del análisis',['Fecha','Laboratorio','Método P']),('Análisis mecánico',['Arena (%)','Arcilla (%)','Limo (%)','Clase textural']),('Análisis químico',['CE (dS/m)','pH','M.O. (%)','N total (%)','C orgánico (%)','P disponible (ppm)','K₂O disponible (ppm)','CIC (cmol(+)/kg)']),('Cationes cambiables (cmol(+)/kg)',['Ca','Mg','K','Na','Al','H']),('Indicadores de fertilidad',['CICe (cmol(+)/kg)','Bases cambiables (%)','Acidez cambiable (%)','Sat. Al (%)'])]
+    filas=[]
+    for i,a in enumerate(anal.to_dict('records'),1):
+        p=mapa.get(a.get('participante_id'),{})
+        filas.append([i]+[p.get(k) for k in ['codigo','dni','nombre','caserio','distrito','provincia','area_ha']]+[a.get(k) for k in ['fecha','laboratorio','metodo_fosforo','arena','arcilla','limo','textura','ce','ph','mo','n','c_organico','p','k2o','cic','ca','mg','k_cmol','na','al','h','cice','bases_cambiables','acidez_cambiable','sat_al']])
+    ws=hoja('Consolidado de suelos',grupos,filas)
+    ws.cell(1,1,'SIFERT CACAO DIGITAL | CONSOLIDADO GENERAL DE ANÁLISIS DE SUELOS')
+    ws.freeze_panes='E4'
     b=BytesIO(); wb.save(b); return b.getvalue()
 
 with secciones[4]:
     st.subheader('Exportar información')
-    part=execute('SELECT * FROM participantes ORDER BY id',fetch=True)
-    anal=execute('SELECT * FROM analisis ORDER BY participante_id,fecha,id',fetch=True)
-    configs=execute('SELECT * FROM configuraciones_fertilizacion',fetch=True)
-    if st.button('Preparar archivos Excel',key='preparar_excel_v145'):
-        try:
-            st.session_state['excel_general_v145']=excel_consolidado(part,anal,configs)
-            st.session_state['excel_respaldo_v145']=excel_consolidado(part,anal,configs,execute('SELECT * FROM aplicaciones',fetch=True),True)
-        except Exception as e: st.error(f'No se pudo preparar Excel: {e}')
-    for key,label,archivo in [('excel_general_v145','Descargar consolidado general (Excel)','SIFERT_CACAO_CONSOLIDADO.xlsx'),('excel_respaldo_v145','Descargar respaldo de datos (Excel)','SIFERT_RESPALDO.xlsx')]:
-        if key in st.session_state: st.download_button(label,st.session_state[key],file_name=archivo,mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key=key+'_dl')
-    st.caption('Los planes anteriores requieren volver a guardar sus cálculos para exportar las dosis completas. Prepare nuevamente los archivos después de actualizar datos. El respaldo conserva las tablas originales; no es una restauración automática.')
+    try:
+        part=execute('SELECT * FROM participantes ORDER BY id',fetch=True)
+        anal=execute('SELECT * FROM analisis ORDER BY participante_id,fecha,id',fetch=True)
+        st.download_button('Descargar consolidado general (Excel)',excel_consolidado(part,anal),file_name='SIFERT_CACAO_CONSOLIDADO.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key='excel_general_v146')
+        st.caption('Una fila por análisis registrado. Los parámetros no registrados quedan en blanco.')
+    except Exception as e:
+        st.error(f'No se pudo generar el consolidado: {e}')
     st.subheader('Importar información (Excel)')
     st.caption('Importe primero participantes, luego análisis. Revise la vista previa antes de confirmar. Los registros existentes no se sobrescriben.')
     for tipo,campos in [('participantes',['codigo','nombre','caserio','area_ha','plantas_ha','edad_anios','dni','distrito','provincia','parcela','etapa','ingeniero','cip','meta_kg_ha']),('analisis',['codigo','fecha']+FIELD_KEYS+['dap','textura','observaciones','meta_produccion','laboratorio','metodo_fosforo','dap_origen'])]:
@@ -2021,5 +1996,5 @@ with secciones[4]:
                         except Exception as e: errores.append(f'Fila {indice+2}: {e}')
                     st.success(f'{exitos} registros importados.')
                     if errores: st.error('\n'.join(errores[:20]))
-                    st.session_state.pop('excel_general_v145',None); st.session_state.pop('excel_respaldo_v145',None)
+
             except Exception as e: st.error(f'No se pudo importar: {e}')
