@@ -775,6 +775,51 @@ def elegir_participante(df, key, permitir_ninguno=False):
 secciones = st.tabs(['🏠 Registro y análisis', '🌱 Resultados del suelo', '💾 Análisis guardados',
                      '📈 Comparación histórica', '📥 Exportar / importar'])
 
+def validar_coherencia_suelo(datos):
+    valores = {}; pruebas = []
+    etiquetas = {k:n for k,n,_ in CAMPOS}
+    for k in etiquetas:
+        v = datos.get(k)
+        if v is None or pd.isna(v) or str(v).strip() == '':
+            valores[k] = None; continue
+        try:
+            x = float(str(v).strip().replace(',', '.'))
+            if not math.isfinite(x) or x < 0 or (k in ('mo','n','sat_al','arena','limo','arcilla') and x > 100) or (k == 'ph' and not 0 < x <= 14):
+                raise ValueError()
+            valores[k] = x
+        except (ValueError, TypeError):
+            valores[k] = None
+            pruebas.append((etiquetas[k], 'Inconsistente', 'Valor inválido: revisar rango o formato.'))
+    def comprobar(nombre, claves, esperado, tolerancia, unidad):
+        faltan = [etiquetas[k] for k in claves if valores.get(k) is None]
+        if faltan:
+            pruebas.append((nombre,'Datos insuficientes','Falta: '+', '.join(faltan))); return
+        real, calculado = esperado()
+        if calculado is None:
+            pruebas.append((nombre,'Inconsistente','CICe debe ser mayor que cero.')); return
+        dif = abs(real-calculado)
+        estado = 'Conforme' if dif <= tolerancia+1e-9 else ('Requiere revisión' if dif <= 2*tolerancia+1e-9 else 'Inconsistente')
+        pruebas.append((nombre,estado,f'Referencia/ingresado: {real:.2f}; calculado: {calculado:.2f} {unidad}; diferencia: {dif:.2f}.'))
+    cationes = ['ca','mg','k_cmol','na','al','h']
+    comprobar('Análisis mecánico',['arena','arcilla','limo'],lambda:(100,sum(valores[k] for k in ('arena','arcilla','limo'))),1,'%')
+    comprobar('CICe',['cice']+cationes,lambda:(valores['cice'],sum(valores[k] for k in cationes)),0.10,'cmol(+)/kg')
+    comprobar('Saturación de aluminio',['sat_al','al','cice'],lambda:(valores['sat_al'],100*valores['al']/valores['cice'] if valores['cice']>0 else None),1,'%')
+    for k in ('ph',):
+        if valores[k] is None: pruebas.append((etiquetas[k],'Datos insuficientes','Sin valor válido.'))
+        else: pruebas.append((etiquetas[k],'Conforme','Dentro del rango válido; no implica fertilidad adecuada.'))
+    for k, nombre, componentes, tol in [('bases_cambiables','Bases cambiables',['ca','mg','k_cmol','na'],1),('acidez_cambiable','Acidez cambiable',['al','h'],1),('c_organico','Carbono orgánico',['mo'],0.05)]:
+        original=datos.get(k)
+        if original is None or pd.isna(original) or str(original).strip()=='': continue
+        # Solo contrastar valores originales independientes; el carbono depende del método.
+        if k=='c_organico': continue
+        try: original=float(original)
+        except (ValueError,TypeError): continue
+        comprobar(nombre,componentes+['cice'],lambda:(original,100*sum(valores[c] for c in componentes)/valores['cice'] if valores['cice']>0 else None),tol,'%')
+    estados=[x[1] for x in pruebas]
+    estado=next((e for e in ('Inconsistente','Requiere revisión','Datos insuficientes') if e in estados),'Coherente')
+    obs='; '.join(f'{n}: {d}' for n,e,d in pruebas if e!='Conforme') or 'Sin inconsistencias en las comprobaciones realizadas.'
+    return estado,obs,pruebas
+
 with secciones[0]:
     st.markdown('<div class="sifert-inicio-marker sifert-hero inicio"><div><h2>🌿 Registro de productores de cacao</h2><p>Datos de la parcela y del responsable técnico</p></div><span class="art">🌳🍫</span></div>', unsafe_allow_html=True)
     st.subheader('1. Registrar participante y datos de la parcela')
@@ -986,33 +1031,41 @@ with secciones[0]:
             st.warning('Revise la edad del cacao: no coincide con el año de crecimiento seleccionado. Corrija el dato antes de guardar.')
     laboratorio_analisis = col_lab.text_input('Laboratorio del análisis de suelo', key='laboratorio_evaluacion')
     st.selectbox('Número de abonamientos al año', [3, 2], key='numero_abonos_v144', format_func=lambda n: '2 abonamientos (50–50 %)' if n == 2 else '3 abonamientos (50–32–18 %)')
-    with st.form('evaluacion'):
-        st.subheader('1. Copie los valores de su análisis de suelo')
-        st.caption('Si el laboratorio no midió un indicador, déjelo vacío. No coloque cero para representar un dato faltante.')
-        datos_texto = {}
-        # El método analítico se ubica exactamente al costado del valor P.
-        # Ambos widgets pertenecen al mismo formulario y se guardan conjuntamente.
-        for j in range(0, len(CAMPOS), 3):
-            columnas = st.columns(3)
-            for columna, (clave, nombre, unidad) in zip(columnas, CAMPOS[j:j+3]):
-                if clave == 'p':
-                    sub_p, sub_metodo = columna.columns([1, 1.15])
-                    datos_texto[clave] = sub_p.text_input('Fósforo disponible (ppm)',
-                        placeholder='No medido', key='dato_p')
-                    metodo_fosforo = sub_metodo.selectbox('Método de fósforo',
-                        ['Bray I', 'Olsen modificado'], key='metodo_fosforo_evaluacion',
-                        help='Seleccione el método reportado por el laboratorio; no se deduce del pH.')
-                else:
-                    datos_texto[clave] = columna.text_input(f'{nombre} ({unidad})' if unidad else nombre,
-                        placeholder='No medido: dejar vacío', key='dato_'+clave)
-        # La escala Olsen modificado está documentada en la tabla UNAS (2008),
-        # excepto >40 ppm, ampliación operativa solicitada por el usuario.
-        st.markdown('**Densidad aparente del suelo (0–20 cm)**')
-        c_dap, c_origen = st.columns(2)
-        dap_evaluacion = c_dap.number_input('Densidad aparente (g/cm³)', min_value=0.50, max_value=2.50, value=1.33, step=0.01, key='dap_evaluacion')
-        dap_origen = c_origen.selectbox('Procedencia de densidad aparente', ['Estimada / referencial', 'Medida en laboratorio'], key='dap_origen_evaluacion')
-        st.caption('1.33 g/cm³ es una referencia inicial, no una medición UNAS. La densidad aparente del compost NO es la del suelo.')
-        calcular = st.form_submit_button('💾 Guardar productor y análisis de suelo', type='primary', use_container_width=True)
+    st.subheader('1. Copie los valores de su análisis de suelo')
+    st.caption('Si el laboratorio no midió un indicador, déjelo vacío. No coloque cero para representar un dato faltante.')
+    datos_texto = {}
+    # El método analítico se ubica exactamente al costado del valor P.
+    # Ambos widgets pertenecen al mismo formulario y se guardan conjuntamente.
+    for j in range(0, len(CAMPOS), 3):
+        columnas = st.columns(3)
+        for columna, (clave, nombre, unidad) in zip(columnas, CAMPOS[j:j+3]):
+            if clave == 'p':
+                sub_p, sub_metodo = columna.columns([1, 1.15])
+                datos_texto[clave] = sub_p.text_input('Fósforo disponible (ppm)',
+                    placeholder='No medido', key='dato_p')
+                metodo_fosforo = sub_metodo.selectbox('Método de fósforo',
+                    ['Bray I', 'Olsen modificado'], key='metodo_fosforo_evaluacion',
+                    help='Seleccione el método reportado por el laboratorio; no se deduce del pH.')
+            else:
+                datos_texto[clave] = columna.text_input(f'{nombre} ({unidad})' if unidad else nombre,
+                    placeholder='No medido: dejar vacío', key='dato_'+clave)
+    # La escala Olsen modificado está documentada en la tabla UNAS (2008),
+    # excepto >40 ppm, ampliación operativa solicitada por el usuario.
+    st.markdown('**Densidad aparente del suelo (0–20 cm)**')
+    c_dap, c_origen = st.columns(2)
+    dap_evaluacion = c_dap.number_input('Densidad aparente (g/cm³)', min_value=0.50, max_value=2.50, value=1.33, step=0.01, key='dap_evaluacion')
+    dap_origen = c_origen.selectbox('Procedencia de densidad aparente', ['Estimada / referencial', 'Medida en laboratorio'], key='dap_origen_evaluacion')
+    st.caption('1.33 g/cm³ es una referencia inicial, no una medición UNAS. La densidad aparente del compost NO es la del suelo.')
+    estado_validacion, obs_validacion, pruebas_validacion = validar_coherencia_suelo(datos_texto)
+    st.markdown('**Validación de coherencia del análisis**')
+    if estado_validacion == 'Coherente': st.success('Análisis coherente · Sin inconsistencias detectadas.')
+    elif estado_validacion == 'Inconsistente': st.error('Análisis con inconsistencias · '+obs_validacion)
+    else: st.warning(estado_validacion+' · '+obs_validacion)
+    with st.expander('Ver detalles de validación'):
+        for nombre_prueba, estado_prueba, detalle_prueba in pruebas_validacion:
+            st.write(f'**{nombre_prueba} — {estado_prueba}**: {detalle_prueba}')
+        st.caption('Tolerancias operativas: textura ±1 punto porcentual; CICe ±0.10 cmol(+)/kg; saturación ±1 punto porcentual. No certifica la exactitud del laboratorio.')
+    calcular = st.button('💾 Guardar productor y análisis de suelo', type='primary', use_container_width=True)
 
     if calcular:
         try:
@@ -1940,7 +1993,7 @@ def excel_consolidado(part, anal):
         ws.page_setup.orientation='landscape'; ws.page_setup.paperSize=ws.PAPERSIZE_A3; ws.page_setup.fitToWidth=1; ws.page_setup.fitToHeight=0; ws.sheet_properties.pageSetUpPr.fitToPage=True; ws.print_title_rows='1:3'
         return ws
     mapa={r['id']:r for r in part.to_dict('records')}
-    grupos=[('Identificación del participante',['N.º','Código','Participante','Caserío','Distrito','Provincia','Área (ha)']),('Datos del análisis',['Fecha','Laboratorio','Método P']),('Análisis mecánico',['Arena (%)','Arcilla (%)','Limo (%)','Clase textural']),('Análisis químico',['CE (dS/m)','pH','M.O. (%)','N total (%)','C orgánico (%)','P disponible (ppm)','K₂O disponible (ppm)','CIC (cmol(+)/kg)']),('Cationes cambiables (cmol(+)/kg)',['Ca','Mg','K','Na','Al','H']),('Indicadores de fertilidad',['CICe (cmol(+)/kg)','Bases cambiables (%)','Acidez cambiable (%)','Sat. Al (%)'])]
+    grupos=[('Identificación del participante',['N.º','Código','Participante','Caserío','Distrito','Provincia','Área (ha)']),('Datos del análisis',['Fecha','Laboratorio','Método P']),('Análisis mecánico',['Arena (%)','Arcilla (%)','Limo (%)','Clase textural']),('Análisis químico',['CE (dS/m)','pH','M.O. (%)','N total (%)','C orgánico (%)','P disponible (ppm)','K₂O disponible (ppm)']),('Cationes cambiables (cmol(+)/kg)',['Ca','Mg','K','Na','Al','H']),('Indicadores de fertilidad',['CICe (cmol(+)/kg)','Bases cambiables (%)','Acidez cambiable (%)','Sat. Al (%)']),('Control de coherencia',['Estado de validación','Observaciones de validación'])]
     def numero(v):
         try:
             x=float(v)
@@ -1956,11 +2009,16 @@ def excel_consolidado(part, anal):
     filas=[]
     for i,a in enumerate(anal.to_dict('records'),1):
         p=mapa.get(a.get('participante_id'),{})
+        estado, observaciones, _ = validar_coherencia_suelo(a)
         cice=numero(a.get('cice'))
+        if cice is None:
+            componentes=[numero(a.get(k)) for k in ('ca','mg','k_cmol','na','al','h')]
+            if all(v is not None for v in componentes):
+                cice=round(sum(componentes),2); a['cice']=cice
         a['c_organico']=indicador(a,'c_organico',['mo'],1.724)
         a['bases_cambiables']=indicador(a,'bases_cambiables',['ca','mg','k_cmol','na'],cice/100 if cice else None)
         a['acidez_cambiable']=indicador(a,'acidez_cambiable',['al','h'],cice/100 if cice else None)
-        filas.append([i]+[p.get(k) for k in ['codigo','nombre','caserio','distrito','provincia','area_ha']]+[a.get(k) for k in ['fecha','laboratorio','metodo_fosforo','arena','arcilla','limo','textura','ce','ph','mo','n','c_organico','p','k2o','cic','ca','mg','k_cmol','na','al','h','cice','bases_cambiables','acidez_cambiable','sat_al']])
+        filas.append([i]+[p.get(k) for k in ['codigo','nombre','caserio','distrito','provincia','area_ha']]+[a.get(k) for k in ['fecha','laboratorio','metodo_fosforo','arena','arcilla','limo','textura','ce','ph','mo','n','c_organico','p','k2o','ca','mg','k_cmol','na','al','h','cice','bases_cambiables','acidez_cambiable','sat_al']]+[estado,observaciones])
     ws=hoja('Consolidado de suelos',grupos,filas)
     ws.cell(1,1,'SIFERT CACAO DIGITAL | CONSOLIDADO GENERAL DE ANÁLISIS DE SUELOS')
     ws.freeze_panes='D4'
@@ -1977,7 +2035,7 @@ with secciones[4]:
     try:
         part=execute('SELECT * FROM participantes ORDER BY id',fetch=True)
         anal=execute('SELECT * FROM analisis ORDER BY participante_id,fecha,id',fetch=True)
-        st.download_button('Descargar consolidado general (Excel)',excel_consolidado(part,anal),file_name='SIFERT_CACAO_CONSOLIDADO.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key='excel_general_v147')
+        st.download_button('Descargar consolidado general (Excel)',excel_consolidado(part,anal),file_name='SIFERT_CACAO_CONSOLIDADO.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key='excel_general_v148')
         st.caption('Una fila por análisis registrado. C orgánico, bases y acidez cambiables se calculan si faltan y existen los datos necesarios; los demás valores faltantes quedan en blanco.')
     except Exception as e:
         st.error(f'No se pudo generar el consolidado: {e}')
