@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V14.0 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V14.1 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -119,7 +119,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                                ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4),('LEFTPADDING',(0,0),(-1,-1),9),('RIGHTPADDING',(0,0),(-1,-1),9)]))
         return t
     ancho_util = landscape(A4)[0]-30*mm
-    contenido.insert(4, tarjetas_pdf([('ÁREA DE CULTIVO',f'{area_ha:,.2f} ha'),('PLANTAS',f'{int(plantas):,}'),('FERTILIZANTES',f"{sum(float(r.get('Cantidad (kg)',0) or 0) for r in filas_fert):,.0f} kg")], ancho_util))
+    contenido.insert(4, tarjetas_pdf([('ÁREA DE CULTIVO',f'{area_ha:,.2f} ha'),('PLANTAS',f'{int(plantas):,}'),('FERTILIZANTES',f"{sum(float(r.get('Cantidad (kg)',0) or 0) for r in filas_fert):,.3f} kg")], ancho_util))
     contenido.insert(5, Spacer(1,3*mm))
     contenido.append(tabla_ejecutiva(resumen_compra, [ancho_util*.52, ancho_util*.21, ancho_util*.27]))
     contenido.append(Paragraph('Los sacos indicados corresponden a la cantidad exacta seleccionada por el técnico, incluso fracciones de saco. La presentación de cada producto es la registrada en SIFERT.', styles['EjecutivoNota']))
@@ -154,7 +154,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
                          str(r.get('2.º abonamiento (kg)','')), str(r.get('3.º abonamiento (kg)',''))])
     contenido.append(Spacer(1, 3*mm))
     contenido.append(tabla_ejecutiva(filas_uso, [ancho_util*.49, ancho_util*.17, ancho_util*.17, ancho_util*.17]))
-    contenido.append(Paragraph('La enmienda y el compost se aplican de manera independiente. Los micronutrientes requieren validación técnica.', styles['EjecutivoNota']))
+    contenido.append(Paragraph('Enmienda y compost: aplicación independiente. Cu, Zn y Mn: reposición referencial por cosecha (Rosas-Patiño et al., 2021, tabla 4), 100 % en el primer abonamiento como criterio operativo; validar antes de aplicar.', styles['EjecutivoNota']))
     if gramos:
         r=next((x for x in gramos if str(x.get('Fertilizante', x.get('Producto', ''))).upper() == 'TOTAL'), gramos[-1])
         contenido.append(Spacer(1, 4*mm))
@@ -162,7 +162,7 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         contenido.append(Paragraph('Cantidad total de fertilizantes por planta en cada aplicación:', styles['EjecutivoNota']))
         contenido.append(Spacer(1,3*mm))
         contenido.append(tarjetas_pdf([
-            ('1.er ABONAMIENTO · 50 %',str(r.get('1.º (g/planta)',''))+' g/planta'),
+            ('1.er ABONAMIENTO',str(r.get('1.º (g/planta)',''))+' g/planta'),
             ('2.º ABONAMIENTO · 32 %',str(r.get('2.º (g/planta)',''))+' g/planta'),
             ('3.er ABONAMIENTO · 18 %',str(r.get('3.º (g/planta)',''))+' g/planta')],ancho_util,24*mm))
     contenido.append(Spacer(1, 5*mm))
@@ -379,7 +379,7 @@ st.markdown('''<style>
 
 
 st.markdown('''<style>
-/* V14.0: identidad ejecutiva para todo el aplicativo. */
+/* V14.1: identidad ejecutiva para todo el aplicativo. */
 .sifert-diagnostic-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:11px!important}
 .sifert-diagnostic-card{border-top:5px solid #24734e!important;box-shadow:0 9px 25px #103d2a16!important;padding:18px 15px!important}
 .sifert-card-label{font-size:.85rem!important;color:#385d4a!important}
@@ -1477,7 +1477,7 @@ with secciones[1]:
                     with col:
                         st.markdown('**'+titulo+'**')
                         for producto,comp in minerales.items():
-                            if comp['tipo'] in tipos and st.checkbox(producto,value=False,key=f'check_fuente_v62_{producto}'):
+                            if comp['tipo'] in tipos and not (producto in micro_contenidos and micro_contenidos[producto][0] in ('Cu','Zn','Mn')) and st.checkbox(producto,value=False,key=f'check_fuente_v62_{producto}'):
                                 fuentes.append(producto)
                 # NPK del compost: se trae del módulo de materia orgánica, sin duplicar el compost como fertilizante seleccionable.
                 compost_kg_ha=float(st.session_state.get('compost_dosis_real',0.0))*plantas
@@ -1520,25 +1520,21 @@ with secciones[1]:
                 # y recalcula inmediatamente todo el balance sin botón de confirmación.
                 plan={}
                 presentaciones={}
-                # Referencia de reposición por cosecha, nunca una prescripción automática.
+                # Reposición automática referencial, únicamente en producción.
                 coef_micro = {'Cu':27.5, 'Zn':55.0, 'Mn':55.0}
                 reposicion_micro = {}
                 if etapa_balance == 'Producción' and rendimiento > 0:
                     for nombre,(elemento,pct) in micro_contenidos.items():
                         if elemento in coef_micro and pct > 0:
-                            reposicion_micro[nombre] = coef_micro[elemento]*float(rendimiento)/1000*area_real/(pct/100)/1000
-                    st.caption('Reposición referencial por cosecha (kg/parcela/año). Seleccione los sulfatos y confirme si desea usar esta equivalencia como cantidad de trabajo. No es una dosis recomendada; no considera suelo ni absorción.')
-                    micro_seleccionados = [x for x in fuentes if x in reposicion_micro]
-                    if st.button('Usar reposición referencial en sulfatos seleccionados', key='confirmar_reposicion_micro_v140', disabled=not micro_seleccionados):
-                        for x in micro_seleccionados:
-                            st.session_state['peso_v69_'+x] = 1.0
-                            st.session_state['sacos_v69_'+x] = round(reposicion_micro[x], 3)
+                            reposicion_micro[nombre] = round(coef_micro[elemento]*float(rendimiento)/1000*area_real/(pct/100)/1000, 3)
+                        elif elemento in coef_micro:
+                            st.warning(f'No se calcula {elemento}: concentración de etiqueta igual a cero.')
                 if fuentes:
-                    cab=st.columns([4,2,2,2,2])
-                    for col,titulo in zip(cab,['**Fertilizante**','**Presentación (kg/saco)**','**Sacos (editar)**','**Total (kg)**','**Reposición ref. (kg)**']):
+                    cab=st.columns([4,2,2,2])
+                    for col,titulo in zip(cab,['**Fertilizante**','**Presentación (kg/saco)**','**Sacos (editar)**','**Total (kg)**']):
                         col.markdown(titulo)
                     for indice,x in enumerate(fuentes):
-                        c_nombre,c_peso,c_sacos,c_total,c_ref=st.columns([4,2,2,2,2],vertical_alignment='center')
+                        c_nombre,c_peso,c_sacos,c_total=st.columns([4,2,2,2],vertical_alignment='center')
                         c_nombre.write(x)
                         c_peso.markdown('<div class="sifert-mobile-field-label">Presentación (kg/saco)</div>', unsafe_allow_html=True)
                         c_sacos.markdown('<div class="sifert-mobile-field-label">Sacos (editar)</div>', unsafe_allow_html=True)
@@ -1552,8 +1548,6 @@ with secciones[1]:
                             st.session_state[clave_sacos]=0.0
                         peso=c_peso.number_input('Presentación de '+x,min_value=0.1,step=1.0,format='%.2f',key=clave_peso,label_visibility='collapsed')
                         sacos=c_sacos.number_input('Sacos de '+x,min_value=0.0,step=0.001 if es_sulfato_micro else 0.5,format='%.3f' if es_sulfato_micro else '%.2f',key=clave_sacos,label_visibility='collapsed')
-                        c_ref.markdown('<div class="sifert-mobile-field-label">Reposición ref. (kg)</div>', unsafe_allow_html=True)
-                        c_ref.write(f'{reposicion_micro[x]:.3f} kg' if x in reposicion_micro else '—')
                         presentaciones[x]=peso
                         plan[x]=peso*sacos
                         c_total.write(f'{plan[x]:,.3f} kg' if es_sulfato_micro else f'{plan[x]:,.2f} kg')
@@ -1599,35 +1593,6 @@ with secciones[1]:
                 with st.expander('Ver tabla completa del balance NPK', expanded=False):
                     tabla_ajustada(pd.DataFrame(filas_balance_pantalla), hide_index=True, use_container_width=True)
                 st.caption('Diferencia = aporte aprovechable del fertilizante − necesidad restante tras descontar suelo y compost. Las eficiencias minerales se aplican una sola vez al aporte; los orgánicos emplean disponibilidad anual estimada.')
-                micro_aportes_g_ha = {'Cu': 0.0, 'Zn': 0.0, 'Mn': 0.0, 'B': 0.0}
-                for nombre_micro, (elemento, porcentaje) in micro_contenidos.items():
-                    if nombre_micro in fuentes:
-                        micro_aportes_g_ha[elemento] += (float(plan.get(nombre_micro, 0.0)) /
-                            area_real) * porcentaje / 100.0 * 1000.0
-                # Exportación por cosecha, no requerimiento ni diagnóstico de suficiencia.
-                filas_micro = []
-                for elemento, coeficiente in [('Cu',27.5), ('Zn',55.0), ('Mn',55.0)]:
-                    exportacion = coeficiente * float(rendimiento) / 1000 if etapa_balance == 'Producción' else None
-                    aporte = micro_aportes_g_ha[elemento]
-                    diferencia = aporte-exportacion if exportacion is not None else None
-                    estado = ('Sin referencia' if diferencia is None else ('Equilibrado referencial' if abs(diferencia)<=exportacion*0.05 else ('Exceso referencial' if diferencia>0 else 'Déficit referencial')))
-                    filas_micro.append({'Nutriente': elemento,
-                        'Exportación (g/ha)': round(exportacion,2) if exportacion is not None else '—',
-                        'Aporte (g/ha)': round(aporte,2),
-                        'Diferencia (g/ha)': round(aporte-exportacion,2) if exportacion is not None else '—', 'Estado': estado})
-                st.markdown('**Balance referencial de micronutrientes (g/ha/año)**')
-                tarjetas_micro=[]
-                for r in filas_micro:
-                    estado=r['Estado']
-                    clase={'Equilibrado referencial':'equilibrado','Déficit referencial':'deficit','Exceso referencial':'exceso'}.get(estado,'')
-                    diferencia=r['Diferencia (g/ha)']
-                    valor=f'{diferencia:+.2f}' if isinstance(diferencia,(int,float)) else f'{r["Aporte (g/ha)"]:.2f}'
-                    nombre={'Cu':'Cobre (Cu)','Zn':'Zinc (Zn)','Mn':'Manganeso (Mn)'}[r['Nutriente']]
-                    tarjetas_micro.append(f'<div class="sifert-balance-card {clase}"><div class="sifert-balance-nutriente">{nombre}</div><div class="sifert-balance-diferencia">{valor} <small>g/ha</small></div><div class="sifert-balance-estado">{estado}</div><div class="sifert-balance-pie">Exportación: {r["Exportación (g/ha)"]} · Aporte: {r["Aporte (g/ha)"]:.2f}</div></div>')
-                st.markdown('<div class="sifert-balance-grid">'+''.join(tarjetas_micro)+'</div>', unsafe_allow_html=True)
-                with st.expander('Ver tabla completa de micronutrientes', expanded=False):
-                    tabla_ajustada(pd.DataFrame(filas_micro),hide_index=True,use_container_width=True)
-                st.caption('Rosas-Patiño et al. (2021), tabla 4. Tolerancia operativa ±5 % respecto a la exportación por cosecha; no indica suficiencia, toxicidad ni dosis recomendada. En crecimiento solo se muestra el aporte elemental.')
                 # Mostrar el balance Ca/Mg debajo del balance de fertilizantes.
                 # Balance integrado Ca/Mg: leer los mismos controles de fertilizantes,
                 # nunca solicitar una segunda cantidad de kieserita.
@@ -1681,7 +1646,11 @@ with secciones[1]:
                     total=plan[x]
                     a,b,c=total*0.50,total*0.32,total*0.18
                     filas_detalle.append((x,total,a,b,c))
-                # No agregar automáticamente micronutrientes sin análisis ni diagnóstico.
+                for x,total in reposicion_micro.items():
+                    if total > 0:
+                        filas_detalle.append((x,total,total,0.0,0.0))
+                if reposicion_micro:
+                    st.caption('Cu, Zn y Mn: reposición referencial por cosecha (Rosas-Patiño et al., 2021, tabla 4), incorporada al primer abonamiento como criterio operativo. Confirmar necesidad y dosis antes de aplicar; no equivale a diagnóstico del suelo.')
                 st.markdown('**Fertilizantes requeridos y distribución en tres abonamientos**')
                 filas_compra=[]
                 def formato_compra(cantidad, presentacion, micronutriente=False):
@@ -1689,22 +1658,22 @@ with secciones[1]:
                         return '—'
                     # Los sulfatos en cantidades pequeñas se expresan en kg, no sacos ficticios.
                     if micronutriente or (presentacion <= 1.0):
-                        return f'{cantidad:g} kg'
+                        return f'{cantidad*1000:g} g' if micronutriente and cantidad < 1 else f'{cantidad:g} kg'
                     n_sacos = cantidad / max(presentacion, 0.001)
                     texto = f'{n_sacos:.2f}'.rstrip('0').rstrip('.')
                     return f'{texto} saco' + ('s' if abs(n_sacos - 1.0) > 1e-9 else '')
                 for x,total,a,b,c in filas_detalle:
                     peso=presentaciones.get(x,50.)
                     es_micro = x.startswith(('Sulfato de cobre', 'Sulfato de zinc', 'Sulfato de manganeso'))
-                    filas_compra.append({'Fertilizante':x,'Cantidad (kg)':round(total,2),
+                    filas_compra.append({'Fertilizante':x,'Cantidad (kg)':round(total,3),
                         'Sacos / kg':formato_compra(total,peso,es_micro),
-                        '1.º abonamiento (kg)':round(a,2),'2.º abonamiento (kg)':round(b,2),'3.º abonamiento (kg)':round(c,2)})
+                        '1.º abonamiento (kg)':round(a,3),'2.º abonamiento (kg)':round(b,3),'3.º abonamiento (kg)':round(c,3)})
                 total_fertilizantes = sum(r[1] for r in filas_detalle)
                 # Cuadro 1: solo fertilizantes y sus tres aplicaciones.
-                filas_compra.append({'Fertilizante':'TOTAL FERTILIZANTES','Cantidad (kg)':round(total_fertilizantes,2),
-                    'Sacos / kg':'—','1.º abonamiento (kg)':round(sum(r[2] for r in filas_detalle),2),
-                    '2.º abonamiento (kg)':round(sum(r[3] for r in filas_detalle),2),
-                    '3.º abonamiento (kg)':round(sum(r[4] for r in filas_detalle),2)})
+                filas_compra.append({'Fertilizante':'TOTAL FERTILIZANTES','Cantidad (kg)':round(total_fertilizantes,3),
+                    'Sacos / kg':'—','1.º abonamiento (kg)':round(sum(r[2] for r in filas_detalle),3),
+                    '2.º abonamiento (kg)':round(sum(r[3] for r in filas_detalle),3),
+                    '3.º abonamiento (kg)':round(sum(r[4] for r in filas_detalle),3)})
                 tabla_ajustada(pd.DataFrame(filas_compra),hide_index=True,use_container_width=True)
                 # Cuadro 2: enmienda y compost, sin reparto en los tres abonamientos.
                 kg_enmienda_parcela = (max(0.0,float(kg_ha_encalado_calculado))*area_real
@@ -1734,21 +1703,21 @@ with secciones[1]:
                 # Se mantiene estructura de compra para la ficha PDF y anexos existentes.
                 filas_compra_pdf = [r for r in filas_compra if r['Fertilizante'] != 'TOTAL FERTILIZANTES']
                 filas_compra_pdf.append({'Fertilizante':'SUBTOTAL FERTILIZANTES',
-                    'Cantidad (kg)':round(total_fertilizantes,2),'Sacos / kg':'—'})
+                    'Cantidad (kg)':round(total_fertilizantes,3),'Sacos / kg':'—'})
                 for r in filas_enmiendas:
                     filas_compra_pdf.append({'Fertilizante':r['Producto']+' (enmienda)' if r['Producto']!='Compost' else 'Compost (aplicación independiente)',
                         'Cantidad (kg)':r['Cantidad (kg/parcela)'],'Sacos / kg':r['Sacos / kg']})
                 filas_compra_pdf.append({'Fertilizante':'TOTAL GENERAL',
-                    'Cantidad (kg)':round(total_fertilizantes+kg_enmienda_parcela+kg_compost_parcela,2),
+                    'Cantidad (kg)':round(total_fertilizantes+kg_enmienda_parcela+kg_compost_parcela,3),
                     'Sacos / kg':'—'})
                 st.markdown('**Dosis en gramos por planta y abonamiento**')
                 filas_gramos=[{'Fertilizante':'TOTAL','1.º (g/planta)':round(sum(r[2] for r in filas_detalle)*1000/total_plantas,2),
                     '2.º (g/planta)':round(sum(r[3] for r in filas_detalle)*1000/total_plantas,2),
                     '3.º (g/planta)':round(sum(r[4] for r in filas_detalle)*1000/total_plantas,2)}]
-                st.markdown('<div class="sifert-dose-grid">'+''.join(f'<div class="sifert-dose-card"><div>{etiqueta}</div><strong>{filas_gramos[0][clave]:,.2f} g</strong><small>por planta</small></div>' for etiqueta,clave in [('PRIMER ABONAMIENTO · 50 %','1.º (g/planta)'),('SEGUNDO ABONAMIENTO · 32 %','2.º (g/planta)'),('TERCER ABONAMIENTO · 18 %','3.º (g/planta)')])+'</div>',unsafe_allow_html=True)
+                st.markdown('<div class="sifert-dose-grid">'+''.join(f'<div class="sifert-dose-card"><div>{etiqueta}</div><strong>{filas_gramos[0][clave]:,.2f} g</strong><small>por planta</small></div>' for etiqueta,clave in [('PRIMER ABONAMIENTO','1.º (g/planta)'),('SEGUNDO ABONAMIENTO · 32 %','2.º (g/planta)'),('TERCER ABONAMIENTO · 18 %','3.º (g/planta)')])+'</div>',unsafe_allow_html=True)
                 with st.expander('Ver dosis en tabla',expanded=False):
                     tabla_ajustada(pd.DataFrame(filas_gramos),hide_index=True,use_container_width=True)
-                st.caption('Distribución operativa 50 % / 32 % / 18 % para cada producto. Validar dosis, compatibilidad y necesidades específicas de micronutrientes antes de aplicar.')
+                st.caption('Distribución operativa 50 % / 32 % / 18 % para fertilizantes convencionales. Cu, Zn y Mn: 100 % en el primer abonamiento, sujeto a validación técnica.')
                 productor_pdf = str(fila_parcela['nombre']) if fila_parcela is not None else 'Sin participante seleccionado'
                 def valor_pdf_parcela(campo):
                     if fila_parcela is None:
@@ -1770,7 +1739,6 @@ with secciones[1]:
                     'enmienda_aplicada': 'Sí, declarado por el usuario' if enm_aplicada else 'No confirmada',
                     'compost_kg_ha': f'{compost_kg_ha:.2f}',
                     'balance_camg': filas_camg_integrado,
-                    'balance_micro': filas_micro,
                     'balance_origen_npk': [{
                         'Nutriente': k,
                         'Requerimiento': round(demanda[k], 2),
