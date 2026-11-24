@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V14.4 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V14.5 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -739,9 +739,11 @@ def cargar_calculos(analisis_id, participante_id):
         raise ValueError('La configuración guardada no tiene el formato esperado.')
     return {k:v for k,v in configuracion.items() if es_clave_calculo(k) and isinstance(v,(str,int,float,bool))}
 
-def guardar_calculos(analisis_id, participante_id):
+def guardar_calculos(analisis_id, participante_id, resumen=None):
     configuracion = {k:v for k,v in st.session_state.items()
                      if es_clave_calculo(k) and isinstance(v,(str,int,float,bool))}
+    if resumen is not None:
+        configuracion["_resumen_exportacion"] = resumen
     # Una fila por análisis: reescribir el mismo registro al volver a guardar.
     execute('''INSERT INTO configuraciones_fertilizacion
         (analisis_id, participante_id, configuracion, actualizado)
@@ -752,7 +754,7 @@ def guardar_calculos(analisis_id, participante_id):
         actualizado=excluded.actualizado''',
         (int(analisis_id), int(participante_id), json.dumps(configuracion,ensure_ascii=False), date.today().isoformat()))
     comprobacion = cargar_calculos(analisis_id, participante_id)
-    if comprobacion != configuracion:
+    if comprobacion != {k:v for k,v in configuracion.items() if es_clave_calculo(k)}:
         raise RuntimeError('No se pudo verificar el guardado de la configuración.')
     return len(configuracion)
 
@@ -1788,7 +1790,11 @@ with secciones[1]:
             if analisis_inicio_id is not None and pid_guardar is not None:
                 if st.button('💾 Guardar cálculos de fertilización', key='guardar_configuracion_fertilizacion_v122', type='primary'):
                     try:
-                        cantidad_guardada = guardar_calculos(analisis_inicio_id, pid_guardar)
+                        cantidad_guardada = guardar_calculos(analisis_inicio_id, pid_guardar, resumen={
+                            'fertilizantes': filas_compra_pdf[:-1], 'enmiendas': filas_enmiendas,
+                            'detalle': filas_detalle, 'etiquetas': etiquetas_abonos,
+                            'plantas': total_plantas, 'meta': ficha_datos['meta'], 'area': area_real
+                        } if 'ficha_datos' in locals() and 'filas_detalle' in locals() else None)
                         st.success(f'Cálculos guardados y verificados en la base de datos ({cantidad_guardada} parámetros).')
                     except Exception as exc:
                         st.error(f'No se guardaron los cálculos: {exc}')
@@ -1899,58 +1905,121 @@ with secciones[3]:
             tabla_ajustada(pd.DataFrame(comparacion),hide_index=True,use_container_width=True)
             st.caption('Las diferencias no demuestran por sí solas el efecto de una fertilización.')
 
+def excel_consolidado(part, anal, configs, aplicaciones=None, respaldo=False):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.page import PageMargins
+    wb=Workbook(); wb.remove(wb.active)
+    def hoja(nombre, grupos, filas):
+        ws=wb.create_sheet(nombre); campos=[c for _,cs in grupos for c in cs]; n=len(campos)
+        ws.merge_cells(start_row=1,start_column=1,end_row=1,end_column=n)
+        ws.cell(1,1,'SIFERT CACAO DIGITAL | '+nombre.upper()); ws.row_dimensions[1].height=28
+        pos=1
+        for grupo,cs in grupos:
+            if len(cs)>1: ws.merge_cells(start_row=2,start_column=pos,end_row=2,end_column=pos+len(cs)-1)
+            ws.cell(2,pos,grupo); pos+=len(cs)
+        ws.append(campos)
+        for fila in filas:
+            vals=[]
+            for v in fila:
+                if v is None or pd.isna(v): v=None
+                elif hasattr(v,'item'): v=v.item()
+                vals.append(v)
+            ws.append(vals)
+            for c in ws[ws.max_row]:
+                if c.data_type=='f': c.data_type='s'
+                if isinstance(c.value,float): c.number_format='0.000'
+        for r in (1,2,3):
+            for c in ws[r]:
+                c.fill=PatternFill('solid',fgColor={1:'174D38',2:'34765A',3:'E1EFE5'}[r]); c.font=Font(bold=True,color='FFFFFF' if r<3 else '174D38'); c.alignment=Alignment(horizontal='center',vertical='center',wrap_text=True)
+        ws.row_dimensions[2].height=24; ws.row_dimensions[3].height=36
+        for i,h in enumerate(campos,1):
+            ws.column_dimensions[get_column_letter(i)].width=min(48,max(13,len(h)+2,max((len(str(ws.cell(r,i).value or ''))+2 for r in range(4,ws.max_row+1)),default=0)))
+        ws.freeze_panes='D4'; ws.auto_filter.ref=f'A3:{get_column_letter(n)}{ws.max_row}'; ws.sheet_view.showGridLines=False
+        ws.page_setup.orientation='landscape'; ws.page_setup.paperSize=ws.PAPERSIZE_A3; ws.page_setup.fitToWidth=1; ws.page_setup.fitToHeight=0; ws.sheet_properties.pageSetUpPr.fitToPage=True; ws.print_title_rows='1:3'
+        return ws
+    if respaldo:
+        for nombre,df in [('participantes',part),('analisis',anal),('configuraciones',configs),('aplicaciones',aplicaciones)]:
+            if df is not None: hoja(nombre,[('Datos originales',list(df.columns))],df.itertuples(index=False,name=None))
+    else:
+        pc=['codigo','dni','nombre','caserio','distrito','provincia','parcela','area_ha','plantas_ha','edad_anios','etapa','meta_kg_ha','ingeniero','cip']
+        ph=['Código','DNI','Productor','Caserío','Distrito','Provincia','Parcela','Área (ha)','Plantas/ha','Edad (años)','Etapa','Meta (kg/ha)','Técnico','CIP']
+        hoja('Participantes',[('Identificación',ph[:7]),('Parcela',ph[7:12]),('Responsable',ph[12:])],part.reindex(columns=pc).itertuples(index=False,name=None))
+        mapa={r['id']:r for r in part.to_dict('records')}
+        amapa={r['id']:r for r in anal.to_dict('records')}
+        grupos=[('Identificación',['ID análisis','Código','Productor','Caserío','Distrito','Fecha','Laboratorio','Método P']),('Análisis mecánico',['Arena (%)','Arcilla (%)','Limo (%)','Textura']),('Análisis químico',['CE (dS/m)','pH','MO (%)','N total (%)','P (ppm)','K₂O (ppm)']),('Cationes cambiables (cmol(+)/kg)',['Ca','Mg','K','Na','Al','H']),('Fertilidad',['CICe (cmol(+)/kg)','Sat. Al (%)','DAP (g/cm³)','Origen DAP','Meta (kg/ha)','Observaciones'])]
+        ak=['arena','arcilla','limo','textura','ce','ph','mo','n','p','k2o','ca','mg','k_cmol','na','al','h','cice','sat_al','dap','dap_origen','meta_produccion','observaciones']
+        def ident(a):
+            p=mapa.get(a.get('participante_id'),{}); return [a.get('id'),p.get('codigo'),p.get('nombre'),p.get('caserio'),p.get('distrito'),a.get('fecha')]
+        hoja('Análisis de suelos',grupos,(ident(a)+[a.get('laboratorio'),a.get('metodo_fosforo')]+[a.get(k) for k in ak] for a in anal.to_dict('records')))
+        planes=[]; dosis=[]
+        for c in configs.to_dict('records'):
+            a=amapa.get(c['analisis_id'],{}); base=ident(a)
+            try: cfg=json.loads(c['configuracion']); res=cfg.get('_resumen_exportacion')
+            except (ValueError,TypeError): res=None
+            if not res:
+                planes.append(base+[None,None,None,None,None,'Guardar nuevamente el cálculo para exportar el plan completo']); continue
+            for r in res['fertilizantes']:
+                if r['Fertilizante'].startswith('SUBTOTAL'): continue
+                planes.append(base+[res['meta'],res['area'],r['Fertilizante'],r['Cantidad (kg)'],r['Sacos / kg'],'Plan guardado'])
+            for producto,total,*cant in res['detalle']:
+                for etapa,kg in zip(res['etiquetas'],cant): dosis.append(base+[producto,etapa,kg,kg*1000/max(res['plantas'],1)])
+            for r in res['enmiendas']: dosis.append(base+[r['Producto'],'Independiente',r['Cantidad (kg/parcela)'],r['Dosis (g/planta)']])
+        ids=['ID análisis','Código','Productor','Caserío','Distrito','Fecha']
+        hoja('Plan de abonamiento',[('Identificación',ids),('Plan guardado',['Meta (kg/ha)','Área (ha)','Producto','Cantidad (kg/parcela)','Sacos / kg','Estado'])],planes)
+        hoja('Distribución de dosis',[('Identificación',ids),('Aplicación',['Producto','Etapa','kg/parcela','g/planta'])],dosis)
+    b=BytesIO(); wb.save(b); return b.getvalue()
+
 with secciones[4]:
-    st.subheader('Exportar respaldos')
-    for nombre in ['participantes','analisis']:
-        df=execute(f'SELECT * FROM {nombre}',fetch=True)
-        st.download_button(f'Descargar {nombre} (CSV)',df.to_csv(index=False).encode('utf-8-sig'),
-                           file_name=f'sifert_{nombre}.csv',mime='text/csv',key='csv_'+nombre)
-    st.subheader('Importación de Excel (estructura V4 anterior)')
-    st.caption('Importe primero participantes, luego análisis. Se admiten las columnas de las plantillas anteriores.')
-    for tipo,campos in [('participantes',['codigo','nombre','caserio','area_ha','plantas_ha','edad_anios']),
-                        ('analisis',['codigo','fecha']+FIELD_KEYS+['textura','observaciones'])]:
+    st.subheader('Exportar información')
+    part=execute('SELECT * FROM participantes ORDER BY id',fetch=True)
+    anal=execute('SELECT * FROM analisis ORDER BY participante_id,fecha,id',fetch=True)
+    configs=execute('SELECT * FROM configuraciones_fertilizacion',fetch=True)
+    if st.button('Preparar archivos Excel',key='preparar_excel_v145'):
+        try:
+            st.session_state['excel_general_v145']=excel_consolidado(part,anal,configs)
+            st.session_state['excel_respaldo_v145']=excel_consolidado(part,anal,configs,execute('SELECT * FROM aplicaciones',fetch=True),True)
+        except Exception as e: st.error(f'No se pudo preparar Excel: {e}')
+    for key,label,archivo in [('excel_general_v145','Descargar consolidado general (Excel)','SIFERT_CACAO_CONSOLIDADO.xlsx'),('excel_respaldo_v145','Descargar respaldo de datos (Excel)','SIFERT_RESPALDO.xlsx')]:
+        if key in st.session_state: st.download_button(label,st.session_state[key],file_name=archivo,mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key=key+'_dl')
+    st.caption('Los planes anteriores requieren volver a guardar sus cálculos para exportar las dosis completas. Prepare nuevamente los archivos después de actualizar datos. El respaldo conserva las tablas originales; no es una restauración automática.')
+    st.subheader('Importar información (Excel)')
+    st.caption('Importe primero participantes, luego análisis. Revise la vista previa antes de confirmar. Los registros existentes no se sobrescriben.')
+    for tipo,campos in [('participantes',['codigo','nombre','caserio','area_ha','plantas_ha','edad_anios','dni','distrito','provincia','parcela','etapa','ingeniero','cip','meta_kg_ha']),('analisis',['codigo','fecha']+FIELD_KEYS+['dap','textura','observaciones','meta_produccion','laboratorio','metodo_fosforo','dap_origen'])]:
+        campos=list(dict.fromkeys(campos))
         b=BytesIO()
-        with pd.ExcelWriter(b,engine='openpyxl') as w:
-            pd.DataFrame(columns=campos).to_excel(w,index=False)
-        st.download_button('Descargar plantilla '+tipo,b.getvalue(),file_name='plantilla_'+tipo+'.xlsx',
-                           mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key='plantilla_'+tipo)
+        with pd.ExcelWriter(b,engine='openpyxl') as w: pd.DataFrame(columns=campos).to_excel(w,index=False)
+        st.download_button('Descargar plantilla '+tipo,b.getvalue(),file_name='plantilla_'+tipo+'.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key='plantilla_'+tipo)
         uploaded=st.file_uploader('Importar Excel '+tipo,type=['xlsx'],key='upload_'+tipo)
         if uploaded is not None:
             try:
-                tabla=pd.read_excel(uploaded,dtype={'codigo':str})
+                tabla=pd.read_excel(uploaded,dtype={'codigo':str,'dni':str,'cip':str})
                 faltantes=[c for c in campos[:2] if c not in tabla.columns]
-                if faltantes:
-                    st.error('Faltan columnas: '+', '.join(faltantes))
-                else:
-                    tabla_ajustada(tabla.head(10),hide_index=True)
-                    if st.button('Confirmar importación de '+tipo,key='confirmar_'+tipo):
-                        exitos=0;errores=[]
-                        for indice,fila in tabla.iterrows():
-                            try:
-                                if tipo=='participantes':
-                                    execute('INSERT INTO participantes(codigo,nombre,caserio,area_ha,plantas_ha,edad_anios,creado) VALUES (?,?,?,?,?,?,?)',
-                                            (str(fila['codigo']).strip(),str(fila['nombre']).strip(),
-                                             None if pd.isna(fila.get('caserio')) else str(fila.get('caserio')),
-                                             None if pd.isna(fila.get('area_ha')) else float(fila.get('area_ha')),
-                                             1100 if pd.isna(fila.get('plantas_ha')) else int(fila.get('plantas_ha')),
-                                             None if pd.isna(fila.get('edad_anios')) else float(fila.get('edad_anios')),
-                                             date.today().isoformat()))
-                                else:
-                                    match=execute('SELECT id FROM participantes WHERE codigo=?',(str(fila['codigo']).strip(),),True)
-                                    if match.empty: raise ValueError('Participante no encontrado')
-                                    fecha=pd.to_datetime(fila['fecha']).date().isoformat()
-                                    columnas=['participante_id','fecha']+FIELD_KEYS+['textura','observaciones']
-                                    valores=[int(match.iloc[0]['id']),fecha]+[
-                                        None if pd.isna(fila.get(k)) or str(fila.get(k)).strip()=='' else float(fila.get(k))
-                                        for k in FIELD_KEYS]
-                                    valores += [None if pd.isna(fila.get(k)) else str(fila.get(k)) for k in ['textura','observaciones']]
-                                    execute(f"INSERT INTO analisis({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})",valores)
-                                exitos+=1
-                            except Exception as e:
-                                errores.append(f'Fila {indice+2}: {e}')
-                        st.success(f'{exitos} registros importados.')
-                        if errores: st.error('\n'.join(errores[:10]))
-                        st.rerun()
-            except Exception as e:
-                st.error(f'No se pudo importar: {e}')
-    st.info('Para persistencia entre reinicios o actualizaciones de Streamlit Cloud configure DATABASE_URL (PostgreSQL). Los CSV son respaldos manuales.')
+                if faltantes: st.error('Faltan columnas: '+', '.join(faltantes)); continue
+                tabla_ajustada(tabla.head(10),hide_index=True)
+                if st.button('Confirmar importación de '+tipo,key='confirmar_'+tipo):
+                    exitos=0; errores=[]
+                    for indice,fila in tabla.iterrows():
+                        try:
+                            if pd.isna(fila['codigo']) or not str(fila['codigo']).strip(): raise ValueError('Código vacío')
+                            codigo=str(fila['codigo']).strip()
+                            match=execute('SELECT id FROM participantes WHERE codigo=?',(codigo,),True)
+                            if tipo=='participantes':
+                                if not match.empty: raise ValueError('Código ya registrado')
+                                if pd.isna(fila['nombre']): raise ValueError('Nombre vacío')
+                                columnas=campos+['creado']; valores=[None if pd.isna(fila.get(k)) else fila.get(k) for k in campos]+[date.today().isoformat()]; valores[0]=codigo
+                                if valores[campos.index('plantas_ha')] is None: valores[campos.index('plantas_ha')]=1100
+                            else:
+                                if match.empty: raise ValueError('Participante no encontrado')
+                                if pd.isna(fila['fecha']): raise ValueError('Fecha vacía')
+                                pid=int(match.iloc[0]['id']); fecha=pd.to_datetime(fila['fecha']).date().isoformat()
+                                if not execute('SELECT id FROM analisis WHERE participante_id=? AND fecha=?',(pid,fecha),True).empty: raise ValueError('Ya existe análisis en esa fecha')
+                                columnas=['participante_id','fecha']+campos[2:]; valores=[pid,fecha]+[None if pd.isna(fila.get(k)) else fila.get(k) for k in campos[2:]]
+                            valores=[v.item() if hasattr(v,'item') else v for v in valores]
+                            execute(f"INSERT INTO {tipo}({','.join(columnas)}) VALUES ({','.join('?' for _ in columnas)})",valores); exitos+=1
+                        except Exception as e: errores.append(f'Fila {indice+2}: {e}')
+                    st.success(f'{exitos} registros importados.')
+                    if errores: st.error('\n'.join(errores[:20]))
+                    st.session_state.pop('excel_general_v145',None); st.session_state.pop('excel_respaldo_v145',None)
+            except Exception as e: st.error(f'No se pudo importar: {e}')
