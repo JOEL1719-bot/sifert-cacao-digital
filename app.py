@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V13.7 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V13.8 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -267,6 +267,9 @@ def crear_ficha_pdf(productor, fecha_analisis, area_ha, plantas, balance, compra
         agregar_tabla('Balance integrado de calcio y magnesio (Ca/Mg)', pd.DataFrame(ficha['balance_camg']))
         contenido.append(Paragraph('Aportes químicos potenciales; no equivalen a disponibilidad inmediata ni a incremento confirmado de Ca/Mg intercambiable.', styles['Normal']))
 
+    if ficha.get('balance_micro'):
+        agregar_tabla('Exportación y aporte referencial de micronutrientes (g/ha/año)', pd.DataFrame(ficha['balance_micro']))
+        contenido.append(Paragraph('Rosas-Patiño et al. (2021), tabla 4. Diferencia referencial, no diagnóstico ni dosis recomendada. En crecimiento no se calcula exportación.', styles['EjecutivoNota']))
     contenido.append(Paragraph('Cáscaras de cacao: el reciclaje potencial de NPK se informa por separado; no se descuenta como disponibilidad anual sin validación.', styles['Normal']))
     contenido.append(Spacer(1, 3*mm))
     contenido.append(Paragraph('Nota del anexo: simulación técnica preliminar. Validar los resultados del análisis, la composición '
@@ -376,7 +379,7 @@ st.markdown('''<style>
 
 
 st.markdown('''<style>
-/* V13.7: identidad ejecutiva para todo el aplicativo. */
+/* V13.8: identidad ejecutiva para todo el aplicativo. */
 .sifert-diagnostic-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:11px!important}
 .sifert-diagnostic-card{border-top:5px solid #24734e!important;box-shadow:0 9px 25px #103d2a16!important;padding:18px 15px!important}
 .sifert-card-label{font-size:.85rem!important;color:#385d4a!important}
@@ -957,7 +960,9 @@ with secciones[0]:
     # Datos generales del análisis, antes de los resultados del laboratorio.
     st.markdown('### Datos generales del análisis de suelo')
     col_fecha, col_meta, col_lab = st.columns(3)
-    fecha_guardar = col_fecha.date_input('Fecha del análisis', value=date.today(), key='fecha_evaluacion')
+    if 'fecha_evaluacion' not in st.session_state:
+        st.session_state['fecha_evaluacion'] = date.today()
+    fecha_guardar = col_fecha.date_input('Fecha del análisis', key='fecha_evaluacion')
     if etapa.startswith('Crecimiento'):
         col_meta.text_input('Meta de cacao seco (kg/ha/año)', value='', disabled=True,
                             help='No aplica en crecimiento; el requerimiento se calcula por año de crecimiento.')
@@ -1626,6 +1631,18 @@ with secciones[1]:
                     if nombre_micro in fuentes:
                         micro_aportes_g_ha[elemento] += (float(plan.get(nombre_micro, 0.0)) /
                             area_real) * porcentaje / 100.0 * 1000.0
+                # Exportación por cosecha, no requerimiento ni diagnóstico de suficiencia.
+                filas_micro = []
+                for elemento, coeficiente in [('Cu',27.5), ('Zn',55.0), ('Mn',55.0)]:
+                    exportacion = coeficiente * float(rendimiento) / 1000 if etapa_balance == 'Producción' else None
+                    aporte = micro_aportes_g_ha[elemento]
+                    filas_micro.append({'Nutriente': elemento,
+                        'Exportación (g/ha)': round(exportacion,2) if exportacion is not None else '—',
+                        'Aporte (g/ha)': round(aporte,2),
+                        'Diferencia (g/ha)': round(aporte-exportacion,2) if exportacion is not None else '—'})
+                st.markdown('**Exportación y aporte referencial de micronutrientes (g/ha/año)**')
+                tabla_ajustada(pd.DataFrame(filas_micro),hide_index=True,use_container_width=True)
+                st.caption('Fuente: Rosas-Patiño et al. (2021), tabla 4. Exportación por cosecha; aporte elemental de productos seleccionados. Diferencia no indica déficit, exceso ni disponibilidad. En crecimiento no se estima exportación por cosecha.')
                 # Distribución operativa: 50 %, 32 %, 18 % por producto.
                 filas_detalle=[]
                 for x in usados:
@@ -1721,6 +1738,7 @@ with secciones[1]:
                     'enmienda_aplicada': 'Sí, declarado por el usuario' if enm_aplicada else 'No confirmada',
                     'compost_kg_ha': f'{compost_kg_ha:.2f}',
                     'balance_camg': filas_camg_integrado,
+                    'balance_micro': filas_micro,
                     'balance_origen_npk': [{
                         'Nutriente': k,
                         'Requerimiento': round(demanda[k], 2),
