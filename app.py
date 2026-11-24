@@ -1,4 +1,4 @@
-"""SIFERT CACAO DIGITAL V13.9 — interfaz única para agricultor y técnico.
+"""SIFERT CACAO DIGITAL V14.0 — interfaz única para agricultor y técnico.
 No emite prescripciones de fertilización sin calibración agronómica local.
 """
 import streamlit as st
@@ -379,7 +379,7 @@ st.markdown('''<style>
 
 
 st.markdown('''<style>
-/* V13.9: identidad ejecutiva para todo el aplicativo. */
+/* V14.0: identidad ejecutiva para todo el aplicativo. */
 .sifert-diagnostic-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:11px!important}
 .sifert-diagnostic-card{border-top:5px solid #24734e!important;box-shadow:0 9px 25px #103d2a16!important;padding:18px 15px!important}
 .sifert-card-label{font-size:.85rem!important;color:#385d4a!important}
@@ -1520,21 +1520,43 @@ with secciones[1]:
                 # y recalcula inmediatamente todo el balance sin botón de confirmación.
                 plan={}
                 presentaciones={}
+                # Referencia de reposición por cosecha, nunca una prescripción automática.
+                coef_micro = {'Cu':27.5, 'Zn':55.0, 'Mn':55.0}
+                reposicion_micro = {}
+                if etapa_balance == 'Producción' and rendimiento > 0:
+                    for nombre,(elemento,pct) in micro_contenidos.items():
+                        if elemento in coef_micro and pct > 0:
+                            reposicion_micro[nombre] = coef_micro[elemento]*float(rendimiento)/1000*area_real/(pct/100)/1000
+                    st.caption('Reposición referencial por cosecha (kg/parcela/año). Seleccione los sulfatos y confirme si desea usar esta equivalencia como cantidad de trabajo. No es una dosis recomendada; no considera suelo ni absorción.')
+                    micro_seleccionados = [x for x in fuentes if x in reposicion_micro]
+                    if st.button('Usar reposición referencial en sulfatos seleccionados', key='confirmar_reposicion_micro_v140', disabled=not micro_seleccionados):
+                        for x in micro_seleccionados:
+                            st.session_state['peso_v69_'+x] = 1.0
+                            st.session_state['sacos_v69_'+x] = round(reposicion_micro[x], 3)
                 if fuentes:
-                    cab=st.columns([4,2,2,2])
-                    for col,titulo in zip(cab,['**Fertilizante**','**Presentación (kg/saco)**','**Sacos (editar)**','**Total (kg)**']):
+                    cab=st.columns([4,2,2,2,2])
+                    for col,titulo in zip(cab,['**Fertilizante**','**Presentación (kg/saco)**','**Sacos (editar)**','**Total (kg)**','**Reposición ref. (kg)**']):
                         col.markdown(titulo)
                     for indice,x in enumerate(fuentes):
-                        c_nombre,c_peso,c_sacos,c_total=st.columns([4,2,2,2],vertical_alignment='center')
+                        c_nombre,c_peso,c_sacos,c_total,c_ref=st.columns([4,2,2,2,2],vertical_alignment='center')
                         c_nombre.write(x)
                         c_peso.markdown('<div class="sifert-mobile-field-label">Presentación (kg/saco)</div>', unsafe_allow_html=True)
                         c_sacos.markdown('<div class="sifert-mobile-field-label">Sacos (editar)</div>', unsafe_allow_html=True)
                         c_total.markdown('<div class="sifert-mobile-field-label">Total (kg)</div>', unsafe_allow_html=True)
-                        peso=c_peso.number_input('Presentación de '+x,min_value=0.1,value=50.0,step=1.0,format='%.2f',key='peso_v69_'+x,label_visibility='collapsed')
-                        sacos=c_sacos.number_input('Sacos de '+x,min_value=0.0,value=0.0,step=0.5,format='%.2f',key='sacos_v69_'+x,label_visibility='collapsed')
+                        es_sulfato_micro = x in micro_contenidos and micro_contenidos[x][0] in coef_micro
+                        clave_peso='peso_v69_'+x
+                        clave_sacos='sacos_v69_'+x
+                        if clave_peso not in st.session_state:
+                            st.session_state[clave_peso]=1.0 if es_sulfato_micro else 50.0
+                        if clave_sacos not in st.session_state:
+                            st.session_state[clave_sacos]=0.0
+                        peso=c_peso.number_input('Presentación de '+x,min_value=0.1,step=1.0,format='%.2f',key=clave_peso,label_visibility='collapsed')
+                        sacos=c_sacos.number_input('Sacos de '+x,min_value=0.0,step=0.001 if es_sulfato_micro else 0.5,format='%.3f' if es_sulfato_micro else '%.2f',key=clave_sacos,label_visibility='collapsed')
+                        c_ref.markdown('<div class="sifert-mobile-field-label">Reposición ref. (kg)</div>', unsafe_allow_html=True)
+                        c_ref.write(f'{reposicion_micro[x]:.3f} kg' if x in reposicion_micro else '—')
                         presentaciones[x]=peso
                         plan[x]=peso*sacos
-                        c_total.write(f'{plan[x]:,.2f} kg')
+                        c_total.write(f'{plan[x]:,.3f} kg' if es_sulfato_micro else f'{plan[x]:,.2f} kg')
                     st.markdown(f'**TOTAL DE FERTILIZANTES: {sum(plan.values()):,.2f} kg**')
                 else:
                     st.info('Seleccione al menos un fertilizante. El aporte del compost se mostrará en el balance aun sin productos seleccionados.')
